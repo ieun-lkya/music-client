@@ -48,45 +48,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+// 🚀 极其关键：图标必须引入！
+import { MagicStick, User, Lock, Monitor, Key } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-// 假设引入了 loginAPI 和 registerAPI
-import { loginAPI, registerAPI } from '../api/user' 
+import { loginAPI, registerAPI } from '../api/user'
 
 const router = useRouter()
+// 🚀 极其关键：被你误删的变量全找回来了！
+const activeRole = ref('user') 
 const isRegisterMode = ref(false)
 const loading = ref(false)
-const userForm = ref({ username: '', password: '' })
+
+const userForm = reactive({ username: '', password: '' })
+const adminForm = reactive({ username: '', password: '' })
 
 const handleUserAction = async () => {
-  if (!userForm.value.username || !userForm.value.password) return ElMessage.warning('账号和密码不能为空哦')
+  if (!userForm.username || !userForm.password) return ElMessage.warning('账号和密码不能为空哦')
   loading.value = true
   
   try {
     if (isRegisterMode.value) {
-      const regRes = await registerAPI(userForm.value)
-      // 注意：根据 request.js 拦截器，code===200 才会返回 data，否则抛错。
-      // 这里兼容一下旧逻辑或直接依赖拦截器抛错
-      if (regRes && regRes.code !== 200) throw new Error(regRes.msg || '注册失败')
+      const regRes = await registerAPI(userForm)
+      if (regRes && regRes.code !== undefined && regRes.code !== 200) throw new Error(regRes.msg || '注册失败')
       ElMessage.success('🎉 注册成功！正在为您自动驶入首页...')
     }
 
     // 🚀 登录逻辑
-    const loginRes = await loginAPI(userForm.value)
-    // 同样，如果 code 不是 200，interceptor 已经处理了报错，能到这里说明是 200
-    // 但为了保险起见，检查数据结构
+    const loginRes = await loginAPI(userForm)
     if (!loginRes) throw new Error('登录失败')
 
-    // 🚀 剥开后端的壳，拿到真正的 user 和 token
-    // 拦截器已经返回了 res.data，所以这里 loginRes 就是 data 部分
-    let realData = loginRes 
+    // 🚀 极其核心的解析剥壳：获取到后端的 {user: {}, token: ""}
+    let realData = loginRes.data ? loginRes.data : loginRes
 
     if (!realData || !realData.user || !realData.token) {
       throw new Error('解析用户数据失败，后端未返回 Token！')
     }
     
-    // 🚀 极其关键：把后端签发的 JWT Token 存进浏览器！
+    // 🚀 极其关键：存入大厂级别的 JWT 令牌
     localStorage.setItem('echo_token', realData.token)
     localStorage.setItem('echo_user', JSON.stringify(realData.user))
     
@@ -95,7 +95,6 @@ const handleUserAction = async () => {
     router.push('/')
     
   } catch (error) {
-    // 如果是拦截器抛出的错误，message 已经显示过，这里防止重复或做额外处理
     if (!error.message.includes('服务异常') && !error.message.includes('登录已失效')) {
        ElMessage.error(error.message || '操作失败，请检查账号密码')
     }
@@ -109,11 +108,10 @@ const handleAdminLogin = () => {
   loading.value = true
   
   setTimeout(() => {
-    // 假设管理员账号是 admin，密码是 123456 (你可以自己改)
     if (adminForm.username === 'admin' && adminForm.password === '123456') {
       ElMessage.success('管理员身份核验通过')
       localStorage.setItem('admin_token', 'super_admin_secret')
-      router.push('/admin') // 跳转到后台大屏
+      router.push('/admin') 
     } else {
       ElMessage.error('管理员账号或密码错误！')
     }
@@ -131,7 +129,6 @@ const handleAdminLogin = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 极其高级的动态渐变背景 */
   background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
   background-size: 400% 400%;
   animation: gradientBG 15s ease infinite;
