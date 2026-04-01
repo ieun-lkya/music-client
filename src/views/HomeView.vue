@@ -825,6 +825,33 @@ const switchMenu = async (menuName) => {
 .modern-list-item.is-playing .track-play { display: none; }
 .modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
 
+/* 🚀 播放按钮终极去油 + 绝对对称居中！ */
+.main-play-btn { 
+  background: #18181b !important; 
+  border: none !important; 
+  width: 46px !important; 
+  height: 46px !important; 
+  border-radius: 50% !important; 
+  display: flex !important; 
+  align-items: center !important; 
+  justify-content: center !important; 
+  color: #fff !important; 
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+  padding: 0 !important; /* 确保没有自带内边距干扰 */
+}
+.main-play-btn:hover { 
+  background: #000 !important; 
+  transform: scale(1.08) !important; 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+}
+.main-play-btn .el-icon { 
+  font-size: 22px !important; 
+  margin: 0 !important; /* 🔪 极其无情地干掉之前那个愚蠢的 margin-left: 2px */
+}
+.prev-next-btn { color: #71717a !important; transform: scale(1.3); transition: 0.2s; }
+.prev-next-btn:hover { color: #18181b !important; transform: scale(1.4); }
+
 /* 顺手把上方 AI 便当盒的厚重按钮也削薄！ */
 .bento-play-btn { width: 50px; height: 50px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.8); box-shadow: none; backdrop-filter: none;}
 .bento-play-btn .el-icon { font-size: 24px !important; }
@@ -885,10 +912,6 @@ const switchMenu = async (menuName) => {
 .t { font-weight: 700; font-size: 15px; color: #0f172a; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px;}
 .a { font-size: 13px; color: #64748b; font-weight: 500;}
 .play-btns { display: flex; align-items: center; gap: 25px; justify-content: center; flex: 1; }
-.main-play-btn { background: #3b82f6; border: none; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(59,130,246,0.3);}
-.main-play-btn:hover { background: #2563eb; transform: scale(1.08); box-shadow: 0 8px 20px rgba(59,130,246,0.4);}
-.prev-next-btn { color: #64748b; }
-.prev-next-btn:hover { color: #3b82f6; transform: scale(1.1);}
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
 .time-display { font-size: 13px; font-family: monospace; color: #64748b; font-weight: 600;}
 .vol-icon { cursor: pointer; color: #64748b; }
