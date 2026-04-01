@@ -151,25 +151,46 @@
         </section>
 
         <section v-else-if="currentMenu === 'radio'" class="hero-section fade-in">
-          <div class="radio-container">
-            <div class="radio-header">
+          <div class="discover-header">
+            <div>
               <h2>📡 Echo 私人智能 FM</h2>
-              <p class="theory-note">AI 正在根据此刻时空为您实时演算调频...</p>
+              <p class="theory-note">AI 正在根据您的听歌基因，实时演算专属调频。</p>
             </div>
-            <div class="fm-player-box" v-if="radioMusicList.length > 0">
-              <div class="fm-cover-wrapper" :class="{ 'is-playing': isPlaying }">
-                <el-image :src="currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
-                <div class="fm-center-hole"></div>
+            <el-button type="primary" round @click="initRadio(true)" :loading="isRadioLoading">
+              <el-icon><Refresh /></el-icon> 换一批调频
+            </el-button>
+          </div>
+
+          <div class="radio-layout" v-loading="isRadioLoading">
+            <el-empty v-if="radioMusicList.length === 0" description="正在接收宇宙电波..." style="width: 100%;" />
+            <template v-else>
+              <div class="radio-player-panel fade-in">
+                <div class="fm-cover-wrapper" :class="{ 'is-playing': isPlaying }">
+                  <el-image :src="currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
+                  <div class="fm-center-hole"></div>
+                </div>
+                <div class="fm-info">
+                  <h3>{{ currentSong?.title || radioMusicList[0]?.title }}</h3>
+                  <p>{{ currentSong?.artist || radioMusicList[0]?.artist }}</p>
+                </div>
               </div>
-              <div class="fm-info">
-                <h3>{{ currentSong?.title || radioMusicList[0]?.title }}</h3>
-                <p>{{ currentSong?.artist || radioMusicList[0]?.artist }}</p>
-                <el-button type="primary" round size="large" @click="playNextFm" class="fm-next-btn">
-                  <el-icon><RefreshRight /></el-icon> 换一首听听
-                </el-button>
+              <div class="radio-queue-panel fade-in">
+                <h3 class="queue-title">即将播放队列</h3>
+                <div class="music-list-view queue-list">
+                  <div class="list-item" v-for="item in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
+                    <span class="col-title">
+                      <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                      <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
+                      <span class="title-text">{{ item.title }}</span>
+                    </span>
+                    <span class="col-like-cell">
+                      <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
+                    </span>
+                    <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <el-empty v-else description="正在疯狂接收宇宙电波..." />
+            </template>
           </div>
         </section>
 
@@ -179,25 +200,25 @@
               <h2 style="color: #fff;">🌙 深度助眠频段</h2>
               <p style="color: #9ca3af;">褪去白日的喧嚣，AI 为您精选的白噪音与轻音乐。</p>
             </div>
-            <el-button type="primary" color="#4f46e5" round @click="initSleepMode">
+            <el-button type="primary" color="#4f46e5" round @click="initSleepMode(true)" :loading="isSleepLoading">
               <el-icon><Refresh /></el-icon> 重新生成梦境
             </el-button>
           </div>
           
-          <el-empty v-if="sleepMusicList.length === 0" description="正在为您生成梦境频段..." />
-          <div class="music-list-view fade-in dark-list" v-else>
-            <div class="list-item" v-for="item in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-              <span class="col-title">
-                <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
-                <span class="title-text">{{ item.title }}</span>
-              </span>
-              <span class="col-like-cell">
-                <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
-                  <component :is="isLiked(item.id) ? StarFilled : Star" />
-                </el-icon>
-              </span>
-              <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+          <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
+            <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
+            <div class="music-list-view fade-in dark-list" v-else>
+              <div class="list-item" v-for="item in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
+                <span class="col-title">
+                  <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                  <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
+                  <span class="title-text">{{ item.title }}</span>
+                </span>
+                <span class="col-like-cell">
+                  <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
+                </span>
+                <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+              </div>
             </div>
           </div>
         </section>
@@ -687,60 +708,59 @@ const loadDiscoverData = async () => {
 
 // ================== 🚀 新增的三大模块核心逻辑 ================== //
 
+const isRadioLoading = ref(false)
 const radioMusicList = ref([])
-const initRadio = async () => {
-  if (radioMusicList.value.length > 0) return 
+
+// 🚀 force=false 代表首次点击菜单（读缓存），force=true 代表点击了强制刷新按钮
+const initRadio = async (force = false) => {
+  if (!force && radioMusicList.value.length > 0) return 
   
+  isRadioLoading.value = true
   let dynamicPrompt = ''
 
-  // 🚀 核心大招：读取最近播放历史，提取基因！
   if (playHistory.value && playHistory.value.length > 0) {
-    // 提取最近听过的最多 5 首歌
     const recentSongs = playHistory.value.slice(0, 5)
-    // 把歌名和歌手拼接成字符串，喂给大模型
     const songGenes = recentSongs.map(s => `《${s.title}》(${s.artist})`).join('、')
-    
-    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐 DJ，深度剖析这些歌曲的流派、语种、情绪和 BPM 节奏，并以此为基准，推荐 10 首风格高度相似、极其好听的流行或电子音乐。`
-    
-    ElMessage.info('📡 正在解析您的近期听歌 DNA，演算私人频段...')
+    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐 DJ，深度剖析这些歌曲的流派、情绪，推荐 10 首风格高度相似的极其好听的流行或电子音乐。`
+    ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
   } else {
-    // 🚀 兜底降级策略：如果新用户没有历史，开启时空感知！
     const hour = new Date().getHours()
-    if (hour >= 6 && hour < 10) dynamicPrompt = '现在是清晨，推荐一些充满活力、节奏轻快、让人听了元气满满的流行音乐'
-    else if (hour >= 10 && hour < 18) dynamicPrompt = '现在是白天工作/学习时间，推荐一些节奏感强、能提升专注力的音乐'
-    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐一些放松身心、慵懒治愈的 R&B 或微醺爵士'
-    else dynamicPrompt = '现在是深夜，推荐一些极其孤独、充满氛围感、适合一个人静静听的音乐'
-    
-    ElMessage.info('📡 正在感知此刻时空，为您生成默认调频...')
+    if (hour >= 6 && hour < 10) dynamicPrompt = '现在是清晨，推荐充满活力、节奏轻快的流行音乐'
+    else if (hour >= 10 && hour < 18) dynamicPrompt = '现在是白天工作时间，推荐节奏感强、能提升专注力的音乐'
+    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐放松身心、治愈的 R&B 或微醺爵士'
+    else dynamicPrompt = '现在是深夜，推荐极其孤独、氛围感极强、适合一个人静静听的音乐'
+    ElMessage.info('📡 正在感知此刻时空，为您生成专属调频...')
   }
 
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
     radioMusicList.value = data || []
-    if (radioMusicList.value.length > 0) { selectSong(radioMusicList.value[0]) }
+    // 强制刷新后，自动播放新列表的第一首歌
+    if (radioMusicList.value.length > 0 && force) { selectSong(radioMusicList.value[0]) }
   } catch (error) { 
-    console.error('电台生成失败') 
-    ElMessage.error('电台生成失败，请检查宇宙信号 (网络)')
+    ElMessage.error('电台生成失败，请检查网络')
+  } finally {
+    isRadioLoading.value = false
   }
 }
 
-const playNextFm = () => {
-  if (radioMusicList.value.length === 0) return
-  const currentIndex = radioMusicList.value.findIndex(item => item.id === currentSong.value?.id)
-  const nextIndex = (currentIndex + 1) % radioMusicList.value.length
-  selectSong(radioMusicList.value[nextIndex])
-}
-
+const isSleepLoading = ref(false)
 const sleepMusicList = ref([])
-const initSleepMode = async () => {
-  if (sleepMusicList.value.length > 0) return
+
+const initSleepMode = async (force = false) => {
+  if (!force && sleepMusicList.value.length > 0) return
+  
+  isSleepLoading.value = true
   ElMessage.info('🌙 正在为您编织助眠梦境...')
   try {
     const data = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音')
     sleepMusicList.value = data || []
-  } catch (error) { console.error('助眠列表生成失败') }
+  } catch (error) { 
+    ElMessage.error('助眠列表生成失败') 
+  } finally {
+    isSleepLoading.value = false
+  }
 }
-
 // =============================================================== //
 
 const handleSearch = async () => {
@@ -973,19 +993,23 @@ const switchMenu = async (menuName) => {
 .list-like-icon:hover { color: #f87171; transform: scale(1.2); }
 .list-like-icon.is-liked { color: #ef4444; }
 
-/* 🚀 ================= 极其酷炫的新增模块专属 CSS ================= 🚀 */
-/* 📡 智能电台样式 */
-.radio-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding-top: 40px; }
-.radio-header { text-align: center; margin-bottom: 50px; }
-.fm-player-box { display: flex; flex-direction: column; align-items: center; gap: 30px; }
-.fm-cover-wrapper { width: 260px; height: 260px; border-radius: 50%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 8px solid #111; }
+/* 🚀 智能电台双栏极客样式 */
+.radio-layout { display: flex; gap: 30px; align-items: flex-start; }
+.radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); position: sticky; top: 20px; }
+.radio-queue-panel { flex: 1; min-width: 0; }
+.queue-title { font-size: 18px; font-weight: 800; color: #111827; margin: 0 0 15px 5px; letter-spacing: 1px; }
+
+.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #111; margin-bottom: 25px; }
 .fm-cover-wrapper.is-playing { animation-play-state: running; }
 .fm-cover { width: 100%; height: 100%; }
-.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: #f6f8fa; border-radius: 50%; border: 2px solid #333; }
-.fm-info { text-align: center; }
-.fm-info h3 { font-size: 24px; color: #111827; margin: 0 0 10px 0; }
-.fm-info p { color: #6b7280; font-size: 15px; margin: 0 0 20px 0; }
-.fm-next-btn { font-weight: bold; letter-spacing: 1px; padding: 0 30px; }
+.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f6f8fa; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+.fm-info { text-align: center; width: 100%; }
+.fm-info h3 { font-size: 20px; font-weight: bold; color: #111827; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-info p { color: #6b7280; font-size: 14px; margin: 0; }
+
+.queue-list { background: transparent; box-shadow: none; }
+.queue-list .list-item { background: #fff; border-radius: 12px; margin-bottom: 8px; border: 1px solid #f3f4f6; }
+.queue-list .list-item:hover { transform: translateX(5px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: transparent; }
 
 /* 🌙 助眠系列专属暗黑皮肤 */
 .sleep-mode-bg { background: linear-gradient(to bottom, #1e1e2f, #111827); border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5) inset; }
