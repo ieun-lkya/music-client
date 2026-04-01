@@ -199,7 +199,7 @@
               <el-button type="success" plain @click="handleEditAiTagging" :loading="isAiTagging">AI 打标</el-button>
             </div>
             <div style="font-size: 12px; color: #9ca3af; margin-top: 6px; line-height: 1.4;">
-              <span style="color:#6b7280; font-weight:bold;">规定词库：</span>流行, 摇滚, 民谣, 电子, 纯音乐, 伤感, 治愈, 励志, 轻松, 助眠, 运动, 驾车, 雨天, 深夜, 咖啡馆, 工作学习, 华语, 欧美, 日韩, 怀旧, 浪漫, 节奏控, 古风, 经典
+              <span style="color:#6b7280; font-weight:bold;">规定词库：</span>流行，摇滚，民谣，电子，纯音乐，伤感，治愈，励志，轻松，助眠，运动，驾车，雨天，深夜，咖啡馆，工作学习，华语，欧美，日韩，怀旧，爱情，浪漫，节奏控，古风，经典
             </div>
           </div>
         </el-form-item>
@@ -506,7 +506,7 @@ const handleLogout = () => {
 onMounted(() => { fetchDashboardData() })
 
 // ================= 🚀 核心：极其严苛的标签词库白名单 =================
-const VALID_TAGS = ["流行","摇滚","民谣","电子","纯音乐","伤感","治愈","励志","轻松","助眠","运动","驾车","雨天","深夜","咖啡馆","工作学习","华语","欧美","日韩","怀旧","浪漫","节奏控","古风","经典"]
+const VALID_TAGS = ["流行","摇滚","民谣","电子","纯音乐","伤感","治愈","励志","轻松","助眠","运动","驾车","雨天","深夜","咖啡馆","工作学习","华语","欧美","日韩","怀旧","爱情","浪漫","节奏控","古风","经典"]
 
 // 防弹级校验引擎：查空、查错词、自动修复中文逗号
 const validateAndFormatTags = (tagStr) => {
