@@ -690,12 +690,38 @@ const loadDiscoverData = async () => {
 const radioMusicList = ref([])
 const initRadio = async () => {
   if (radioMusicList.value.length > 0) return 
-  ElMessage.info('📡 正在呼叫 AI 建立专属私人电台...')
+  
+  let dynamicPrompt = ''
+
+  // 🚀 核心大招：读取最近播放历史，提取基因！
+  if (playHistory.value && playHistory.value.length > 0) {
+    // 提取最近听过的最多 5 首歌
+    const recentSongs = playHistory.value.slice(0, 5)
+    // 把歌名和歌手拼接成字符串，喂给大模型
+    const songGenes = recentSongs.map(s => `《${s.title}》(${s.artist})`).join('、')
+    
+    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐 DJ，深度剖析这些歌曲的流派、语种、情绪和 BPM 节奏，并以此为基准，推荐 10 首风格高度相似、极其好听的流行或电子音乐。`
+    
+    ElMessage.info('📡 正在解析您的近期听歌 DNA，演算私人频段...')
+  } else {
+    // 🚀 兜底降级策略：如果新用户没有历史，开启时空感知！
+    const hour = new Date().getHours()
+    if (hour >= 6 && hour < 10) dynamicPrompt = '现在是清晨，推荐一些充满活力、节奏轻快、让人听了元气满满的流行音乐'
+    else if (hour >= 10 && hour < 18) dynamicPrompt = '现在是白天工作/学习时间，推荐一些节奏感强、能提升专注力的音乐'
+    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐一些放松身心、慵懒治愈的 R&B 或微醺爵士'
+    else dynamicPrompt = '现在是深夜，推荐一些极其孤独、充满氛围感、适合一个人静静听的音乐'
+    
+    ElMessage.info('📡 正在感知此刻时空，为您生成默认调频...')
+  }
+
   try {
-    const data = await recommendMusicAPI('随机推荐一些极其好听的、充满氛围感的流行或电子音乐，适合一个人静静听')
+    const data = await recommendMusicAPI(dynamicPrompt)
     radioMusicList.value = data || []
     if (radioMusicList.value.length > 0) { selectSong(radioMusicList.value[0]) }
-  } catch (error) { console.error('电台生成失败') }
+  } catch (error) { 
+    console.error('电台生成失败') 
+    ElMessage.error('电台生成失败，请检查宇宙信号 (网络)')
+  }
 }
 
 const playNextFm = () => {
