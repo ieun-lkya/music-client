@@ -2,7 +2,8 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const request = axios.create({
-  baseURL: '/api', 
+  // 🚀 核心改造：抛弃代理，全军出击！直接用真枪实弹的后端真实地址！
+  baseURL: 'http://localhost:8080', 
   timeout: 60000
 })
 
