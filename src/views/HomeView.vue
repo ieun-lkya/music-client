@@ -45,7 +45,7 @@
             v-if="currentMenu === 'discover' && discoverMode === 'ai'"
             v-model="userInput"
             placeholder="描述此刻场景，让 AI 懂你，例如：失恋后看雨..."
-            class="scene-search"
+            class="scene-search ai-search-pulse"
             @keyup.enter="handleSearch"
           >
             <template #prefix><el-icon class="el-input__icon"><Search /></el-icon></template>
@@ -91,63 +91,74 @@
           </div>
         </transition>
 
-        <section v-if="currentMenu === 'discover'" class="hero-section fade-in">
-          <div class="discover-header">
-            <div>
-              <h2>发现音乐</h2>
-              <p class="theory-note">{{ discoverMode === 'ai' ? 'AI 已为您精准匹配。' : '探索全站曲库。' }}</p>
+        <section v-if="currentMenu === 'discover'" class="discover-section fade-in">
+          
+          <div class="hero-banner">
+            <div class="hero-glow shape-1"></div>
+            <div class="hero-glow shape-2"></div>
+            
+            <div class="hero-content">
+              <h1 class="hero-title">探索 <span>无界</span> 音乐</h1>
+              <p class="hero-subtitle">{{ discoverMode === 'ai' ? '通义千问 AI 正在为您感知时空，精准匹配专属频率。' : '潜入海量曲库，寻找属于你的灵魂共鸣。' }}</p>
             </div>
-            <div style="display:flex; align-items:center; gap: 15px;">
-
-              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode">
-                <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
-              </el-button>
-              <div class="view-toggle">
-                <div class="toggle-btn" :class="{ active: discoverMode === 'ai' }" @click="discoverMode = 'ai'"><el-icon :size="18"><MagicStick /></el-icon> AI 匹配</div>
-                <div class="toggle-btn" :class="{ active: discoverMode === 'library' }" @click="discoverMode = 'library'"><el-icon :size="18"><List /></el-icon> 全部曲库</div>
+            
+            <div class="hero-actions">
+              <div class="ios-segment-control">
+                <div class="segment-btn" :class="{ active: discoverMode === 'ai' }" @click="discoverMode = 'ai'"><el-icon><MagicStick /></el-icon> AI 灵感</div>
+                <div class="segment-btn" :class="{ active: discoverMode === 'library' }" @click="discoverMode = 'library'"><el-icon><List /></el-icon> 全部曲库</div>
               </div>
+              <el-button :type="isBatchMode ? 'danger' : 'primary'" class="batch-btn-hero" round @click="toggleBatchMode" v-if="activePlayList.length > 0">
+                <el-icon><Check /></el-icon> {{ isBatchMode ? '退出批量' : '整理曲库' }}
+              </el-button>
             </div>
           </div>
 
           <div v-if="discoverMode === 'ai'">
-            <el-empty v-if="aiMusicList.length === 0" description="在顶部输入场景，召唤 AI 为你匹配吧！" />
-            <el-row :gutter="25" class="music-grid" v-else>
-              <el-col :xs="12" :sm="8" :md="6" v-for="item in aiMusicList" :key="item.id">
-                <div class="song-card" @click="handleItemClick(item)">
-                  <div class="cover-box">
-                    <el-image :src="item.coverUrl" fit="cover" lazy class="main-cover" />
-                    <div class="play-btn-overlay"><el-icon :size="45" color="#fff"><VideoPlay /></el-icon></div>
-                    <div class="checkbox-overlay" v-if="isBatchMode" @click.stop><el-checkbox :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" size="large"/></div>
+            <el-empty v-if="aiMusicList.length === 0" description="在顶部输入场景，召唤 AI 为你匹配吧！" :image-size="200" />
+            <el-row :gutter="25" class="bento-grid" v-else>
+              <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="item in aiMusicList" :key="item.id">
+                <div class="bento-card" @click="handleItemClick(item)">
+                  <div class="bento-cover-box">
+                    <el-image :src="item.coverUrl" fit="cover" lazy class="bento-cover" />
+                    <div class="bento-play-overlay">
+                      <div class="bento-play-btn"><el-icon :size="28" color="#fff"><VideoPlay /></el-icon></div>
+                    </div>
+                    <div class="checkbox-overlay" v-if="isBatchMode" @click.stop>
+                      <el-checkbox :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" size="large"/>
+                    </div>
                   </div>
-                  <div class="song-detail"><div class="title">{{ item.title }}</div><div class="artist">{{ item.artist }}</div></div>
+                  <div class="bento-info">
+                    <div class="bento-title">{{ item.title }}</div>
+                    <div class="bento-artist">{{ item.artist }}</div>
+                  </div>
                 </div>
               </el-col>
             </el-row>
           </div>
 
-          <div class="music-list-view fade-in" v-else>
-            <div class="list-header">
-              <span class="col-title">歌曲标题</span>
-              <span class="col-like-cell"></span> 
-              <span class="col-artist">歌手</span>
-            </div>
-            <div class="list-item" v-for="item in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-              <span class="col-title">
-                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:15px;"/>
-                <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying && !isBatchMode"><VideoPause /></el-icon>
-                <el-icon class="play-icon" v-else-if="!isBatchMode"><VideoPlay /></el-icon>
-                <span class="title-text">{{ item.title }}</span>
+          <div class="modern-list-view fade-in" v-else>
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+              <span class="modern-title-group">
+                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
+                <span class="index-num" v-else-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                
+                <div class="modern-play-icon" v-if="!isBatchMode">
+                  <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                  <el-icon v-else><VideoPlay /></el-icon>
+                </div>
+                
+                <span class="modern-title">{{ item.title }}</span>
               </span>
               
               <span class="col-like-cell">
-                <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
+                <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
                   <component :is="isLiked(item.id) ? StarFilled : Star" />
                 </el-icon>
               </span>
               
-              <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
             </div>
-            </div>
+          </div>
         </section>
 
         <section v-else-if="currentMenu === 'radio'" class="hero-section fade-in">
@@ -176,17 +187,20 @@
               </div>
               <div class="radio-queue-panel fade-in">
                 <h3 class="queue-title">即将播放队列</h3>
-                <div class="music-list-view queue-list">
-                  <div class="list-item" v-for="item in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-                    <span class="col-title">
-                      <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                      <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
-                      <span class="title-text">{{ item.title }}</span>
+                <div class="modern-list-view queue-list">
+                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+                    <span class="modern-title-group">
+                      <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <div class="modern-play-icon">
+                        <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                        <el-icon v-else><VideoPlay /></el-icon>
+                      </div>
+                      <span class="modern-title">{{ item.title }}</span>
                     </span>
                     <span class="col-like-cell">
-                      <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
+                      <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
                     </span>
-                    <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+                    <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
                   </div>
                 </div>
               </div>
@@ -207,17 +221,20 @@
           
           <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
             <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
-            <div class="music-list-view fade-in dark-list" v-else>
-              <div class="list-item" v-for="item in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-                <span class="col-title">
-                  <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                  <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
-                  <span class="title-text">{{ item.title }}</span>
+            <div class="modern-list-view fade-in dark-list" v-else>
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+                <span class="modern-title-group">
+                  <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <div class="modern-play-icon">
+                    <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                    <el-icon v-else><VideoPlay /></el-icon>
+                  </div>
+                  <span class="modern-title">{{ item.title }}</span>
                 </span>
                 <span class="col-like-cell">
-                  <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
+                  <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
                 </span>
-                <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+                <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
               </div>
             </div>
           </div>
@@ -259,107 +276,47 @@
           </div>
         </section>
 
-        <section v-else-if="currentMenu === 'liked'" class="hero-section fade-in">
+        <section v-else-if="['liked', 'history'].includes(currentMenu) || currentMenu.startsWith('playlist_')" class="hero-section fade-in">
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
-              <h2>❤️ 我喜欢的音乐</h2>
-              <p class="theory-note">这里存放着您红心收藏的专属云端歌单。</p>
-            </div>
-            <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="likedMusicList.length > 0">
-              <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
-            </el-button>
-          </div>
-          
-          <el-empty v-if="likedMusicList.length === 0" description="暂无收藏" />
-          <el-row :gutter="25" class="music-grid" v-else>
-            <el-col :xs="12" :sm="8" :md="6" v-for="item in activePlayList" :key="item.id">
-              <div class="song-card" @click="handleItemClick(item)">
-                <div class="cover-box">
-                  <el-image :src="item.coverUrl" fit="cover" lazy class="main-cover" />
-                  <div class="play-btn-overlay"><el-icon :size="45" color="#fff"><VideoPlay /></el-icon></div>
-                  <div class="checkbox-overlay" v-if="isBatchMode" @click.stop>
-                    <el-checkbox :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" size="large"/>
-                  </div>
-                </div>
-                <div class="song-detail"><div class="title">{{ item.title }}</div><div class="artist">{{ item.artist }}</div></div>
-              </div>
-            </el-col>
-          </el-row>
-        </section>
-
-        <section v-else-if="currentMenu === 'history'" class="hero-section fade-in">
-          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
-            <div>
-              <h2>🕒 最近播放</h2>
-              <p class="theory-note">这里记录了你最近畅听的 50 首歌曲。</p>
-            </div>
-            <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="playHistory.length > 0">
-              <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
-            </el-button>
-          </div>
-
-          <el-empty v-if="playHistory.length === 0" description="暂无播放记录" />
-          <div class="music-list-view fade-in" v-else>
-            <div class="list-header">
-              <span class="col-title">歌曲标题</span>
-              <span class="col-like-cell"></span> 
-              <span class="col-artist">歌手</span>
-            </div>
-            <div class="list-item" v-for="item in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-              <span class="col-title">
-                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:15px;"/>
-                <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying && !isBatchMode"><VideoPause /></el-icon>
-                <el-icon class="play-icon" v-else-if="!isBatchMode"><VideoPlay /></el-icon>
-                <span class="title-text">{{ item.title }}</span>
-              </span>
+              <h2 v-if="currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
+              <h2 v-else-if="currentMenu === 'history'">🕒 最近播放</h2>
+              <h2 v-else>💿 {{ currentActivePlaylist?.name }}</h2>
               
-              <span class="col-like-cell">
-                <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
-                  <component :is="isLiked(item.id) ? StarFilled : Star" />
-                </el-icon>
-              </span>
-              
-              <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
-            </div>
-          </div>
-        </section>
-
-        <section v-else-if="currentMenu.startsWith('playlist_')" class="hero-section fade-in">
-          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <div>
-              <h2>💿 {{ currentActivePlaylist?.name }}</h2>
-              <p class="theory-note">共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
+              <p class="theory-note" v-if="currentMenu === 'liked'">专属红心云端歌单。</p>
+              <p class="theory-note" v-else-if="currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
+              <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
-              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="currentActivePlaylist?.songs?.length > 0">
+              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="activePlayList.length > 0">
                 <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
               </el-button>
-              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)">删除该歌单</el-button>
+              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="currentMenu.startsWith('playlist_')">删除该歌单</el-button>
             </div>
           </div>
           
-          <el-empty v-if="!currentActivePlaylist?.songs || currentActivePlaylist?.songs?.length === 0" description="歌单空空如也，快去发现音乐批量添加吧！" />
-          <div class="music-list-view fade-in" v-else style="margin-top: 20px;">
-            <div class="list-header">
-              <span class="col-title">歌曲标题</span>
-              <span class="col-like-cell"></span> 
-              <span class="col-artist">歌手</span>
-            </div>
-            <div class="list-item" v-for="item in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
-              <span class="col-title">
-                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:15px;"/>
-                <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying && !isBatchMode"><VideoPause /></el-icon>
-                <el-icon class="play-icon" v-else-if="!isBatchMode"><VideoPlay /></el-icon>
-                <span class="title-text">{{ item.title }}</span>
+          <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
+          
+          <div class="modern-list-view fade-in" v-else>
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+              <span class="modern-title-group">
+                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
+                <span class="index-num" v-else-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                
+                <div class="modern-play-icon" v-if="!isBatchMode">
+                  <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                  <el-icon v-else><VideoPlay /></el-icon>
+                </div>
+                
+                <span class="modern-title">{{ item.title }}</span>
               </span>
               
               <span class="col-like-cell">
-                <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
+                <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
                   <component :is="isLiked(item.id) ? StarFilled : Star" />
                 </el-icon>
               </span>
-              
-              <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
             </div>
           </div>
         </section>
@@ -423,11 +380,9 @@
 import axios from 'axios'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-// 🚀 极其关键的保命符：所有的新老图标都在这里被完美 Import，绝不会再死机！
 import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 🚀 物理分页的 getMusicPageAPI 已经被彻底拔除，换成了霸气的全局 getMusicListAPI
 import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
@@ -497,10 +452,6 @@ const handleItemClick = (item) => {
   else selectSong(item) 
 }
 
-const getSelectedSongObjects = () => {
-  return activePlayList.value.filter(s => selectedMusicIds.value.includes(s.id))
-}
-
 const openPlaylistDialog = () => {
   if (!currentUser.value) return ElMessage.warning('请先登录才能使用云端歌单哦！')
   if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲哦！')
@@ -508,37 +459,23 @@ const openPlaylistDialog = () => {
 }
 
 const batchLikeSongs = async () => {
-  if (!currentUser.value) {
-    ElMessage.warning('请先登录才能收藏歌曲哦！')
-    return goToLogin()
-  }
+  if (!currentUser.value) { return goToLogin() }
   if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲！')
 
   let successCount = 0
   for (let id of selectedMusicIds.value) {
     if (!isLiked(id)) {
-      try {
-        await likeMusicAPI(currentUser.value.id, id)
-        successCount++
-      } catch (error) { console.error('收藏失败', id) }
+      try { await likeMusicAPI(currentUser.value.id, id); successCount++ } catch (error) {}
     }
   }
-
-  if (successCount > 0) {
-    ElMessage.success(`❤️ 成功批量收藏 ${successCount} 首新歌曲！`)
-    await fetchMyLikes() 
-  } else {
-    ElMessage.info('选中的歌曲都已经躺在你的收藏列表里啦~')
-  }
+  if (successCount > 0) { ElMessage.success(`❤️ 成功批量收藏 ${successCount} 首歌！`); await fetchMyLikes() } 
+  else { ElMessage.info('歌曲都在收藏列表里啦~') }
   toggleBatchMode() 
 }
 
 const fetchMyPlaylists = async () => {
   if (!currentUser.value) return
-  try {
-    const res = await getUserPlaylistsAPI(currentUser.value.id)
-    customPlaylists.value = res || []
-  } catch (error) { console.error('获取云端歌单失败', error) }
+  try { customPlaylists.value = await getUserPlaylistsAPI(currentUser.value.id) || [] } catch (error) {}
 }
 
 const createNewPlaylist = async () => {
@@ -546,16 +483,12 @@ const createNewPlaylist = async () => {
   try {
     await createPlaylistAPI(currentUser.value.id, newPlaylistName.value.trim())
     await fetchMyPlaylists() 
-    
     const newPl = customPlaylists.value.find(p => p.name === newPlaylistName.value.trim())
     if (newPl && selectedMusicIds.value.length > 0) {
       for(let sid of selectedMusicIds.value) { await addMusicToPlaylistAPI(newPl.id, sid) }
       ElMessage.success('🎉 歌单创建并添加成功！')
-    } else {
-      ElMessage.success('🎉 歌单创建成功！')
-    }
+    } else { ElMessage.success('🎉 歌单创建成功！') }
   } catch (error) { ElMessage.error('创建云端歌单失败') }
-  
   newPlaylistName.value = ''; playlistDialogVisible.value = false; toggleBatchMode() 
 }
 
@@ -565,20 +498,13 @@ const addToExistingPlaylist = async (pl) => {
     try { await addMusicToPlaylistAPI(pl.id, sid); successCount++ } catch(e) {}
   }
   if (successCount > 0) ElMessage.success(`✅ 成功将 ${successCount} 首歌加入【${pl.name}】！`)
-  else ElMessage.warning('加入失败，可能歌曲已存在于歌单中！')
-  
   playlistDialogVisible.value = false; toggleBatchMode()
   if (currentMenu.value === `playlist_${pl.id}`) loadPlaylistSongs(pl.id)
 }
 
 const deletePlaylist = (pId) => {
   ElMessageBox.confirm('确定要删除这个云端歌单吗？', '删除确认', { type: 'warning' }).then(async () => {
-    try {
-      await deletePlaylistAPI(pId)
-      await fetchMyPlaylists()
-      currentMenu.value = 'discover'
-      ElMessage.success('歌单已从云端删除')
-    } catch (error) { ElMessage.error('删除失败') }
+    try { await deletePlaylistAPI(pId); await fetchMyPlaylists(); currentMenu.value = 'discover'; ElMessage.success('歌单已删除') } catch (error) {}
   }).catch(() => {})
 }
 
@@ -587,7 +513,7 @@ const loadPlaylistSongs = async (plId) => {
     const res = await getPlaylistMusicAPI(plId)
     const pl = customPlaylists.value.find(p => p.id == plId)
     if (pl) pl.songs = res || []
-  } catch (error) { console.error('获取歌单歌曲失败') }
+  } catch (error) {}
 }
 
 const currentSong = ref(null)
@@ -603,20 +529,13 @@ const isDragging = ref(false)
 const isLiked = (musicId) => likedMusicList.value.some(item => item.id === musicId)
 
 const toggleLike = async (song) => {
-  if (!currentUser.value) {
-    ElMessage.warning('请先登录才能收藏哦！')
-    return goToLogin()
-  }
+  if (!currentUser.value) return goToLogin()
   if (!song) return
-  const mId = song.id; const uId = currentUser.value.id
   try {
-    if (isLiked(mId)) {
-      await unlikeMusicAPI(uId, mId); ElMessage.success('已取消收藏')
-    } else {
-      await likeMusicAPI(uId, mId); ElMessage.success('❤️ 收藏成功！')
-    }
+    if (isLiked(song.id)) { await unlikeMusicAPI(currentUser.value.id, song.id); ElMessage.success('已取消收藏') } 
+    else { await likeMusicAPI(currentUser.value.id, song.id); ElMessage.success('❤️ 收藏成功！') }
     await fetchMyLikes() 
-  } catch (error) { ElMessage.error('操作失败') }
+  } catch (error) {}
 }
 
 const showLyricPanel = ref(false)   
@@ -626,21 +545,15 @@ const isLoadingLyric = ref(false)
 const lyricBoxRef = ref(null)       
 
 watch(showLyricPanel, async (isOpen) => {
-  if (isOpen) {
-    await nextTick()
-    setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45 }) }, 50)
-  }
+  if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45 }) }, 50) }
 })
 
 const parseLrc = (lrcStr) => {
-  const lines = lrcStr.split('\n')
-  const result = []
-  const timeReg = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/
+  const lines = lrcStr.split('\n'); const result = []; const timeReg = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/
   for (let line of lines) {
     const match = line.match(timeReg)
     if (match) {
-      const min = parseInt(match[1]); const sec = parseInt(match[2]); const ms = match[3].length === 2 ? parseInt(match[3]) * 10 : parseInt(match[3])
-      const time = min * 60 + sec + ms / 1000
+      const time = parseInt(match[1]) * 60 + parseInt(match[2]) + (match[3].length === 2 ? parseInt(match[3]) * 10 : parseInt(match[3])) / 1000
       const text = line.replace(timeReg, '').trim()
       if (text) result.push({ time, text })
     }
@@ -653,15 +566,10 @@ let scrollTimeout = null
 const handleLyricScroll = () => {
   isUserScrolling.value = true
   if (scrollTimeout) clearTimeout(scrollTimeout)
-  scrollTimeout = setTimeout(() => {
-    isUserScrolling.value = false
-    if (currentLyricIndex.value !== -1 && lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45, behavior: 'smooth' })
-  }, 3000) 
+  scrollTimeout = setTimeout(() => { isUserScrolling.value = false; if (currentLyricIndex.value !== -1 && lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45, behavior: 'smooth' }) }, 3000) 
 }
 
-const seekToLyric = (time) => {
-  if (audioRef.value) { audioRef.value.currentTime = time; audioRef.value.play(); isPlaying.value = true; isUserScrolling.value = false; if (scrollTimeout) clearTimeout(scrollTimeout) }
-}
+const seekToLyric = (time) => { if (audioRef.value) { audioRef.value.currentTime = time; audioRef.value.play(); isPlaying.value = true; isUserScrolling.value = false; if (scrollTimeout) clearTimeout(scrollTimeout) } }
 
 const loadLyrics = async (song) => {
   parsedLyrics.value = []; currentLyricIndex.value = 0; isLoadingLyric.value = true
@@ -670,7 +578,7 @@ const loadLyrics = async (song) => {
     if (!song.lyricUrl) { isLoadingLyric.value = false; return }
     const response = await axios.get(song.lyricUrl)
     parsedLyrics.value = parseLrc(response.data)
-  } catch (error) { console.warn("拉取歌词失败:", error) } finally { isLoadingLyric.value = false }
+  } catch (error) {} finally { isLoadingLyric.value = false }
 }
 
 watch(currentSong, (newSong) => {
@@ -686,48 +594,35 @@ watch(currentSong, (newSong) => {
 
 const fetchMyLikes = async () => {
   if (!currentUser.value) return
-  try {
-    const res = await getLikedMusicAPI(currentUser.value.id)
-    likedMusicList.value = res || []
-  } catch (error) { console.error('获取收藏失败', error) }
+  try { likedMusicList.value = await getLikedMusicAPI(currentUser.value.id) || [] } catch (error) {}
 }
 
 const handleLogout = () => {
   currentUser.value = null; likedMusicList.value = []; customPlaylists.value = [];
-  localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token')
-  router.push('/login')
+  localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token'); router.push('/login')
 }
 
-// 🚀 极其霸气的全量拉取，物理分页已被你亲手斩草除根！
 const loadDiscoverData = async () => {
-  try {
-    const res = await getMusicListAPI()
-    allMusicList.value = res.data ? res.data : (res || []) 
-  } catch (error) { console.error("获取全量音乐列表失败", error) }
+  try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {}
 }
-
-// ================== 🚀 新增的三大模块核心逻辑 ================== //
 
 const isRadioLoading = ref(false)
 const radioMusicList = ref([])
 
-// 🚀 force=false 代表首次点击菜单（读缓存），force=true 代表点击了强制刷新按钮
 const initRadio = async (force = false) => {
   if (!force && radioMusicList.value.length > 0) return 
-  
   isRadioLoading.value = true
   let dynamicPrompt = ''
 
   if (playHistory.value && playHistory.value.length > 0) {
-    const recentSongs = playHistory.value.slice(0, 5)
-    const songGenes = recentSongs.map(s => `《${s.title}》(${s.artist})`).join('、')
-    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐 DJ，深度剖析这些歌曲的流派、情绪，推荐 10 首风格高度相似的极其好听的流行或电子音乐。`
+    const songGenes = playHistory.value.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
+    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐DJ，深度剖析这些歌曲的流派、情绪，推荐 10 首风格高度相似的极其好听的流行或电子音乐。`
     ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
   } else {
     const hour = new Date().getHours()
     if (hour >= 6 && hour < 10) dynamicPrompt = '现在是清晨，推荐充满活力、节奏轻快的流行音乐'
     else if (hour >= 10 && hour < 18) dynamicPrompt = '现在是白天工作时间，推荐节奏感强、能提升专注力的音乐'
-    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐放松身心、治愈的 R&B 或微醺爵士'
+    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐放松身心、治愈的R&B或微醺爵士'
     else dynamicPrompt = '现在是深夜，推荐极其孤独、氛围感极强、适合一个人静静听的音乐'
     ElMessage.info('📡 正在感知此刻时空，为您生成专属调频...')
   }
@@ -735,13 +630,8 @@ const initRadio = async (force = false) => {
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
     radioMusicList.value = data || []
-    // 强制刷新后，自动播放新列表的第一首歌
     if (radioMusicList.value.length > 0 && force) { selectSong(radioMusicList.value[0]) }
-  } catch (error) { 
-    ElMessage.error('电台生成失败，请检查网络')
-  } finally {
-    isRadioLoading.value = false
-  }
+  } catch (error) { ElMessage.error('电台生成失败，请检查网络') } finally { isRadioLoading.value = false }
 }
 
 const isSleepLoading = ref(false)
@@ -749,29 +639,19 @@ const sleepMusicList = ref([])
 
 const initSleepMode = async (force = false) => {
   if (!force && sleepMusicList.value.length > 0) return
-  
   isSleepLoading.value = true
   ElMessage.info('🌙 正在为您编织助眠梦境...')
   try {
-    const data = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音')
-    sleepMusicList.value = data || []
-  } catch (error) { 
-    ElMessage.error('助眠列表生成失败') 
-  } finally {
-    isSleepLoading.value = false
-  }
+    sleepMusicList.value = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音') || []
+  } catch (error) {} finally { isSleepLoading.value = false }
 }
-// =============================================================== //
 
 const handleSearch = async () => {
   if (!userInput.value.trim()) return ElMessage.warning('请输入场景描述哦')
   if (currentMenu.value !== 'discover') currentMenu.value = 'discover'
   discoverMode.value = 'ai'; isSearching.value = true
-  try {
-    const data = await recommendMusicAPI(userInput.value)
-    aiMusicList.value = data || []
-    ElMessage.success('匹配成功！')
-  } catch (error) { console.error(error) } finally { isSearching.value = false }
+  try { aiMusicList.value = await recommendMusicAPI(userInput.value) || []; ElMessage.success('匹配成功！') } 
+  catch (error) {} finally { isSearching.value = false }
 }
 
 const selectSong = (song) => {
@@ -789,15 +669,13 @@ const togglePlay = () => {
 const playPrev = () => {
   const index = activePlayList.value.findIndex(item => item.id === currentSong.value?.id)
   if (index === -1) return
-  const prevIndex = (index - 1 + activePlayList.value.length) % activePlayList.value.length
-  selectSong(activePlayList.value[prevIndex])
+  selectSong(activePlayList.value[(index - 1 + activePlayList.value.length) % activePlayList.value.length])
 }
 
 const playNext = () => {
   const index = activePlayList.value.findIndex(item => item.id === currentSong.value?.id)
   if (index === -1) return
-  const nextIndex = (index + 1) % activePlayList.value.length
-  selectSong(activePlayList.value[nextIndex])
+  selectSong(activePlayList.value[(index + 1) % activePlayList.value.length])
 }
 
 const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
@@ -831,29 +709,72 @@ onMounted(async () => {
   if (savedHistory) playHistory.value = JSON.parse(savedHistory)
 })
 
-// 🚀 极其关键的 switchMenu 改造：完美响应电台和助眠！
 const switchMenu = async (menuName) => {
-  currentMenu.value = menuName
-  isBatchMode.value = false 
-  localSearchKeyword.value = '' 
-  
-  if (menuName === 'discover') {
-    await loadDiscoverData()
-  } else if (menuName === 'liked') {
-    await fetchMyLikes()
-  } else if (menuName.startsWith('playlist_')) {
-    const pId = menuName.split('_')[1]
-    await loadPlaylistSongs(pId)
-  } else if (menuName === 'radio') {
-    initRadio() // 🚀 瞬间召唤私人电台大模型
-  } else if (menuName === 'sleep') {
-    initSleepMode() // 🚀 瞬间召唤助眠大模型
-  }
+  currentMenu.value = menuName; isBatchMode.value = false ; localSearchKeyword.value = '' 
+  if (menuName === 'discover') await loadDiscoverData()
+  else if (menuName === 'liked') await fetchMyLikes()
+  else if (menuName.startsWith('playlist_')) await loadPlaylistSongs(menuName.split('_')[1])
+  else if (menuName === 'radio') initRadio() 
+  else if (menuName === 'sleep') initSleepMode() 
 }
 </script>
 
 <style scoped>
-.checkbox-overlay { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); border-radius: 4px; padding: 2px 5px; }
+/* 🌈 ================= 顶级大厂 Glassmorphism 核心 UI 升维 ================= 🌈 */
+
+.discover-section { display: flex; flex-direction: column; gap: 20px; }
+
+/* 1. 极其奢华的 Hero Banner */
+.hero-banner { position: relative; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 28px; padding: 45px 50px; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; box-shadow: 0 20px 40px rgba(59, 130, 246, 0.06); margin-bottom: 10px; border: 1px solid #fff; }
+.hero-content { position: relative; z-index: 2; }
+.hero-title { font-size: 42px; font-weight: 900; color: #0f172a; margin: 0 0 10px 0; letter-spacing: -1px; }
+.hero-title span { color: transparent; background-clip: text; -webkit-background-clip: text; background-image: linear-gradient(to right, #3b82f6, #8b5cf6); }
+.hero-subtitle { font-size: 15px; color: #475569; margin: 0; font-weight: 600; letter-spacing: 0.5px;}
+.hero-actions { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 20px; }
+.hero-glow { position: absolute; border-radius: 50%; filter: blur(60px); z-index: 1; opacity: 0.6; }
+.shape-1 { width: 300px; height: 300px; background: #bae6fd; top: -100px; right: -50px; }
+.shape-2 { width: 250px; height: 250px; background: #ddd6fe; bottom: -80px; right: 200px; }
+
+/* 2. iOS 灵动分段控件 */
+.ios-segment-control { display: flex; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); padding: 6px; border-radius: 20px; gap: 5px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); border: 1px solid rgba(255,255,255,0.8); }
+.segment-btn { padding: 10px 24px; border-radius: 14px; font-weight: 600; font-size: 14px; color: #64748b; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 6px; }
+.segment-btn:hover { color: #0f172a; }
+.segment-btn.active { background: #fff; color: #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transform: scale(1.02); }
+.batch-btn-hero { font-weight: bold; padding: 0 24px; height: 40px; box-shadow: 0 8px 20px rgba(59,130,246,0.3); transition: 0.3s; }
+.batch-btn-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(59,130,246,0.4); }
+
+/* 3. Bento 便当盒网格 (AI 卡片) */
+.bento-grid { padding: 10px 0; }
+.bento-card { background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(255,255,255,0.8); cursor: pointer; position: relative; margin-bottom: 20px;}
+.bento-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(59,130,246,0.12); border-color: #e0e7ff; }
+.bento-cover-box { width: 100%; aspect-ratio: 1; border-radius: 16px; overflow: hidden; position: relative; }
+.bento-cover { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
+.bento-card:hover .bento-cover { transform: scale(1.08); }
+.bento-play-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.25); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; opacity: 0; transition: all 0.3s ease; }
+.bento-card:hover .bento-play-overlay { opacity: 1; }
+.bento-play-btn { width: 64px; height: 64px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); transform: translateY(20px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+.bento-card:hover .bento-play-btn { transform: translateY(0); }
+.bento-info { padding: 16px 4px 4px; text-align: center; }
+.bento-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bento-artist { font-size: 13px; color: #64748b; font-weight: 500; }
+.checkbox-overlay { position: absolute; top: 12px; left: 12px; z-index: 10; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+/* 4. 漂浮胶囊列表 (全局极客曲库) */
+.modern-list-view { display: flex; flex-direction: column; gap: 8px; padding: 10px 0;}
+.modern-list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 16px 30px; background: #fff; border-radius: 20px; transition: all 0.3s ease; border: 1px solid transparent; box-shadow: 0 4px 15px rgba(0,0,0,0.02); cursor: pointer; position: relative; overflow: hidden; }
+.modern-list-item:hover { transform: scale(1.01); box-shadow: 0 10px 25px rgba(0,0,0,0.06); z-index: 1; border-color: #f1f5f9; }
+.modern-list-item.is-playing { background: linear-gradient(to right, #eff6ff, #fff); border-color: #bfdbfe; }
+.modern-title-group { display: flex; align-items: center; gap: 16px; }
+.index-num { font-size: 14px; font-weight: bold; color: #cbd5e1; width: 24px; text-align: center; font-variant-numeric: tabular-nums;}
+.modern-play-icon { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; display: flex; justify-content: center; align-items: center; color: #64748b; transition: 0.3s; }
+.modern-list-item:hover .modern-play-icon { background: #3b82f6; color: #fff; transform: scale(1.1); box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
+.modern-list-item.is-playing .modern-play-icon { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+.modern-title { font-size: 16px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;}
+.modern-list-item.is-playing .modern-title { color: #3b82f6; }
+.modern-artist { font-size: 14px; color: #64748b; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;}
+.ai-search-pulse :deep(.el-input__wrapper.is-focus) { box-shadow: 0 0 0 2px #3b82f6 inset, 0 0 15px rgba(59,130,246,0.3); }
+
+/* ================= 其他保留的顶级框架样式 ================= */
 .batch-action-bar { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 12px 30px; border-radius: 40px; z-index: 200; display: flex; gap: 30px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-weight: bold; }
 .playlist-options { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
 .pl-option { padding: 10px 15px; background: #f3f4f6; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; color: #374151; font-weight: 500; }
@@ -861,174 +782,123 @@ const switchMenu = async (menuName) => {
 
 :global(body), :global(html), :global(#app) { margin: 0; padding: 0; height: 100%; width: 100%; box-sizing: border-box; }
 *, *::before, *::after { box-sizing: border-box; }
-.main-layout { display: flex; width: 100vw; height: 100vh; background-color: #f6f8fa; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-.sidebar { width: 240px; background-color: #ffffff; border-right: 1px solid #ebedf0; padding: 25px 20px; display: flex; flex-direction: column; z-index: 10; box-shadow: 2px 0 8px rgba(0,0,0,0.02); }
+.main-layout { display: flex; width: 100vw; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.sidebar { width: 240px; background-color: #ffffff; border-right: 1px solid #f1f5f9; padding: 25px 20px; display: flex; flex-direction: column; z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.01); }
 .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; padding-left: 10px; }
-.logo-text { font-size: 22px; font-weight: 800; color: #1f2937; letter-spacing: -0.5px; }
+.logo-text { font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; }
 .badge { font-size: 10px; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; vertical-align: super; }
-.nav-item { padding: 12px 15px; border-radius: 8px; cursor: pointer; color: #4b5563; margin-bottom: 4px; display: flex; align-items: center; gap: 12px; font-size: 15px; transition: all 0.2s; }
-.nav-item:hover, .nav-item.active { background-color: #eff6ff; color: #3b82f6; font-weight: 600; }
-.nav-group { font-size: 12px; color: #9ca3af; margin: 30px 0 10px 15px; }
-.nav-sub-item { padding: 8px 15px; font-size: 13px; color: #6b7280; cursor: pointer; border-radius: 8px; margin-bottom: 2px; }
-.nav-sub-item:hover, .nav-sub-item.active { background: #f3f4f6; color: #111827; }
+.nav-item { padding: 12px 15px; border-radius: 12px; cursor: pointer; color: #64748b; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { background-color: #eff6ff; color: #3b82f6; font-weight: 700; }
+.nav-group { font-size: 12px; color: #94a3b8; font-weight: 700; margin: 30px 0 10px 15px; letter-spacing: 0.5px;}
+.nav-sub-item { padding: 10px 15px; font-size: 14px; color: #475569; font-weight: 500; cursor: pointer; border-radius: 10px; margin-bottom: 4px; transition: 0.2s;}
+.nav-sub-item:hover, .nav-sub-item.active { background: #f1f5f9; color: #0f172a; }
 .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
-.top-header { height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: #fff; border-bottom: 1px solid #ebedf0; z-index: 5; }
-.ai-input-wrapper { width: 450px; }
-.scene-search :deep(.el-input__wrapper) { border-radius: 20px; background-color: #f3f4f6; box-shadow: none; padding-left: 15px; }
-.scene-search :deep(.el-input__wrapper.is-focus) { box-shadow: 0 0 0 1px #3b82f6 inset; background-color: #fff; }
-.user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.3s; padding: 5px 10px; border-radius: 20px; }
-.user-profile:hover { background: #f3f4f6; }
-.user-name { font-size: 14px; color: #374151; font-weight: 500; }
+.top-header { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #f1f5f9; z-index: 5; }
+.ai-input-wrapper { width: 480px; }
+.scene-search :deep(.el-input__wrapper) { border-radius: 20px; background-color: #f1f5f9; box-shadow: none; padding-left: 15px; }
+.scene-search :deep(.el-input__wrapper.is-focus) { background-color: #fff; }
+.user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.3s; padding: 6px 12px; border-radius: 24px; }
+.user-profile:hover { background: #f1f5f9; }
+.user-name { font-size: 14px; color: #334155; font-weight: 600; }
 .scroll-container { flex: 1; overflow-y: auto; padding: 30px 40px 120px; }
 
-.discover-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; }
-.hero-section h2 { font-size: 32px; font-weight: bold; color: #111827; margin: 0 0 8px 0; }
-.theory-note { color: #6b7280; font-size: 14px; margin: 0; }
-.view-toggle { display: flex; background: #f3f4f6; padding: 4px; border-radius: 12px; gap: 4px; }
-.toggle-btn { display: flex; align-items: center; gap: 6px; padding: 8px 20px; border-radius: 8px; font-size: 14px; color: #6b7280; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 500; }
-.toggle-btn:hover { color: #1f2937; }
-.toggle-btn.active { background: #fff; color: #3b82f6; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.discover-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+.hero-section h2 { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -1px;}
+.theory-note { color: #64748b; font-size: 15px; margin: 0; font-weight: 500;}
 
-.music-grid { padding-top: 10px; }
-.song-card { border-radius: 12px; overflow: hidden; cursor: pointer; margin-bottom: 30px; background: transparent; transition: transform 0.3s ease; }
-.song-card:hover { transform: translateY(-6px); }
-.cover-box { position: relative; width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
-.main-cover { width: 100%; height: 100%; transition: transform 0.5s ease; }
-.song-card:hover .main-cover { transform: scale(1.05); }
-.play-btn-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; backdrop-filter: blur(2px); }
-.song-card:hover .play-btn-overlay { opacity: 1; }
-.song-detail { padding: 12px 4px; }
-.title { font-weight: 600; font-size: 15px; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.artist { color: #6b7280; font-size: 13px; margin-top: 4px; }
+.fade-in { animation: fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-.list-header { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 15px 30px; font-size: 13px; color: #9ca3af; border-bottom: 1px solid #f3f4f6; }
-.list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 15px 30px; border-bottom: 1px solid #f9fafb; cursor: pointer; transition: background 0.2s; }
-.list-item:hover { background: #f9fafb; }
-.list-item.playing-item { background: #eff6ff; }
-.list-item.playing-item .col-title, .list-item.playing-item .title-text { color: #3b82f6; font-weight: 600; }
-.col-title { display: flex; align-items: center; gap: 12px; font-size: 15px; color: #374151; font-weight: 500; min-width: 0; overflow: hidden; }
-.title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.col-like-cell { display: flex; justify-content: center; align-items: center; } 
-.col-artist { display: flex; align-items: center; font-size: 14px; color: #6b7280; min-width: 0; overflow: hidden; }
-.artist-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-
-.music-list-view { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); padding: 10px 0; }
-
-.fade-in { animation: fadeIn 0.4s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* 播放器与浮层 */
-.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: #ffffff; border-top: 1px solid #ebedf0; display: flex; align-items: center; justify-content: center; z-index: 100; box-shadow: 0 -4px 20px rgba(0,0,0,0.03); transform: translateY(0); transition: 0.3s; }
-.empty-player { color: #9ca3af; font-size: 14px; letter-spacing: 1px; }
+/* 播放器 */
+.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; z-index: 100; box-shadow: 0 -10px 30px rgba(0,0,0,0.02); }
+.empty-player { color: #94a3b8; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
 .progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
-.player-slider :deep(.el-slider__runway) { height: 3px; background: #e5e7eb; margin: 0; }
-.player-slider :deep(.el-slider__bar) { height: 3px; background-color: #3b82f6; }
-.player-slider :deep(.el-slider__button) { width: 12px; height: 12px; border: 2px solid #fff; background-color: #3b82f6; }
+.player-slider :deep(.el-slider__runway) { height: 4px; background: #e2e8f0; margin: 0; }
+.player-slider :deep(.el-slider__bar) { height: 4px; background-color: #3b82f6; }
+.player-slider :deep(.el-slider__button) { width: 14px; height: 14px; border: 3px solid #fff; background-color: #3b82f6; box-shadow: 0 2px 6px rgba(0,0,0,0.2);}
 .controls-content { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
 .track-info { display: flex; align-items: center; gap: 15px; width: 30%; }
-.mini-cover { width: 52px; height: 52px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); object-fit: cover; }
+.mini-cover { width: 56px; height: 56px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: cover; transition: 0.3s;}
+.mini-cover:hover { transform: scale(1.05); }
 .meta { display: flex; flex-direction: column; gap: 4px; }
-.t { font-weight: 600; font-size: 14px; color: #111827; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px;}
-.a { font-size: 12px; color: #6b7280; }
+.t { font-weight: 700; font-size: 15px; color: #0f172a; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px;}
+.a { font-size: 13px; color: #64748b; font-weight: 500;}
 .play-btns { display: flex; align-items: center; gap: 25px; justify-content: center; flex: 1; }
-.main-play-btn { background: #3b82f6; border: none; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
-.main-play-btn:hover { background: #2563eb; transform: scale(1.05); }
-.prev-next-btn { color: #4b5563; }
-.prev-next-btn:hover { color: #3b82f6; }
+.main-play-btn { background: #3b82f6; border: none; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(59,130,246,0.3);}
+.main-play-btn:hover { background: #2563eb; transform: scale(1.08); box-shadow: 0 8px 20px rgba(59,130,246,0.4);}
+.prev-next-btn { color: #64748b; }
+.prev-next-btn:hover { color: #3b82f6; transform: scale(1.1);}
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
-.time-display { font-size: 12px; font-family: monospace; color: #6b7280; }
-.vol-icon { cursor: pointer; color: #4b5563; }
-.mode-icon { cursor: pointer; color: #4b5563; transition: 0.3s; }
+.time-display { font-size: 13px; font-family: monospace; color: #64748b; font-weight: 600;}
+.vol-icon { cursor: pointer; color: #64748b; }
+.mode-icon { cursor: pointer; color: #64748b; transition: 0.3s; }
 .mode-icon:hover { color: #3b82f6; }
 
 .lyric-overlay { position: absolute; inset: 0; z-index: 50; background-size: cover; background-position: center; overflow: hidden; }
-.lyric-blur-bg { position: absolute; inset: 0; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(40px); }
+.lyric-blur-bg { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(50px); }
 .lyric-content-wrapper { position: relative; z-index: 2; display: flex; height: 100%; align-items: center; justify-content: center; gap: 100px; padding-bottom: 90px; }
-.close-lyric-btn { position: absolute; top: 30px; right: 40px; z-index: 10; background: rgba(255,255,255,0.1) !important; color: #fff !important; border: none !important; }
-.close-lyric-btn:hover { background: rgba(255,255,255,0.3) !important; }
+.close-lyric-btn { position: absolute; top: 30px; right: 40px; z-index: 10; background: rgba(255,255,255,0.1) !important; color: #fff !important; border: none !important; backdrop-filter: blur(10px);}
+.close-lyric-btn:hover { background: rgba(255,255,255,0.2) !important; transform: scale(1.1);}
 
 .record-side { width: 350px; display: flex; justify-content: center; }
-.record-wrapper { width: 320px; height: 320px; border-radius: 50%; background: #111; padding: 50px; box-shadow: 0 0 0 10px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.5); animation: spin 20s linear infinite; }
+.record-wrapper { width: 340px; height: 340px; border-radius: 50%; background: #000; padding: 50px; box-shadow: 0 0 0 12px rgba(255,255,255,0.05), 0 20px 50px rgba(0,0,0,0.6); animation: spin 20s linear infinite; }
 .record-wrapper.is-paused { animation-play-state: paused; }
 .record-cover { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 .lyric-side { width: 550px; display: flex; flex-direction: column; color: #fff; text-align: center; }
-.lyric-song-title { font-size: 32px; font-weight: bold; margin: 0 0 10px 0; letter-spacing: 2px; }
-.lyric-song-artist { font-size: 16px; color: rgba(255,255,255,0.6); margin: 0 0 40px 0; }
+.lyric-song-title { font-size: 36px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: 2px; }
+.lyric-song-artist { font-size: 18px; color: rgba(255,255,255,0.6); margin: 0 0 40px 0; font-weight: 500;}
 .lyric-scroll-box { height: 380px; overflow-y: auto; position: relative; padding: 60px 0; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, black 10%, black 90%, rgba(0,0,0,0.3) 100%); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, black 10%, black 90%, rgba(0,0,0,0.3) 100%); }
 .lyric-scroll-box::-webkit-scrollbar { display: none; }
 .lyric-inner { position: relative; }
-.lyric-line { min-height: 45px; font-size: 16px; line-height: 1.6; color: rgba(255,255,255,0.4); transition: all 0.3s; margin: 0; padding: 10px 30px; cursor: pointer; word-break: break-word; white-space: normal; }
+.lyric-line { min-height: 45px; font-size: 16px; line-height: 1.6; color: rgba(255,255,255,0.3); transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); margin: 0; padding: 10px 30px; cursor: pointer; word-break: break-word; white-space: normal; font-weight: 600;}
 .lyric-line:hover { color: rgba(255,255,255,0.8); }
-.lyric-line.active { font-size: 22px; font-weight: bold; color: #fff; text-shadow: 0 0 15px rgba(255,255,255,0.3); transform: scale(1.05); }
+.lyric-line.active { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4); transform: scale(1.05); }
 
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); opacity: 0; }
 
-@media screen and (max-width: 768px) {
-  .sidebar { display: none; }
-  .top-header { padding: 0 15px; }
-  .ai-input-wrapper { width: 100%; }
-  .scroll-container { padding: 15px 15px 120px; }
-  .lyric-content-wrapper { flex-direction: column; gap: 30px; padding-bottom: 110px; justify-content: flex-start; padding-top: 50px; }
-  .record-side { width: 220px; height: 220px; }
-  .record-wrapper { width: 220px; height: 220px; padding: 30px; }
-  .lyric-side { width: 100%; padding: 0 20px; }
-  .lyric-scroll-box { height: 300px; padding: 40px 0; }
-  .lyric-line { padding: 10px; font-size: 14px; }
-  .lyric-line.active { font-size: 18px; }
-  .lyric-song-title { font-size: 24px; }
-  .controls-content { padding: 0 10px; }
-  .track-info { width: 50%; gap: 10px; }
-  .mini-cover { width: 40px; height: 40px; }
-  .t { font-size: 13px; max-width: 100px; }
-  .extra-funcs { display: none; } 
-}
-
-.like-icon { margin-left: 15px; cursor: pointer; color: #9ca3af; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.like-icon { margin-left: 15px; cursor: pointer; color: #94a3b8; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .like-icon:hover { transform: scale(1.2); color: #f87171; }
 .like-icon.is-liked { color: #ef4444; }
-.list-like-icon { cursor: pointer; color: #e5e7eb; transition: 0.3s; }
+.list-like-icon { cursor: pointer; color: #cbd5e1; transition: 0.3s; }
 .list-like-icon:hover { color: #f87171; transform: scale(1.2); }
 .list-like-icon.is-liked { color: #ef4444; }
 
-/* 🚀 智能电台双栏极客样式 */
+/* 电台、助眠、个人中心 极客样式 */
 .radio-layout { display: flex; gap: 30px; align-items: flex-start; }
-.radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); position: sticky; top: 20px; }
+.radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); position: sticky; top: 20px; border: 1px solid #f1f5f9;}
 .radio-queue-panel { flex: 1; min-width: 0; }
-.queue-title { font-size: 18px; font-weight: 800; color: #111827; margin: 0 0 15px 5px; letter-spacing: 1px; }
-
-.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #111; margin-bottom: 25px; }
+.queue-title { font-size: 20px; font-weight: 900; color: #0f172a; margin: 0 0 15px 5px; letter-spacing: -0.5px; }
+.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; box-shadow: 0 15px 35px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; }
 .fm-cover-wrapper.is-playing { animation-play-state: running; }
 .fm-cover { width: 100%; height: 100%; }
-.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f6f8fa; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
 .fm-info { text-align: center; width: 100%; }
-.fm-info h3 { font-size: 20px; font-weight: bold; color: #111827; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fm-info p { color: #6b7280; font-size: 14px; margin: 0; }
+.fm-info h3 { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-info p { color: #64748b; font-size: 14px; margin: 0; font-weight: 500;}
+.queue-list { background: transparent; box-shadow: none; padding: 0;}
 
-.queue-list { background: transparent; box-shadow: none; }
-.queue-list .list-item { background: #fff; border-radius: 12px; margin-bottom: 8px; border: 1px solid #f3f4f6; }
-.queue-list .list-item:hover { transform: translateX(5px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: transparent; }
+.sleep-mode-bg { background: linear-gradient(135deg, #0f172a, #1e1b4b); border-radius: 28px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.3) inset; border: 1px solid rgba(255,255,255,0.1);}
+.dark-list { background: transparent !important; padding: 0;}
+.dark-list .modern-list-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #fff; box-shadow: none;}
+.dark-list .modern-list-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1);}
+.dark-list .modern-title, .dark-list .modern-artist { color: #e2e8f0; }
+.dark-list .modern-list-item.is-playing { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3);}
+.dark-list .modern-list-item.is-playing .modern-title { color: #93c5fd; }
+.dark-list .modern-play-icon { background: rgba(255,255,255,0.1); color: #cbd5e1;}
 
-/* 🌙 助眠系列专属暗黑皮肤 */
-.sleep-mode-bg { background: linear-gradient(to bottom, #1e1e2f, #111827); border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5) inset; }
-.dark-list { background: rgba(0,0,0,0.2) !important; border: 1px solid rgba(255,255,255,0.05); }
-.dark-list .list-item { border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; }
-.dark-list .list-item:hover { background: rgba(255,255,255,0.05); }
-.dark-list .col-title, .dark-list .artist-text { color: #e5e7eb; }
-
-/* 👤 个人中心样式 */
-.profile-container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
-.profile-header { display: flex; align-items: center; gap: 30px; margin-bottom: 50px; }
+.profile-container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 28px; padding: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;}
+.profile-header { display: flex; align-items: center; gap: 35px; margin-bottom: 60px; }
 .avatar-wrapper { position: relative; cursor: pointer; }
-.avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #fff; transition: 0.2s; }
+.avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #fff; transition: 0.3s; box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
 .avatar-wrapper:hover .avatar-edit { transform: scale(1.1); background: #2563eb; }
-.profile-info h2 { font-size: 28px; margin: 0 0 10px 0; color: #111827; }
-.profile-info p { margin: 0; color: #6b7280; display: flex; align-items: center; gap: 10px; }
+.profile-info h2 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; color: #0f172a; letter-spacing: -1px;}
+.profile-info p { margin: 0; color: #64748b; display: flex; align-items: center; gap: 10px; font-weight: 500;}
 .stats-row { text-align: center; }
-.stat-card { padding: 30px; background: #f9fafb; border-radius: 16px; transition: 0.3s; }
-.stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-.stat-num { font-size: 36px; font-weight: 800; color: #3b82f6; margin-bottom: 10px; font-family: monospace; }
-.stat-label { font-size: 14px; color: #6b7280; font-weight: bold; letter-spacing: 1px; }
+.stat-card { padding: 35px 20px; background: #f8fafc; border-radius: 24px; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid transparent;}
+.stat-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.04); border-color: #e2e8f0; background: #fff;}
+.stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace; letter-spacing: -2px;}
+.stat-label { font-size: 15px; color: #64748b; font-weight: 700; letter-spacing: 1px; }
 </style>
