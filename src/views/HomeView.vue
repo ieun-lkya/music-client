@@ -148,6 +148,7 @@
                 </div>
                 
                 <span class="modern-title">{{ item.title }}</span>
+                <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
               </span>
               
               <span class="col-like-cell">
@@ -196,6 +197,7 @@
                         <el-icon v-else><VideoPlay /></el-icon>
                       </div>
                       <span class="modern-title">{{ item.title }}</span>
+                      <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
                     </span>
                     <span class="col-like-cell">
                       <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
@@ -309,6 +311,7 @@
                 </div>
                 
                 <span class="modern-title">{{ item.title }}</span>
+                <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
               </span>
               
               <span class="col-like-cell">
@@ -327,8 +330,23 @@
         <div class="lyric-overlay" v-if="showLyricPanel" :style="{ backgroundImage: `url(${currentSong?.coverUrl})` }">
           <div class="lyric-blur-bg"></div>
           
+          <canvas ref="spectrumCanvasRef" class="spectrum-canvas"></canvas>
+
+          <div class="lyric-top-actions">
+            <el-button round class="glass-btn" @click="commentDrawerVisible = true">
+              <el-icon style="margin-right: 5px;"><ChatDotRound /></el-icon> 999+ 云村热评
+            </el-button>
+            <el-button circle class="glass-btn" @click="showLyricPanel = false">
+              <el-icon :size="20"><ArrowDownBold /></el-icon>
+            </el-button>
+          </div>
+
           <div class="lyric-content-wrapper">
-            <div class="record-side"><div class="record-wrapper" :class="{ 'is-paused': !isPlaying }"><img :src="currentSong?.coverUrl" class="record-cover" /></div></div>
+            <div class="record-side">
+              <div class="record-wrapper" :class="{ 'is-paused': !isPlaying }">
+                <img :src="currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
+              </div>
+            </div>
             <div class="lyric-side">
               <h2 class="lyric-song-title">{{ currentSong?.title }}</h2><p class="lyric-song-artist">{{ currentSong?.artist }}</p>
               <div class="lyric-scroll-box" ref="lyricBoxRef" @wheel="handleLyricScroll" @touchmove="handleLyricScroll">
@@ -339,10 +357,36 @@
               </div>
             </div>
           </div>
-          <el-button circle size="large" class="close-lyric-btn" @click="showLyricPanel = false"><el-icon :size="24"><ArrowDownBold /></el-icon></el-button>
         </div>
       </transition>
     </main>
+
+    <el-drawer v-model="commentDrawerVisible" title="🎵 云村热评" direction="rtl" size="420px" class="dark-comment-drawer" :with-header="false">
+      <div class="drawer-header">
+        <h3>{{ currentSong?.title }} - 热评</h3>
+        <el-icon class="drawer-close" @click="commentDrawerVisible = false"><Close /></el-icon>
+      </div>
+      
+      <div class="comments-list">
+        <div class="comment-item" v-for="(cmt, idx) in currentComments" :key="idx">
+          <el-avatar :size="36" :src="cmt.avatar" />
+          <div class="comment-body">
+            <div class="comment-user">
+              <span class="name">{{ cmt.username }}</span>
+              <span class="likes">{{ cmt.likes }} <el-icon><Star /></el-icon></span>
+            </div>
+            <div class="comment-text">{{ cmt.content }}</div>
+            <div class="comment-time">{{ cmt.time }}</div>
+          </div>
+        </div>
+        <el-empty v-if="currentComments.length === 0" description="还没有人评论，快来抢沙发~" />
+      </div>
+
+      <div class="comment-input-area">
+        <el-input v-model="newComment" placeholder="听懂这首歌的人，一定也有故事吧..." maxlength="100" @keyup.enter="submitComment" />
+        <el-button type="primary" circle @click="submitComment" :disabled="!newComment.trim()"><el-icon><Position /></el-icon></el-button>
+      </div>
+    </el-drawer>
 
     <el-dialog v-model="playlistDialogVisible" title="操作云端歌单" width="400px" top="30vh" append-to-body>
       <div v-if="selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
@@ -357,7 +401,7 @@
       <div class="progress-slider-wrapper"><el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!currentSong" /></div>
       <div class="controls-content" v-if="currentSong">
         <div class="track-info">
-          <img :src="currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" />
+          <img :src="currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" crossorigin="anonymous" />
           <div class="meta">
             <span class="t">{{ currentSong.title }}</span>
             <span class="a">{{ currentSong.artist }}</span>
@@ -368,48 +412,35 @@
         </div>
         
         <div class="play-btns">
-          
-          <el-icon class="prev-next-btn" @click="playPrev">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
-            </svg>
-          </el-icon>
-          
+          <el-icon class="prev-next-btn" @click="playPrev"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path></svg></el-icon>
           <div class="main-play-btn" @click="togglePlay">
-            <svg v-if="!isPlaying" class="play-svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5.14v14.72a1 1 0 001.5.86l11-7.36a1 1 0 000-1.72l-11-7.36a1 1 0 00-1.5.86z"></path>
-            </svg>
-            <svg v-else class="pause-svg" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="5" width="4" height="14" rx="1"></rect>
-              <rect x="14" y="5" width="4" height="14" rx="1"></rect>
-            </svg>
+            <svg v-if="!isPlaying" class="play-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v14.72a1 1 0 001.5.86l11-7.36a1 1 0 000-1.72l-11-7.36a1 1 0 00-1.5.86z"></path></svg>
+            <svg v-else class="pause-svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
           </div>
-
-          <el-icon class="prev-next-btn" @click="playNext">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-              <path d="M16 6h2v12h-2zm-10 6l8.5-6v12z"></path>
-            </svg>
-          </el-icon>
-          
+          <el-icon class="prev-next-btn" @click="playNext"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M16 6h2v12h-2zm-10 6l8.5-6v12z"></path></svg></el-icon>
         </div>
 
-        <div class="extra-funcs"><span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span><el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon><el-popover placement="top" width="40" trigger="hover"><template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template><el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" /></el-popover></div>
+        <div class="extra-funcs">
+          <span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+          <el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon>
+          <el-popover placement="top" width="40" trigger="hover"><template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template><el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" /></el-popover>
+        </div>
       </div>
       <div class="empty-player" v-else>请在上方点击歌曲播放</div>
       
-      <audio ref="audioRef" :src="currentSong?.audioUrl" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
+      <audio ref="audioRef" :src="currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
     </footer>
   </div>
 </template>
 
 <script setup>
 import axios from 'axios'
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit } from '@element-plus/icons-vue'
+import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit, ChatDotRound, Close, Position } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getMusicPageAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -425,7 +456,6 @@ const aiMusicList = ref([])
 const currentUser = ref(null)
 const likedMusicList = ref([])
 const playHistory = ref([])
-
 const localSearchKeyword = ref('')
 
 const searchPlaceholder = computed(() => {
@@ -453,20 +483,13 @@ const rawActivePlayList = computed(() => {
 const activePlayList = computed(() => {
   const list = rawActivePlayList.value
   if (currentMenu.value === 'discover' && discoverMode.value === 'ai') return list 
-  
   if (!localSearchKeyword.value) return list
   const kw = localSearchKeyword.value.toLowerCase().trim()
-  return list.filter(song => 
-    (song.title && song.title.toLowerCase().includes(kw)) || 
-    (song.artist && song.artist.toLowerCase().includes(kw))
-  )
+  return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
 })
 
 const currentActivePlaylist = computed(() => {
-  if (currentMenu.value.startsWith('playlist_')) {
-    const pId = currentMenu.value.split('_')[1]
-    return customPlaylists.value.find(p => p.id == pId)
-  }
+  if (currentMenu.value.startsWith('playlist_')) { return customPlaylists.value.find(p => p.id == currentMenu.value.split('_')[1]) }
   return null
 })
 
@@ -479,7 +502,7 @@ const handleItemClick = (item) => {
 }
 
 const openPlaylistDialog = () => {
-  if (!currentUser.value) return ElMessage.warning('请先登录才能使用云端歌单哦！')
+  if (!currentUser.value) return ElMessage.warning('请先登录！')
   if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲哦！')
   playlistDialogVisible.value = true
 }
@@ -487,12 +510,9 @@ const openPlaylistDialog = () => {
 const batchLikeSongs = async () => {
   if (!currentUser.value) return goToLogin()
   if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲！')
-
   let successCount = 0
   for (let id of selectedMusicIds.value) {
-    if (!isLiked(id)) {
-      try { await likeMusicAPI(currentUser.value.id, id); successCount++ } catch (error) {}
-    }
+    if (!isLiked(id)) { try { await likeMusicAPI(currentUser.value.id, id); successCount++ } catch (error) {} }
   }
   if (successCount > 0) { ElMessage.success(`❤️ 成功批量收藏 ${successCount} 首歌！`); await fetchMyLikes() } 
   else { ElMessage.info('歌曲都在收藏列表里啦~') }
@@ -615,8 +635,103 @@ watch(currentSong, (newSong) => {
     playHistory.value.unshift(newSong)
     if (playHistory.value.length > 50) playHistory.value.pop()
     localStorage.setItem('echo_play_history', JSON.stringify(playHistory.value))
+    
+    // 加载歌曲时，清空当前评论并拉取新热评
+    fetchMockComments()
   }
 })
+
+// 🚀 核心升维 1：Web Audio API 动效频谱解析引擎
+const spectrumCanvasRef = ref(null)
+let audioCtx = null, analyser = null, audioSource = null, animationFrameId = null
+
+const initAudioVisualizer = () => {
+  if (!audioRef.value || audioCtx) return
+  
+  // 必须在用户发生交互（点击播放）后才能初始化 AudioContext
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    audioCtx = new AudioContext()
+    analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 256 // 提取 128 个频段数据
+    
+    audioSource = audioCtx.createMediaElementSource(audioRef.value)
+    audioSource.connect(analyser)
+    analyser.connect(audioCtx.destination)
+    
+    drawVisualizer()
+  } catch (e) { console.warn("跨域或浏览器策略导致频谱无法加载，需配置 OSS 的 CORS 头。", e) }
+}
+
+const drawVisualizer = () => {
+  if (!spectrumCanvasRef.value || !analyser) return
+  animationFrameId = requestAnimationFrame(drawVisualizer)
+  
+  const canvas = spectrumCanvasRef.value
+  const ctx = canvas.getContext('2d')
+  // 为了高清，动态设置宽高
+  canvas.width = canvas.clientWidth * window.devicePixelRatio
+  canvas.height = canvas.clientHeight * window.devicePixelRatio
+  
+  const bufferLength = analyser.frequencyBinCount
+  const dataArray = new Uint8Array(bufferLength)
+  analyser.getByteFrequencyData(dataArray)
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  
+  // 绘制极其炫酷的底部发光柱状图
+  const barWidth = (canvas.width / bufferLength) * 2.5
+  let barHeight
+  let x = 0
+  
+  for (let i = 0; i < bufferLength; i++) {
+    // 数据越靠前是低音，适当放大视觉效果
+    barHeight = dataArray[i] * 1.5 
+    
+    const r = 59 + (barHeight / 2)
+    const g = 130 + (barHeight / 2)
+    const b = 246
+    
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`
+    
+    // 圆角矩形柱子
+    ctx.beginPath()
+    ctx.roundRect(x, canvas.height - barHeight, barWidth - 4, barHeight, [10, 10, 0, 0])
+    ctx.fill()
+    x += barWidth
+  }
+}
+
+// 🚀 核心升维 2：云村热评系统 (本地 Mock + 虚拟提交)
+const commentDrawerVisible = ref(false)
+const newComment = ref('')
+const currentComments = ref([])
+
+const fetchMockComments = () => {
+  // 模拟从数据库拉取热评
+  currentComments.value = [
+    { username: 'Echo 音乐星人', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', content: '前奏一响，就回到了那个属于我们的夏天。', likes: 12580, time: '2023-08-12' },
+    { username: '代码敲不完', avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', content: '耳机一戴，全世界都与我无关，只有这首歌懂我的疲惫。', likes: 8902, time: '2023-09-01' },
+    { username: '匿名架构师', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', content: '这个播放器的极简设计加上这首歌，简直是绝配！', likes: 6500, time: '2023-11-22' }
+  ]
+}
+
+const submitComment = () => {
+  if (!newComment.value.trim()) return
+  if (!currentUser.value) return ElMessage.warning('请先登录哦！')
+  
+  // 模拟提交入库
+  currentComments.value.unshift({
+    username: currentUser.value.username,
+    avatar: currentUser.value.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: newComment.value.trim(),
+    likes: 0,
+    time: new Date().toISOString().split('T')[0]
+  })
+  
+  ElMessage.success('评论发送成功！')
+  newComment.value = ''
+}
 
 const fetchMyLikes = async () => {
   if (!currentUser.value) return
@@ -628,14 +743,9 @@ const handleLogout = () => {
   localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token'); router.push('/login')
 }
 
-// 🚀 极其霸气的全量拉取，物理分页已被亲手斩草除根！
+// 🚀 极其霸气的全量拉取，放弃物理分页
 const loadDiscoverData = async () => {
-  try { 
-    const res = await getMusicListAPI()
-    allMusicList.value = res.data ? res.data : (res || []) 
-  } catch (error) { 
-    console.error("获取全量音乐列表失败", error) 
-  }
+  try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {}
 }
 
 const isRadioLoading = ref(false)
@@ -648,15 +758,12 @@ const initRadio = async (force = false) => {
 
   if (playHistory.value && playHistory.value.length > 0) {
     const songGenes = playHistory.value.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
-    dynamicPrompt = `用户最近循环播放了这几首歌：${songGenes}。请你作为极其专业的音乐DJ，深度剖析这些歌曲的流派、情绪，推荐 10 首风格高度相似的极其好听的流行或电子音乐。`
-    ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
+    // 注入爱情基因识别
+    dynamicPrompt = `用户最近循环了：${songGenes}。请你作为懂情感的顶级DJ，剖析这些歌是否包含【爱情】、浪漫元素。请推荐10首风格相似、且带有明显【爱情】标签或浪漫氛围的音乐。`
+    ElMessage.info('📡 正在解析听歌 DNA，演算私人爱情频段...')
   } else {
-    const hour = new Date().getHours()
-    if (hour >= 6 && hour < 10) dynamicPrompt = '现在是清晨，推荐充满活力、节奏轻快的流行音乐'
-    else if (hour >= 10 && hour < 18) dynamicPrompt = '现在是白天工作时间，推荐节奏感强、能提升专注力的音乐'
-    else if (hour >= 18 && hour < 22) dynamicPrompt = '现在是傍晚，推荐放松身心、治愈的R&B或微醺爵士'
-    else dynamicPrompt = '现在是深夜，推荐极其孤独、氛围感极强、适合一个人静静听的音乐'
-    ElMessage.info('📡 正在感知此刻时空，为您生成专属调频...')
+    dynamicPrompt = '推荐一些适合【恋爱】氛围、充满浪漫甜蜜感、或者细腻伤感的经典爱情流行歌曲。'
+    ElMessage.info('📡 正在感知此刻时空，为您生成爱情调频...')
   }
 
   try {
@@ -688,13 +795,26 @@ const handleSearch = async () => {
 
 const selectSong = (song) => {
   currentSong.value = song; isPlaying.value = true
-  setTimeout(() => { if (audioRef.value) { audioRef.value.volume = volume.value / 100; audioRef.value.play() } }, 100)
+  setTimeout(() => { 
+    if (audioRef.value) { 
+      audioRef.value.volume = volume.value / 100
+      audioRef.value.play() 
+      initAudioVisualizer() // 唤醒频谱引擎！
+    } 
+  }, 100)
 }
 
 const togglePlay = () => {
   if (!audioRef.value) return
-  if (isPlaying.value) audioRef.value.pause()
-  else audioRef.value.play()
+  initAudioVisualizer() // 确保用户点击时唤醒频谱
+  
+  if (isPlaying.value) {
+    audioRef.value.pause()
+    if (audioCtx && audioCtx.state === 'running') audioCtx.suspend()
+  } else {
+    audioRef.value.play()
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume()
+  }
   isPlaying.value = !isPlaying.value
 }
 
@@ -739,6 +859,11 @@ onMounted(async () => {
   if (savedUser) { currentUser.value = JSON.parse(savedUser); await fetchMyLikes(); await fetchMyPlaylists() }
   const savedHistory = localStorage.getItem('echo_play_history')
   if (savedHistory) playHistory.value = JSON.parse(savedHistory)
+})
+
+onUnmounted(() => {
+  if (animationFrameId) cancelAnimationFrame(animationFrameId)
+  if (audioCtx) audioCtx.close()
 })
 
 const switchMenu = async (menuName) => {
@@ -851,137 +976,80 @@ const switchMenu = async (menuName) => {
 .hero-section h2 { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -1px;}
 .theory-note { color: #64748b; font-size: 15px; margin: 0; font-weight: 500;}
 
-/* 2. 极致纯粹的高定级底部播放器 (Apple Music Style) */
-.player-bar { 
-  position: fixed; 
-  bottom: 0; left: 0; right: 0; 
-  height: 96px; /* 稍微加高一点点，更大气 */
-  background: rgba(255, 255, 255, 0.85); 
-  backdrop-filter: saturate(180%) blur(30px); /* 顶级的毛玻璃质感 */
-  border-top: 1px solid rgba(0,0,0,0.04); 
-  display: flex; align-items: center; justify-content: center; z-index: 100; 
-}
+/* 2. 极致纯粹的 Spotify 级底部播放器 */
+.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .empty-player { color: #a1a1aa; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
 .progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
 
-/* 进度条去油：极其纤细的高级黑 */
-.player-slider :deep(.el-slider__runway) { height: 3px; background: #e4e4e7; margin: 0; }
-.player-slider :deep(.el-slider__bar) { height: 3px; background-color: #18181b; }
-.player-slider :deep(.el-slider__button) { width: 0; height: 0; border: none; transition: 0.2s; } /* 平时隐藏拖动球，只留线条 */
-.player-slider:hover :deep(.el-slider__button) { width: 12px; height: 12px; background-color: #18181b; box-shadow: 0 2px 6px rgba(0,0,0,0.2); } /* 鼠标放上去才显示球，极致极简 */
+/* 进度条去油：变成高级的暗黑色 */
+.player-slider :deep(.el-slider__runway) { height: 4px; background: #e4e4e7; margin: 0; }
+.player-slider :deep(.el-slider__bar) { height: 4px; background-color: #18181b; }
+.player-slider :deep(.el-slider__button) { width: 12px; height: 12px; border: none; background-color: #18181b; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 
 .controls-content { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
 .track-info { display: flex; align-items: center; gap: 15px; width: 30%; }
-.mini-cover { width: 60px; height: 60px; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.08); object-fit: cover; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer;}
-.mini-cover:hover { transform: scale(1.08) rotate(2deg); box-shadow: 0 8px 20px rgba(0,0,0,0.12);}
+.mini-cover { width: 56px; height: 56px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); object-fit: cover; transition: 0.3s; }
+.mini-cover:hover { transform: scale(1.05); }
 .meta { display: flex; flex-direction: column; gap: 4px; }
-.t { font-weight: 800; font-size: 15px; color: #18181b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px; letter-spacing: -0.2px;}
-.a { font-size: 13px; color: #71717a; font-weight: 500; }
+.t { font-weight: 700; font-size: 14px; color: #18181b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px; }
+.a { font-size: 12px; color: #71717a; font-weight: 500; }
 
-/* 🚀 ================= 核心重构区：极简控制中枢 ================= 🚀 */
-.play-btns { display: flex; align-items: center; gap: 35px; justify-content: center; flex: 1; }
+.play-btns { display: flex; align-items: center; gap: 32px; justify-content: center; flex: 1; }
 
-/* 极其克制的圆形外框，平时透明，悬浮时微微浮现 */
+/* 🚀 极其核爆的终极返璞归真修正：采用图片里的极简兜底图案风格 */
 .main-play-btn { 
-  background: transparent !important; 
-  border: 1px solid transparent !important;
-  width: 52px !important; 
-  height: 52px !important; 
+  background: #fff !important; 
+  border: 1px solid rgba(0,0,0,0.08) !important; 
+  width: 48px !important; 
+  height: 48px !important; 
   border-radius: 50% !important; 
   display: flex !important; 
   align-items: center !important; 
   justify-content: center !important; 
-  color: #18181b !important; /* 纯粹的黑色图标 */
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
-  box-shadow: none !important; 
+  color: #94a3b8 !important; 
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important; 
   padding: 0 !important; 
-  cursor: pointer;
 }
 .main-play-btn:hover { 
-  background: #f4f4f5 !important; 
-  border-color: #e4e4e7 !important;
-  transform: scale(1.1) !important; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
+  background: #f8fafc !important; 
+  transform: scale(1.05) !important; 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05) !important;
 }
 
-/* 🎯 强制覆盖你原本手写的乱七八糟的 SVG，利用 CSS 把它们变成极其对称的图形 */
-/* 播放三角：利用 border 画出一个绝对完美的实心三角形 */
-.main-play-btn .play-svg {
-  display: none; /* 隐藏原来的 svg */
-}
-.main-play-btn::before {
-  content: '';
-  display: block;
-  box-sizing: border-box;
-  width: 0;
-  height: 20px;
-  border-color: transparent transparent transparent #18181b;
-  transition: 100ms all ease;
-  will-change: border-width;
-  border-style: solid;
-  border-width: 10px 0 10px 16px;
-  margin-left: 4px; /* 唯一需要的视觉补偿 */
+/* 🎯 极其无情地干掉所有自带 margin，换用 SVG 路径手动像素级視覺修正 */
+.main-play-btn .el-icon { 
+  font-size: 24px !important; 
+  margin: 0 !important; 
 }
 
-/* 暂停双竖线：极其对称！ */
-.main-play-btn:has(.pause-svg)::before {
-  border-style: double;
-  border-width: 0px 0 0px 16px;
-  margin-left: 0; /* 绝对居中 */
-}
-.main-play-btn .pause-svg {
-  display: none; /* 隐藏原来的 svg */
-}
-
-/* 切歌按钮：抛弃自带的，也用纯 CSS 画，绝对不会反！ */
+/* 将切歌按钮图案也修正为图片里的极简纯几何风格 */
 .prev-next-btn { 
-  position: relative;
-  width: 24px;
-  height: 24px;
-  color: transparent !important; /* 隐藏原本的文字或图标 */
-  cursor: pointer;
+  color: #94a3b8 !important; 
+  font-size: 20px !important; 
+  cursor: pointer; 
   transition: 0.2s ease; 
-  opacity: 0.6;
 }
-.prev-next-btn:hover { opacity: 1; transform: scale(1.1); }
-
-.prev-next-btn svg { display: none; } /* 隐藏原本写反的 svg */
-
-/* 用纯 CSS 画极其高级的切歌键（左） */
-.prev-next-btn:first-child::before, .prev-next-btn:first-child::after {
-  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
-}
-.prev-next-btn:first-child::before {
-  left: 10px; width: 0; height: 0; border-style: solid; border-width: 7px 10px 7px 0; border-color: transparent #18181b transparent transparent;
-}
-.prev-next-btn:first-child::after {
-  left: 6px; width: 3px; height: 14px; background: #18181b; border-radius: 1px;
-}
-
-/* 用纯 CSS 画极其高级的切歌键（右） */
-.prev-next-btn:last-child::before, .prev-next-btn:last-child::after {
-  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
-}
-.prev-next-btn:last-child::before {
-  right: 10px; width: 0; height: 0; border-style: solid; border-width: 7px 0 7px 10px; border-color: transparent transparent transparent #18181b;
-}
-.prev-next-btn:last-child::after {
-  right: 6px; width: 3px; height: 14px; background: #18181b; border-radius: 1px;
-}
-/* 🚀 ================= 核心重构区结束 ================= 🚀 */
+.prev-next-btn:hover { color: #18181b !important; }
 
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
-.time-display { font-size: 13px; font-family: monospace; color: #a1a1aa; font-weight: 600; }
-.vol-icon { cursor: pointer; color: #a1a1aa; transition: 0.2s;}
-.vol-icon:hover { color: #18181b; }
-.mode-icon { cursor: pointer; color: #a1a1aa; transition: 0.2s; }
+.time-display { font-size: 12px; font-family: monospace; color: #71717a; font-weight: 600; }
+.vol-icon { cursor: pointer; color: #71717a; }
+.mode-icon { cursor: pointer; color: #71717a; transition: 0.3s; }
 .mode-icon:hover { color: #18181b; }
 
+/* ================= 🚀 核心视效：动态频谱与歌词面板 ================= */
 .lyric-overlay { position: absolute; inset: 0; z-index: 50; background-size: cover; background-position: center; overflow: hidden; }
 .lyric-blur-bg { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(50px); }
+
+/* 🌟 Web Audio API 频谱画布 */
+.spectrum-canvas { position: absolute; bottom: 0; left: 0; width: 100%; height: 250px; pointer-events: none; z-index: 1; opacity: 0.8; }
+
+.lyric-top-actions { position: absolute; top: 30px; right: 40px; z-index: 10; display: flex; gap: 15px; }
+.glass-btn { background: rgba(255,255,255,0.1) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.2) !important; backdrop-filter: blur(10px); font-weight: bold; }
+.glass-btn:hover { background: rgba(255,255,255,0.2) !important; transform: scale(1.05); }
+
 .lyric-content-wrapper { position: relative; z-index: 2; display: flex; height: 100%; align-items: center; justify-content: center; gap: 100px; padding-bottom: 90px; }
-.close-lyric-btn { position: absolute; top: 30px; right: 40px; z-index: 10; background: rgba(255,255,255,0.1) !important; color: #fff !important; border: none !important; backdrop-filter: blur(10px);}
-.close-lyric-btn:hover { background: rgba(255,255,255,0.2) !important; transform: scale(1.1);}
 
 .record-side { width: 350px; display: flex; justify-content: center; }
 .record-wrapper { width: 340px; height: 340px; border-radius: 50%; background: #000; padding: 50px; box-shadow: 0 0 0 12px rgba(255,255,255,0.05), 0 20px 50px rgba(0,0,0,0.6); animation: spin 20s linear infinite; }
@@ -990,7 +1058,7 @@ const switchMenu = async (menuName) => {
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 .lyric-side { width: 550px; display: flex; flex-direction: column; color: #fff; text-align: center; }
-.lyric-song-title { font-size: 36px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: 2px; }
+.lyric-song-title { font-size: 36px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: 2px; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 .lyric-song-artist { font-size: 18px; color: rgba(255,255,255,0.6); margin: 0 0 40px 0; font-weight: 500;}
 .lyric-scroll-box { height: 380px; overflow-y: auto; position: relative; padding: 60px 0; scroll-behavior: smooth; mask-image: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, black 10%, black 90%, rgba(0,0,0,0.3) 100%); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, black 10%, black 90%, rgba(0,0,0,0.3) 100%); }
 .lyric-scroll-box::-webkit-scrollbar { display: none; }
@@ -1001,6 +1069,30 @@ const switchMenu = async (menuName) => {
 
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); opacity: 0; }
+
+/* ================= 🚀 云村热评抽屉样式 ================= */
+.dark-comment-drawer { background: #0f172a !important; color: #fff; }
+.drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.drawer-header h3 { margin: 0; font-size: 18px; font-weight: 800; color: #f8fafc; }
+.drawer-close { font-size: 24px; color: #94a3b8; cursor: pointer; transition: 0.3s; }
+.drawer-close:hover { color: #fff; transform: rotate(90deg); }
+
+.comments-list { padding: 20px 30px; height: calc(100vh - 160px); overflow-y: auto; }
+.comments-list::-webkit-scrollbar { width: 4px; }
+.comments-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+.comment-item { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 20px;}
+.comment-body { flex: 1; }
+.comment-user { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+.comment-user .name { font-size: 14px; font-weight: bold; color: #cbd5e1; }
+.comment-user .likes { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: 0.2s;}
+.comment-user .likes:hover { color: #ef4444; }
+.comment-text { font-size: 14px; color: #f8fafc; line-height: 1.6; margin-bottom: 8px; word-break: break-all; }
+.comment-time { font-size: 12px; color: #475569; }
+
+.comment-input-area { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 30px; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 15px; align-items: center;}
+.comment-input-area :deep(.el-input__wrapper) { background: rgba(255,255,255,0.05); box-shadow: none; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
+.comment-input-area :deep(.el-input__inner) { color: #fff; }
 
 .radio-layout { display: flex; gap: 30px; align-items: flex-start; }
 .radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); position: sticky; top: 20px; border: 1px solid #f1f5f9;}
