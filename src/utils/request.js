@@ -9,6 +9,11 @@ const request = axios.create({
 
 // 🚀 核心补丁 1：请求拦截器（出门自动往 Header 里塞 Token）
 request.interceptors.request.use(config => {
+  // 🚀 极其霸道的终极杀招：发现任何带 /api 前缀的请求，直接把它强行抹掉！
+  if (config.url && config.url.startsWith('/api')) {
+    config.url = config.url.replace(/^\/api/, '')
+  }
+
   const token = localStorage.getItem('echo_token')
   if (token) {
     config.headers['Authorization'] = 'Bearer ' + token

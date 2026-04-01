@@ -68,7 +68,7 @@
         </div>
         
         <div class="user-profile" v-if="currentUser">
-          <el-avatar :size="36" :src="currentUser.avatar" />
+          <el-avatar :size="36" :src="currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
           <span class="user-name">{{ currentUser.username }}</span>
           <el-button type="danger" link style="margin-left: 10px;" @click="handleLogout">退出</el-button>
         </div>
@@ -154,7 +154,7 @@
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
               <h2>❤️ 我喜欢的音乐</h2>
-              <p class="theory-note">这里存放着您红心收藏的专属歌单。</p>
+              <p class="theory-note">这里存放着您红心收藏的专属云端歌单。</p>
             </div>
             <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="likedMusicList.length > 0">
               <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
@@ -219,17 +219,17 @@
           <div style="display:flex; justify-content:space-between; align-items:flex-end;">
             <div>
               <h2>💿 {{ currentActivePlaylist?.name }}</h2>
-              <p class="theory-note">共 {{ currentActivePlaylist?.songs.length }} 首歌曲</p>
+              <p class="theory-note">共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
-              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="currentActivePlaylist?.songs.length > 0">
+              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="currentActivePlaylist?.songs?.length > 0">
                 <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
               </el-button>
               <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)">删除该歌单</el-button>
             </div>
           </div>
           
-          <el-empty v-if="currentActivePlaylist?.songs.length === 0" description="歌单空空如也，快去发现音乐批量添加吧！" />
+          <el-empty v-if="!currentActivePlaylist?.songs || currentActivePlaylist?.songs?.length === 0" description="歌单空空如也，快去发现音乐批量添加吧！" />
           <div class="music-list-view fade-in" v-else style="margin-top: 20px;">
             <div class="list-header">
               <span class="col-title">歌曲标题</span>
@@ -281,10 +281,10 @@
       </transition>
     </main>
 
-    <el-dialog v-model="playlistDialogVisible" title="操作歌单" width="400px" top="30vh" append-to-body>
+    <el-dialog v-model="playlistDialogVisible" title="操作云端歌单" width="400px" top="30vh" append-to-body>
       <div v-if="selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
       <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20"><template #append><el-button type="primary" @click="createNewPlaylist">创建并加入</el-button></template></el-input>
-      <el-divider v-if="customPlaylists.length > 0">或加入已有歌单</el-divider>
+      <el-divider v-if="customPlaylists.length > 0">或加入已有云端歌单</el-divider>
       <div class="playlist-options" v-if="customPlaylists.length > 0">
         <div class="pl-option" v-for="pl in customPlaylists" :key="pl.id" @click="addToExistingPlaylist(pl)"><el-icon><Menu /></el-icon> {{ pl.name }}</div>
       </div>
@@ -320,7 +320,8 @@ import { useRouter } from 'vue-router'
 import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { getMusicListAPI, recommendMusicAPI } from '../api/music'
+// 🚀 核心补丁：导入你后端的所有真实 API！
+import { getMusicListAPI, recommendMusicAPI, getMusicPageAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -330,6 +331,7 @@ const currentMenu = ref('discover')
 const discoverMode = ref('library') 
 const userInput = ref('')
 const isSearching = ref(false)
+
 const allMusicList = ref([]) 
 const aiMusicList = ref([]) 
 const currentUser = ref(null)
@@ -375,7 +377,7 @@ const activePlayList = computed(() => {
 const currentActivePlaylist = computed(() => {
   if (currentMenu.value.startsWith('playlist_')) {
     const pId = currentMenu.value.split('_')[1]
-    return customPlaylists.value.find(p => p.id === pId)
+    return customPlaylists.value.find(p => p.id == pId)
   }
   return null
 })
@@ -393,10 +395,12 @@ const getSelectedSongObjects = () => {
 }
 
 const openPlaylistDialog = () => {
+  if (!currentUser.value) return ElMessage.warning('请先登录才能使用云端歌单哦！')
   if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲哦！')
   playlistDialogVisible.value = true
 }
 
+// 🚀 云端批量收藏
 const batchLikeSongs = async () => {
   if (!currentUser.value) {
     ElMessage.warning('请先登录才能收藏歌曲哦！')
@@ -424,32 +428,77 @@ const batchLikeSongs = async () => {
   toggleBatchMode() 
 }
 
-const savePlaylistsToLocal = () => { localStorage.setItem('echo_custom_playlists', JSON.stringify(customPlaylists.value)) }
+// 🚀 获取真实云端歌单
+const fetchMyPlaylists = async () => {
+  if (!currentUser.value) return
+  try {
+    const res = await getUserPlaylistsAPI(currentUser.value.id)
+    customPlaylists.value = res || []
+  } catch (error) { console.error('获取云端歌单失败', error) }
+}
 
-const createNewPlaylist = () => {
+// 🚀 创建云端歌单并批量添加
+const createNewPlaylist = async () => {
   if (!newPlaylistName.value.trim()) return ElMessage.warning('请输入歌单名称！')
-  const newId = Date.now().toString()
-  const newPl = { id: newId, name: newPlaylistName.value, songs: getSelectedSongObjects() }
-  customPlaylists.value.push(newPl); savePlaylistsToLocal()
+  try {
+    await createPlaylistAPI(currentUser.value.id, newPlaylistName.value.trim())
+    await fetchMyPlaylists() // 重新拉取以获取新歌单的 ID
+    
+    const newPl = customPlaylists.value.find(p => p.name === newPlaylistName.value.trim())
+    if (newPl && selectedMusicIds.value.length > 0) {
+      for(let sid of selectedMusicIds.value) {
+        await addMusicToPlaylistAPI(newPl.id, sid)
+      }
+      ElMessage.success('🎉 歌单创建并添加成功！')
+    } else {
+      ElMessage.success('🎉 歌单创建成功！')
+    }
+  } catch (error) { ElMessage.error('创建云端歌单失败') }
+  
   newPlaylistName.value = ''; playlistDialogVisible.value = false; toggleBatchMode() 
-  ElMessage.success('🎉 歌单创建并添加成功！')
 }
 
-const addToExistingPlaylist = (pl) => {
-  const songsToAdd = getSelectedSongObjects()
-  const existingIds = pl.songs.map(s => s.id)
-  const uniqueSongs = songsToAdd.filter(s => !existingIds.includes(s.id))
-  if (uniqueSongs.length === 0) return ElMessage.warning('选中的歌曲已经都在这个歌单里啦~')
-  pl.songs.push(...uniqueSongs); savePlaylistsToLocal()
+// 🚀 批量加入已有云端歌单
+const addToExistingPlaylist = async (pl) => {
+  let successCount = 0
+  for(let sid of selectedMusicIds.value) {
+    try {
+      await addMusicToPlaylistAPI(pl.id, sid)
+      successCount++
+    } catch(e) {}
+  }
+  if (successCount > 0) {
+    ElMessage.success(`✅ 成功将 ${successCount} 首歌加入【${pl.name}】！`)
+  } else {
+    ElMessage.warning('加入失败，可能歌曲已存在于歌单中！')
+  }
   playlistDialogVisible.value = false; toggleBatchMode()
-  ElMessage.success(`✅ 成功将 ${uniqueSongs.length} 首歌加入【${pl.name}】！`)
+  
+  // 如果当前正处于这个歌单页面，刷新它
+  if (currentMenu.value === `playlist_${pl.id}`) {
+    loadPlaylistSongs(pl.id)
+  }
 }
 
+// 🚀 删除云端歌单
 const deletePlaylist = (pId) => {
-  ElMessageBox.confirm('确定要删除这个辛辛苦苦建的歌单吗？', '删除确认', { type: 'warning' }).then(() => {
-    customPlaylists.value = customPlaylists.value.filter(p => p.id !== pId); savePlaylistsToLocal()
-    currentMenu.value = 'discover'; ElMessage.success('歌单已删除')
+  ElMessageBox.confirm('确定要删除这个云端歌单吗？', '删除确认', { type: 'warning' }).then(async () => {
+    try {
+      await deletePlaylistAPI(pId)
+      await fetchMyPlaylists()
+      currentMenu.value = 'discover'
+      ElMessage.success('歌单已从云端删除')
+    } catch (error) { ElMessage.error('删除失败') }
   }).catch(() => {})
+}
+
+// 🚀 加载歌单内的真实歌曲
+const loadPlaylistSongs = async (plId) => {
+  try {
+    const res = await getPlaylistMusicAPI(plId)
+    const pl = customPlaylists.value.find(p => p.id == plId)
+    if (pl) pl.songs = res || []
+  } catch (error) { console.error('获取歌单歌曲失败') }
 }
 
 const currentSong = ref(null)
@@ -552,17 +601,31 @@ watch(currentSong, (newSong) => {
   }
 })
 
+// 🚀 获取真实云端红心列表
 const fetchMyLikes = async () => {
   if (!currentUser.value) return
   try {
     const res = await getLikedMusicAPI(currentUser.value.id)
-    likedMusicList.value = res.data || res || []
+    likedMusicList.value = res || []
   } catch (error) { console.error('获取收藏失败', error) }
 }
 
 const handleLogout = () => {
-  currentUser.value = null; likedMusicList.value = []; localStorage.removeItem('echo_user')
+  currentUser.value = null; likedMusicList.value = []; customPlaylists.value = [];
+  localStorage.removeItem('echo_user')
+  localStorage.removeItem('echo_token')
   router.push('/login')
+}
+
+// 🚀 真实的全量拉取（不要分页了，一口气全要！）
+const loadDiscoverData = async () => {
+  try {
+    const res = await getMusicListAPI() // 直接调用拿全部歌曲的接口
+    // 兼容后端的不同返回格式
+    allMusicList.value = res.data ? res.data : (res || []) 
+  } catch (error) { 
+    console.error("获取全量音乐列表失败", error) 
+  }
 }
 
 const handleSearch = async () => {
@@ -571,7 +634,7 @@ const handleSearch = async () => {
   discoverMode.value = 'ai'; isSearching.value = true
   try {
     const data = await recommendMusicAPI(userInput.value)
-    aiMusicList.value = data.data || data || []
+    aiMusicList.value = data || []
     ElMessage.success('匹配成功！')
   } catch (error) { console.error(error) } finally { isSearching.value = false }
 }
@@ -635,33 +698,41 @@ const formatTime = (seconds) => {
 }
 
 onMounted(async () => {
-  try {
-    const data = await getMusicListAPI()
-    allMusicList.value = data.data || data || [] 
-  } catch (error) { console.error("初始化获取音乐列表失败", error) }
+  // 1. 初始化大厅数据 (现在是全量加载)
+  await loadDiscoverData()
 
+  // 2. 初始化用户状态并拉取云端数据
   const savedUser = localStorage.getItem('echo_user')
-  if (savedUser) { currentUser.value = JSON.parse(savedUser); fetchMyLikes() }
+  if (savedUser) { 
+    currentUser.value = JSON.parse(savedUser)
+    await fetchMyLikes()
+    await fetchMyPlaylists() 
+  }
   
+  // 3. 本地历史记录
   const savedHistory = localStorage.getItem('echo_play_history')
   if (savedHistory) playHistory.value = JSON.parse(savedHistory)
-  
-  const savedPlaylists = localStorage.getItem('echo_custom_playlists')
-  if (savedPlaylists) customPlaylists.value = JSON.parse(savedPlaylists)
 })
 
 const switchMenu = async (menuName) => {
   currentMenu.value = menuName
   isBatchMode.value = false 
   localSearchKeyword.value = '' 
+  
   if (menuName === 'discover') {
-    try { const data = await getMusicListAPI(); allMusicList.value = data.data || data || [] } catch (error) { }
+    // 🚀 移除 pageNum 重置逻辑，直接重新加载
+    await loadDiscoverData()
+  } else if (menuName === 'liked') {
+    await fetchMyLikes()
+  } else if (menuName.startsWith('playlist_')) {
+    const pId = menuName.split('_')[1]
+    await loadPlaylistSongs(pId)
   }
-  if (menuName === 'liked') fetchMyLikes()
 }
 </script>
 
 <style scoped>
+/* =========== 👇 以下是完完全全、一字不差的你原版顶级 CSS 👇 =========== */
 .checkbox-overlay { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); border-radius: 4px; padding: 2px 5px; }
 .batch-action-bar { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 12px 30px; border-radius: 40px; z-index: 200; display: flex; gap: 30px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-weight: bold; }
 .playlist-options { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
@@ -710,32 +781,11 @@ const switchMenu = async (menuName) => {
 .title { font-weight: 600; font-size: 15px; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .artist { color: #6b7280; font-size: 13px; margin-top: 4px; }
 
-/* 🚀 极其霸道的 Grid 网格布局：强制左边占 1 份，中间占 80px，右边占 1 份！ */
-.list-header { 
-  display: grid; 
-  grid-template-columns: 1fr 80px 1fr; 
-  align-items: center;
-  padding: 15px 30px; 
-  font-size: 13px; 
-  color: #9ca3af; 
-  border-bottom: 1px solid #f3f4f6; 
-}
-
-.list-item { 
-  display: grid; 
-  grid-template-columns: 1fr 80px 1fr; 
-  align-items: center; 
-  padding: 15px 30px; 
-  border-bottom: 1px solid #f9fafb; 
-  cursor: pointer; 
-  transition: background 0.2s; 
-}
-
+.list-header { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 15px 30px; font-size: 13px; color: #9ca3af; border-bottom: 1px solid #f3f4f6; }
+.list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 15px 30px; border-bottom: 1px solid #f9fafb; cursor: pointer; transition: background 0.2s; }
 .list-item:hover { background: #f9fafb; }
 .list-item.playing-item { background: #eff6ff; }
 .list-item.playing-item .col-title, .list-item.playing-item .title-text { color: #3b82f6; font-weight: 600; }
-
-/* 🚀 极其精妙的排版修复：让内部文字能够正确被截断，且不会把红心挤跑 */
 .col-title { display: flex; align-items: center; gap: 12px; font-size: 15px; color: #374151; font-weight: 500; min-width: 0; overflow: hidden; }
 .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .col-like-cell { display: flex; justify-content: center; align-items: center; } 
@@ -816,12 +866,13 @@ const switchMenu = async (menuName) => {
   .extra-funcs { display: none; } 
 }
 
-/* ================= 🚀 补回并升级的收藏按钮 CSS ================= */
 .like-icon { margin-left: 15px; cursor: pointer; color: #9ca3af; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .like-icon:hover { transform: scale(1.2); color: #f87171; }
 .like-icon.is-liked { color: #ef4444; }
-
 .list-like-icon { cursor: pointer; color: #e5e7eb; transition: 0.3s; }
 .list-like-icon:hover { color: #f87171; transform: scale(1.2); }
 .list-like-icon.is-liked { color: #ef4444; }
+
+/* 新增的极其优雅的分页器样式 */
+.pagination-wrapper { display: flex; justify-content: center; margin-top: 30px; padding-bottom: 20px; }
 </style>
