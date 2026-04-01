@@ -147,6 +147,94 @@
               
               <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
             </div>
+            </div>
+        </section>
+
+        <section v-else-if="currentMenu === 'radio'" class="hero-section fade-in">
+          <div class="radio-container">
+            <div class="radio-header">
+              <h2>📡 Echo 私人智能 FM</h2>
+              <p class="theory-note">AI 正在根据此刻时空为您实时演算调频...</p>
+            </div>
+            <div class="fm-player-box" v-if="radioMusicList.length > 0">
+              <div class="fm-cover-wrapper" :class="{ 'is-playing': isPlaying }">
+                <el-image :src="currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
+                <div class="fm-center-hole"></div>
+              </div>
+              <div class="fm-info">
+                <h3>{{ currentSong?.title || radioMusicList[0]?.title }}</h3>
+                <p>{{ currentSong?.artist || radioMusicList[0]?.artist }}</p>
+                <el-button type="primary" round size="large" @click="playNextFm" class="fm-next-btn">
+                  <el-icon><RefreshRight /></el-icon> 换一首听听
+                </el-button>
+              </div>
+            </div>
+            <el-empty v-else description="正在疯狂接收宇宙电波..." />
+          </div>
+        </section>
+
+        <section v-else-if="currentMenu === 'sleep'" class="hero-section fade-in sleep-mode-bg">
+          <div class="discover-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div>
+              <h2 style="color: #fff;">🌙 深度助眠频段</h2>
+              <p style="color: #9ca3af;">褪去白日的喧嚣，AI 为您精选的白噪音与轻音乐。</p>
+            </div>
+            <el-button type="primary" color="#4f46e5" round @click="initSleepMode">
+              <el-icon><Refresh /></el-icon> 重新生成梦境
+            </el-button>
+          </div>
+          
+          <el-empty v-if="sleepMusicList.length === 0" description="正在为您生成梦境频段..." />
+          <div class="music-list-view fade-in dark-list" v-else>
+            <div class="list-item" v-for="item in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'playing-item': currentSong && currentSong.id === item.id }">
+              <span class="col-title">
+                <el-icon class="play-icon" v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                <el-icon class="play-icon" v-else><VideoPlay /></el-icon>
+                <span class="title-text">{{ item.title }}</span>
+              </span>
+              <span class="col-like-cell">
+                <el-icon :size="18" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)">
+                  <component :is="isLiked(item.id) ? StarFilled : Star" />
+                </el-icon>
+              </span>
+              <span class="col-artist"><span class="artist-text">{{ item.artist }}</span></span>
+            </div>
+          </div>
+        </section>
+
+        <section v-else-if="currentMenu === 'profile'" class="hero-section fade-in">
+          <div class="profile-container">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                <el-avatar :size="100" :src="currentUser?.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+                <div class="avatar-edit"><el-icon><Edit /></el-icon></div>
+              </div>
+              <div class="profile-info">
+                <h2>{{ currentUser?.username || '未命名架构师' }}</h2>
+                <p>EchoScene 尊贵会员 ｜ 听歌品味：<el-tag size="small" type="success">极度硬核</el-tag></p>
+              </div>
+            </div>
+
+            <el-row :gutter="20" class="stats-row">
+              <el-col :span="8">
+                <div class="stat-card">
+                  <div class="stat-num">{{ likedMusicList.length }}</div>
+                  <div class="stat-label">❤️ 累计红心</div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="stat-card">
+                  <div class="stat-num">{{ customPlaylists.length }}</div>
+                  <div class="stat-label">💿 云端歌单</div>
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="stat-card">
+                  <div class="stat-num">{{ playHistory.length }}</div>
+                  <div class="stat-label">🕒 历史足迹</div>
+                </div>
+              </el-col>
+            </el-row>
           </div>
         </section>
 
@@ -255,9 +343,6 @@
           </div>
         </section>
 
-        <section v-else-if="currentMenu === 'radio'" class="hero-section fade-in"><h2>📡 智能电台建设中...</h2></section>
-        <section v-else-if="currentMenu === 'sleep'" class="hero-section fade-in"><h2>🌙 助眠系列建设中...</h2></section>
-        <section v-else-if="currentMenu === 'profile'" class="hero-section fade-in"><h2>👤 个人中心建设中...</h2></section>
       </div>
 
       <transition name="slide-up">
@@ -317,11 +402,12 @@
 import axios from 'axios'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu } from '@element-plus/icons-vue'
+// 🚀 极其关键的保命符：所有的新老图标都在这里被完美 Import，绝不会再死机！
+import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 🚀 核心补丁：导入你后端的所有真实 API！
-import { getMusicListAPI, recommendMusicAPI, getMusicPageAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
+// 🚀 物理分页的 getMusicPageAPI 已经被彻底拔除，换成了霸气的全局 getMusicListAPI
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -400,7 +486,6 @@ const openPlaylistDialog = () => {
   playlistDialogVisible.value = true
 }
 
-// 🚀 云端批量收藏
 const batchLikeSongs = async () => {
   if (!currentUser.value) {
     ElMessage.warning('请先登录才能收藏歌曲哦！')
@@ -424,11 +509,9 @@ const batchLikeSongs = async () => {
   } else {
     ElMessage.info('选中的歌曲都已经躺在你的收藏列表里啦~')
   }
-  
   toggleBatchMode() 
 }
 
-// 🚀 获取真实云端歌单
 const fetchMyPlaylists = async () => {
   if (!currentUser.value) return
   try {
@@ -437,18 +520,15 @@ const fetchMyPlaylists = async () => {
   } catch (error) { console.error('获取云端歌单失败', error) }
 }
 
-// 🚀 创建云端歌单并批量添加
 const createNewPlaylist = async () => {
   if (!newPlaylistName.value.trim()) return ElMessage.warning('请输入歌单名称！')
   try {
     await createPlaylistAPI(currentUser.value.id, newPlaylistName.value.trim())
-    await fetchMyPlaylists() // 重新拉取以获取新歌单的 ID
+    await fetchMyPlaylists() 
     
     const newPl = customPlaylists.value.find(p => p.name === newPlaylistName.value.trim())
     if (newPl && selectedMusicIds.value.length > 0) {
-      for(let sid of selectedMusicIds.value) {
-        await addMusicToPlaylistAPI(newPl.id, sid)
-      }
+      for(let sid of selectedMusicIds.value) { await addMusicToPlaylistAPI(newPl.id, sid) }
       ElMessage.success('🎉 歌单创建并添加成功！')
     } else {
       ElMessage.success('🎉 歌单创建成功！')
@@ -458,29 +538,18 @@ const createNewPlaylist = async () => {
   newPlaylistName.value = ''; playlistDialogVisible.value = false; toggleBatchMode() 
 }
 
-// 🚀 批量加入已有云端歌单
 const addToExistingPlaylist = async (pl) => {
   let successCount = 0
   for(let sid of selectedMusicIds.value) {
-    try {
-      await addMusicToPlaylistAPI(pl.id, sid)
-      successCount++
-    } catch(e) {}
+    try { await addMusicToPlaylistAPI(pl.id, sid); successCount++ } catch(e) {}
   }
-  if (successCount > 0) {
-    ElMessage.success(`✅ 成功将 ${successCount} 首歌加入【${pl.name}】！`)
-  } else {
-    ElMessage.warning('加入失败，可能歌曲已存在于歌单中！')
-  }
-  playlistDialogVisible.value = false; toggleBatchMode()
+  if (successCount > 0) ElMessage.success(`✅ 成功将 ${successCount} 首歌加入【${pl.name}】！`)
+  else ElMessage.warning('加入失败，可能歌曲已存在于歌单中！')
   
-  // 如果当前正处于这个歌单页面，刷新它
-  if (currentMenu.value === `playlist_${pl.id}`) {
-    loadPlaylistSongs(pl.id)
-  }
+  playlistDialogVisible.value = false; toggleBatchMode()
+  if (currentMenu.value === `playlist_${pl.id}`) loadPlaylistSongs(pl.id)
 }
 
-// 🚀 删除云端歌单
 const deletePlaylist = (pId) => {
   ElMessageBox.confirm('确定要删除这个云端歌单吗？', '删除确认', { type: 'warning' }).then(async () => {
     try {
@@ -492,7 +561,6 @@ const deletePlaylist = (pId) => {
   }).catch(() => {})
 }
 
-// 🚀 加载歌单内的真实歌曲
 const loadPlaylistSongs = async (plId) => {
   try {
     const res = await getPlaylistMusicAPI(plId)
@@ -519,21 +587,15 @@ const toggleLike = async (song) => {
     return goToLogin()
   }
   if (!song) return
-  
-  const mId = song.id
-  const uId = currentUser.value.id
+  const mId = song.id; const uId = currentUser.value.id
   try {
     if (isLiked(mId)) {
-      await unlikeMusicAPI(uId, mId)
-      ElMessage.success('已取消收藏')
+      await unlikeMusicAPI(uId, mId); ElMessage.success('已取消收藏')
     } else {
-      await likeMusicAPI(uId, mId)
-      ElMessage.success('❤️ 收藏成功！')
+      await likeMusicAPI(uId, mId); ElMessage.success('❤️ 收藏成功！')
     }
     await fetchMyLikes() 
-  } catch (error) { 
-    ElMessage.error('操作失败') 
-  }
+  } catch (error) { ElMessage.error('操作失败') }
 }
 
 const showLyricPanel = ref(false)   
@@ -601,7 +663,6 @@ watch(currentSong, (newSong) => {
   }
 })
 
-// 🚀 获取真实云端红心列表
 const fetchMyLikes = async () => {
   if (!currentUser.value) return
   try {
@@ -612,21 +673,49 @@ const fetchMyLikes = async () => {
 
 const handleLogout = () => {
   currentUser.value = null; likedMusicList.value = []; customPlaylists.value = [];
-  localStorage.removeItem('echo_user')
-  localStorage.removeItem('echo_token')
+  localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token')
   router.push('/login')
 }
 
-// 🚀 真实的全量拉取（不要分页了，一口气全要！）
+// 🚀 极其霸气的全量拉取，物理分页已被你亲手斩草除根！
 const loadDiscoverData = async () => {
   try {
-    const res = await getMusicListAPI() // 直接调用拿全部歌曲的接口
-    // 兼容后端的不同返回格式
+    const res = await getMusicListAPI()
     allMusicList.value = res.data ? res.data : (res || []) 
-  } catch (error) { 
-    console.error("获取全量音乐列表失败", error) 
-  }
+  } catch (error) { console.error("获取全量音乐列表失败", error) }
 }
+
+// ================== 🚀 新增的三大模块核心逻辑 ================== //
+
+const radioMusicList = ref([])
+const initRadio = async () => {
+  if (radioMusicList.value.length > 0) return 
+  ElMessage.info('📡 正在呼叫 AI 建立专属私人电台...')
+  try {
+    const data = await recommendMusicAPI('随机推荐一些极其好听的、充满氛围感的流行或电子音乐，适合一个人静静听')
+    radioMusicList.value = data || []
+    if (radioMusicList.value.length > 0) { selectSong(radioMusicList.value[0]) }
+  } catch (error) { console.error('电台生成失败') }
+}
+
+const playNextFm = () => {
+  if (radioMusicList.value.length === 0) return
+  const currentIndex = radioMusicList.value.findIndex(item => item.id === currentSong.value?.id)
+  const nextIndex = (currentIndex + 1) % radioMusicList.value.length
+  selectSong(radioMusicList.value[nextIndex])
+}
+
+const sleepMusicList = ref([])
+const initSleepMode = async () => {
+  if (sleepMusicList.value.length > 0) return
+  ElMessage.info('🌙 正在为您编织助眠梦境...')
+  try {
+    const data = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音')
+    sleepMusicList.value = data || []
+  } catch (error) { console.error('助眠列表生成失败') }
+}
+
+// =============================================================== //
 
 const handleSearch = async () => {
   if (!userInput.value.trim()) return ElMessage.warning('请输入场景描述哦')
@@ -640,23 +729,14 @@ const handleSearch = async () => {
 }
 
 const selectSong = (song) => {
-  currentSong.value = song
-  isPlaying.value = true
-  setTimeout(() => {
-    if (audioRef.value) {
-      audioRef.value.volume = volume.value / 100
-      audioRef.value.play()
-    }
-  }, 100)
+  currentSong.value = song; isPlaying.value = true
+  setTimeout(() => { if (audioRef.value) { audioRef.value.volume = volume.value / 100; audioRef.value.play() } }, 100)
 }
 
 const togglePlay = () => {
   if (!audioRef.value) return
-  if (isPlaying.value) {
-    audioRef.value.pause()
-  } else {
-    audioRef.value.play()
-  }
+  if (isPlaying.value) audioRef.value.pause()
+  else audioRef.value.play()
   isPlaying.value = !isPlaying.value
 }
 
@@ -698,41 +778,35 @@ const formatTime = (seconds) => {
 }
 
 onMounted(async () => {
-  // 1. 初始化大厅数据 (现在是全量加载)
   await loadDiscoverData()
-
-  // 2. 初始化用户状态并拉取云端数据
   const savedUser = localStorage.getItem('echo_user')
-  if (savedUser) { 
-    currentUser.value = JSON.parse(savedUser)
-    await fetchMyLikes()
-    await fetchMyPlaylists() 
-  }
-  
-  // 3. 本地历史记录
+  if (savedUser) { currentUser.value = JSON.parse(savedUser); await fetchMyLikes(); await fetchMyPlaylists() }
   const savedHistory = localStorage.getItem('echo_play_history')
   if (savedHistory) playHistory.value = JSON.parse(savedHistory)
 })
 
+// 🚀 极其关键的 switchMenu 改造：完美响应电台和助眠！
 const switchMenu = async (menuName) => {
   currentMenu.value = menuName
   isBatchMode.value = false 
   localSearchKeyword.value = '' 
   
   if (menuName === 'discover') {
-    // 🚀 移除 pageNum 重置逻辑，直接重新加载
     await loadDiscoverData()
   } else if (menuName === 'liked') {
     await fetchMyLikes()
   } else if (menuName.startsWith('playlist_')) {
     const pId = menuName.split('_')[1]
     await loadPlaylistSongs(pId)
+  } else if (menuName === 'radio') {
+    initRadio() // 🚀 瞬间召唤私人电台大模型
+  } else if (menuName === 'sleep') {
+    initSleepMode() // 🚀 瞬间召唤助眠大模型
   }
 }
 </script>
 
 <style scoped>
-/* =========== 👇 以下是完完全全、一字不差的你原版顶级 CSS 👇 =========== */
 .checkbox-overlay { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); border-radius: 4px; padding: 2px 5px; }
 .batch-action-bar { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 12px 30px; border-radius: 40px; z-index: 200; display: flex; gap: 30px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-weight: bold; }
 .playlist-options { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
@@ -873,6 +947,38 @@ const switchMenu = async (menuName) => {
 .list-like-icon:hover { color: #f87171; transform: scale(1.2); }
 .list-like-icon.is-liked { color: #ef4444; }
 
-/* 新增的极其优雅的分页器样式 */
-.pagination-wrapper { display: flex; justify-content: center; margin-top: 30px; padding-bottom: 20px; }
+/* 🚀 ================= 极其酷炫的新增模块专属 CSS ================= 🚀 */
+/* 📡 智能电台样式 */
+.radio-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding-top: 40px; }
+.radio-header { text-align: center; margin-bottom: 50px; }
+.fm-player-box { display: flex; flex-direction: column; align-items: center; gap: 30px; }
+.fm-cover-wrapper { width: 260px; height: 260px; border-radius: 50%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 8px solid #111; }
+.fm-cover-wrapper.is-playing { animation-play-state: running; }
+.fm-cover { width: 100%; height: 100%; }
+.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: #f6f8fa; border-radius: 50%; border: 2px solid #333; }
+.fm-info { text-align: center; }
+.fm-info h3 { font-size: 24px; color: #111827; margin: 0 0 10px 0; }
+.fm-info p { color: #6b7280; font-size: 15px; margin: 0 0 20px 0; }
+.fm-next-btn { font-weight: bold; letter-spacing: 1px; padding: 0 30px; }
+
+/* 🌙 助眠系列专属暗黑皮肤 */
+.sleep-mode-bg { background: linear-gradient(to bottom, #1e1e2f, #111827); border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5) inset; }
+.dark-list { background: rgba(0,0,0,0.2) !important; border: 1px solid rgba(255,255,255,0.05); }
+.dark-list .list-item { border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; }
+.dark-list .list-item:hover { background: rgba(255,255,255,0.05); }
+.dark-list .col-title, .dark-list .artist-text { color: #e5e7eb; }
+
+/* 👤 个人中心样式 */
+.profile-container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
+.profile-header { display: flex; align-items: center; gap: 30px; margin-bottom: 50px; }
+.avatar-wrapper { position: relative; cursor: pointer; }
+.avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #fff; transition: 0.2s; }
+.avatar-wrapper:hover .avatar-edit { transform: scale(1.1); background: #2563eb; }
+.profile-info h2 { font-size: 28px; margin: 0 0 10px 0; color: #111827; }
+.profile-info p { margin: 0; color: #6b7280; display: flex; align-items: center; gap: 10px; }
+.stats-row { text-align: center; }
+.stat-card { padding: 30px; background: #f9fafb; border-radius: 16px; transition: 0.3s; }
+.stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+.stat-num { font-size: 36px; font-weight: 800; color: #3b82f6; margin-bottom: 10px; font-family: monospace; }
+.stat-label { font-size: 14px; color: #6b7280; font-weight: bold; letter-spacing: 1px; }
 </style>
