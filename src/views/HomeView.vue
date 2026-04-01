@@ -366,7 +366,21 @@
             <component :is="isLiked(currentSong.id) ? StarFilled : Star" />
           </el-icon>
         </div>
-        <div class="play-btns"><el-button link class="prev-next-btn" @click="playPrev"><el-icon :size="20"><ArrowLeftBold /></el-icon></el-button><el-button circle size="large" type="primary" class="main-play-btn" @click="togglePlay"><el-icon :size="24"><component :is="isPlaying ? VideoPause : VideoPlay" /></el-icon></el-button><el-button link class="prev-next-btn" @click="playNext"><el-icon :size="20"><ArrowRightBold /></el-icon></el-button></div>
+        <div class="play-btns">
+          <el-button link class="prev-next-btn" @click="playPrev"><el-icon :size="20"><ArrowLeftBold /></el-icon></el-button>
+          
+          <button class="pure-play-btn" @click="togglePlay">
+            <svg v-if="!isPlaying" class="pure-play-icon" viewBox="0 0 24 24" width="22" height="22">
+              <path d="M8 5v14l11-7z" fill="currentColor"></path>
+            </svg>
+            
+            <svg v-else class="pure-pause-icon" viewBox="0 0 24 24" width="22" height="22">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"></path>
+            </svg>
+          </button>
+          
+          <el-button link class="prev-next-btn" @click="playNext"><el-icon :size="20"><ArrowRightBold /></el-icon></el-button>
+        </div>
         <div class="extra-funcs"><span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span><el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon><el-popover placement="top" width="40" trigger="hover"><template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template><el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" /></el-popover></div>
       </div>
       <div class="empty-player" v-else>请在上方点击歌曲播放</div>
@@ -828,28 +842,39 @@ const switchMenu = async (menuName) => {
 .modern-list-item.is-playing .track-pause { color: #18181b !important; }
 
 /* 🚀 播放按钮终极返璞归真：采用图片里的极简兜底图案风格 */
-.main-play-btn { 
-  background: #fff !important; /* 彻底变成干净的白底 */
-  border: 1px solid rgba(0,0,0,0.08) !important; /* 加上极其克制的淡灰色边框，定义轮廓 */
-  width: 48px !important; 
-  height: 48px !important; 
-  border-radius: 50% !important; 
-  display: flex !important; 
-  align-items: center !important; 
-  justify-content: center !important; 
-  color: #94a3b8 !important; /* 彻底变成图片里的灰心图标 */
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important; /* 极其微弱的阴影，让它悬浮起来 */
-  padding: 0 !important; 
+
+/* 🚀 彻底重构的几何播放按钮 */
+.pure-play-btn { 
+  background: #fff; 
+  border: 1px solid #e2e8f0; 
+  width: 50px; 
+  height: 50px; 
+  border-radius: 50%; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  color: #94a3b8; /* 图片里那种极其克制的高级灰 */
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.02); 
+  padding: 0;
+  outline: none;
+  cursor: pointer;
 }
-.main-play-btn:hover { 
-  background: #f8fafc !important; /* 悬浮时极其轻微的底色变化 */
-  transform: scale(1.05) !important; 
-  box-shadow: 0 6px 14px rgba(0,0,0,0.05) !important;
+.pure-play-btn:hover { 
+  background: #f8fafc; 
+  transform: scale(1.05); 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05);
+  color: #64748b;
 }
-.main-play-btn .el-icon { 
-  font-size: 24px !important; /* 图标稍微大一点点，更有占位图的神韵 */
-  margin: 0 !important;
+
+/* 🎯 重点来了！强制修正三角形的视觉重心，只偏移动三角形！ */
+.pure-play-icon {
+  margin-left: 3px; 
+}
+
+/* 🎯 暂停的双竖线绝对不受影响，稳稳地钉在正中心！ */
+.pure-pause-icon {
+  margin: 0;
 }
 
 /* 顺便把切歌按钮也变成灰色，保持视觉统一 */
