@@ -10,8 +10,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8080', 
-        changeOrigin: true
-        // 极其干净，直接把 /api 丢给后端！
+        changeOrigin: true,
+        // 🚀 极其致命的一行代码：在发给后端前，自动把路径里的 /api 抹掉！
+        rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   }
