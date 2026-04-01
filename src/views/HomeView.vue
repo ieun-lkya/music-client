@@ -367,19 +367,29 @@
           </el-icon>
         </div>
         <div class="play-btns">
-          <el-button link class="prev-next-btn" @click="playPrev"><el-icon :size="20"><ArrowLeftBold /></el-icon></el-button>
           
-          <button class="pure-play-btn" @click="togglePlay">
-            <svg v-if="!isPlaying" class="pure-play-icon" viewBox="0 0 24 24" width="22" height="22">
-              <path d="M8 5v14l11-7z" fill="currentColor"></path>
+          <el-icon class="prev-next-btn" @click="playPrev">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
             </svg>
-            
-            <svg v-else class="pure-pause-icon" viewBox="0 0 24 24" width="22" height="22">
-              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"></path>
-            </svg>
-          </button>
+          </el-icon>
           
-          <el-button link class="prev-next-btn" @click="playNext"><el-icon :size="20"><ArrowRightBold /></el-icon></el-button>
+          <div class="main-play-btn" @click="togglePlay">
+            <svg v-if="!isPlaying" class="play-svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5.14v14.72a1 1 0 001.5.86l11-7.36a1 1 0 000-1.72l-11-7.36a1 1 0 00-1.5.86z"></path>
+            </svg>
+            <svg v-else class="pause-svg" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+              <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+            </svg>
+          </div>
+
+          <el-icon class="prev-next-btn" @click="playNext">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+              <path d="M16 6h2v12h-2zm-10 6l8.5-6v12z"></path>
+            </svg>
+          </el-icon>
+          
         </div>
         <div class="extra-funcs"><span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span><el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon><el-popover placement="top" width="40" trigger="hover"><template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template><el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" /></el-popover></div>
       </div>
@@ -769,30 +779,51 @@ const switchMenu = async (menuName) => {
 .t { font-weight: 700; font-size: 14px; color: #18181b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px; }
 .a { font-size: 12px; color: #71717a; font-weight: 500; }
 
-.play-btns { display: flex; align-items: center; gap: 30px; justify-content: center; flex: 1; }
+.play-btns { display: flex; align-items: center; gap: 32px; justify-content: center; flex: 1; }
 
-/* 🚀 播放按钮终极去油：摒弃蓝色大圆，采用纯净暗黑悬浮按钮 */
+/* 纯粹的暗黑主播放按钮 */
 .main-play-btn { 
   background: #18181b !important; 
-  border: none !important; 
-  width: 44px !important; 
-  height: 44px !important; 
+  width: 48px !important; 
+  height: 48px !important; 
   border-radius: 50% !important; 
   display: flex !important; 
   align-items: center !important; 
   justify-content: center !important; 
   color: #fff !important; 
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .main-play-btn:hover { 
-  background: #000 !important; 
   transform: scale(1.08) !important; 
-  box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+  background: #000 !important;
 }
-.main-play-btn .el-icon { font-size: 20px !important; margin-left: 2px; } /* 稍微往右偏一点点，视觉居中 */
-.prev-next-btn { color: #71717a !important; transform: scale(1.3); transition: 0.2s; }
-.prev-next-btn:hover { color: #18181b !important; transform: scale(1.4); }
+
+/* 🎯 强制修正三角形视觉重心：只让三角形往右移 2px */
+.main-play-btn .play-svg {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px; 
+}
+
+/* 🎯 暂停双竖线：绝对居中，雷打不动 */
+.main-play-btn .pause-svg {
+  width: 22px;
+  height: 22px;
+  margin: 0; 
+}
+
+/* 切歌按钮极简处理 */
+.prev-next-btn { 
+  color: #71717a !important; 
+  font-size: 20px !important;
+  cursor: pointer;
+  transition: 0.2s ease; 
+}
+.prev-next-btn:hover { 
+  color: #18181b !important; 
+}
 
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
 .time-display { font-size: 12px; font-family: monospace; color: #71717a; font-weight: 600; }
@@ -1015,3 +1046,4 @@ const switchMenu = async (menuName) => {
 .stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace; letter-spacing: -2px;}
 .stat-label { font-size: 15px; color: #64748b; font-weight: 700; letter-spacing: 1px; }
 </style>
+
