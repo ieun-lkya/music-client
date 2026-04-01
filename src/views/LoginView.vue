@@ -1,0 +1,171 @@
+<template>
+  <div class="login-wrapper">
+    <div class="login-glass-card">
+      <div class="logo-area">
+        <el-icon :size="40" color="#3b82f6"><MagicStick /></el-icon>
+        <h2>EchoScene <span class="badge">AI</span></h2>
+        <p class="subtitle">懂你的场景音乐大模型</p>
+      </div>
+
+      <el-tabs v-model="activeRole" class="role-tabs" stretch>
+        <el-tab-pane label="🎧 听歌用户" name="user">
+          <el-form :model="userForm" size="large" class="auth-form">
+            <el-form-item>
+              <el-input v-model="userForm.username" placeholder="请输入你的专属 ID" prefix-icon="User" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="userForm.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password @keyup.enter="handleUserAction" />
+            </el-form-item>
+            <el-form-item class="action-buttons">
+              <el-button type="primary" class="main-btn" @click="handleUserAction" :loading="loading">
+                {{ isRegisterMode ? '立 即 注 册' : '登 录 系 统' }}
+              </el-button>
+              <div class="toggle-text" @click="isRegisterMode = !isRegisterMode">
+                {{ isRegisterMode ? '已有账号？去登录 ➔' : '没有账号？去注册 ➔' }}
+              </div>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+
+        <el-tab-pane label="⚙️ 系统管理员" name="admin">
+          <el-form :model="adminForm" size="large" class="auth-form">
+            <el-form-item>
+              <el-input v-model="adminForm.username" placeholder="请输入管理员账号" prefix-icon="Monitor" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="adminForm.password" type="password" placeholder="请输入管理员密码" prefix-icon="Key" show-password @keyup.enter="handleAdminLogin" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="dark" class="main-btn admin-btn" @click="handleAdminLogin" :loading="loading">
+                进 入 控 制 台
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+// 假设引入了 loginAPI 和 registerAPI
+import { loginAPI, registerAPI } from '../api/user' 
+
+const router = useRouter()
+const isRegisterMode = ref(false)
+const loading = ref(false)
+const userForm = ref({ username: '', password: '' })
+
+const handleUserAction = async () => {
+  if (!userForm.value.username || !userForm.value.password) return ElMessage.warning('账号和密码不能为空哦')
+  loading.value = true
+  
+  try {
+    if (isRegisterMode.value) {
+      const regRes = await registerAPI(userForm.value)
+      // 注意：根据 request.js 拦截器，code===200 才会返回 data，否则抛错。
+      // 这里兼容一下旧逻辑或直接依赖拦截器抛错
+      if (regRes && regRes.code !== 200) throw new Error(regRes.msg || '注册失败')
+      ElMessage.success('🎉 注册成功！正在为您自动驶入首页...')
+    }
+
+    // 🚀 登录逻辑
+    const loginRes = await loginAPI(userForm.value)
+    // 同样，如果 code 不是 200，interceptor 已经处理了报错，能到这里说明是 200
+    // 但为了保险起见，检查数据结构
+    if (!loginRes) throw new Error('登录失败')
+
+    // 🚀 剥开后端的壳，拿到真正的 user 和 token
+    // 拦截器已经返回了 res.data，所以这里 loginRes 就是 data 部分
+    let realData = loginRes 
+
+    if (!realData || !realData.user || !realData.token) {
+      throw new Error('解析用户数据失败，后端未返回 Token！')
+    }
+    
+    // 🚀 极其关键：把后端签发的 JWT Token 存进浏览器！
+    localStorage.setItem('echo_token', realData.token)
+    localStorage.setItem('echo_user', JSON.stringify(realData.user))
+    
+    if (!isRegisterMode.value) ElMessage.success(`欢迎回来，${realData.user.username}！`)
+
+    router.push('/')
+    
+  } catch (error) {
+    // 如果是拦截器抛出的错误，message 已经显示过，这里防止重复或做额外处理
+    if (!error.message.includes('服务异常') && !error.message.includes('登录已失效')) {
+       ElMessage.error(error.message || '操作失败，请检查账号密码')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleAdminLogin = () => {
+  if (!adminForm.username || !adminForm.password) return ElMessage.warning('请输入管理员凭证')
+  loading.value = true
+  
+  setTimeout(() => {
+    // 假设管理员账号是 admin，密码是 123456 (你可以自己改)
+    if (adminForm.username === 'admin' && adminForm.password === '123456') {
+      ElMessage.success('管理员身份核验通过')
+      localStorage.setItem('admin_token', 'super_admin_secret')
+      router.push('/admin') // 跳转到后台大屏
+    } else {
+      ElMessage.error('管理员账号或密码错误！')
+    }
+    loading.value = false
+  }, 600)
+}
+</script>
+
+<style scoped>
+:global(body), :global(html), :global(#app) { margin: 0; padding: 0; height: 100%; }
+
+.login-wrapper {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 极其高级的动态渐变背景 */
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-glass-card {
+  width: 420px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+.logo-area { text-align: center; margin-bottom: 30px; }
+.logo-area h2 { margin: 10px 0 5px; font-size: 28px; color: #1f2937; }
+.badge { font-size: 12px; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; vertical-align: super; }
+.subtitle { color: #6b7280; font-size: 14px; margin: 0; }
+
+.role-tabs :deep(.el-tabs__item) { font-size: 16px; font-weight: 600; }
+.role-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background-color: #e5e7eb; }
+
+.auth-form { margin-top: 25px; }
+.main-btn { width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; letter-spacing: 2px; }
+.admin-btn { background-color: #1f2937; border-color: #1f2937; color: #fff; }
+.admin-btn:hover { background-color: #374151; border-color: #374151; }
+
+.action-buttons { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 30px; }
+.toggle-text { color: #6b7280; font-size: 14px; cursor: pointer; transition: 0.3s; margin-top: 15px; text-align: center; width: 100%; }
+.toggle-text:hover { color: #3b82f6; text-decoration: underline; }
+</style>
