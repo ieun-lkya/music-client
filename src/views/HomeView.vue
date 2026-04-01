@@ -818,38 +818,42 @@ const switchMenu = async (menuName) => {
 
 /* 悬浮状态：隐藏数字，显示播放图标 */
 .modern-list-item:hover .track-num { display: none; }
-.modern-list-item:hover .track-play { display: block; color: #3b82f6; }
+/* 🚀 同步更新：让列表悬浮图标也变成极简灰色 */
+.modern-list-item:hover .track-play { color: #94a3b8 !important; }
 
 /* 播放中状态：锁定为暂停图标（或跳动的音轨），并且变成主题色 */
 .modern-list-item.is-playing .track-num { display: none; }
 .modern-list-item.is-playing .track-play { display: none; }
-.modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
+/* 🚀 播放中状态锁定为黑色，保持极简 */
+.modern-list-item.is-playing .track-pause { color: #18181b !important; }
 
-/* 🚀 播放按钮终极去油 + 绝对对称居中！ */
+/* 🚀 播放按钮终极返璞归真：采用图片里的极简兜底图案风格 */
 .main-play-btn { 
-  background: #18181b !important; 
-  border: none !important; 
-  width: 46px !important; 
-  height: 46px !important; 
+  background: #fff !important; /* 彻底变成干净的白底 */
+  border: 1px solid rgba(0,0,0,0.08) !important; /* 加上极其克制的淡灰色边框，定义轮廓 */
+  width: 48px !important; 
+  height: 48px !important; 
   border-radius: 50% !important; 
   display: flex !important; 
   align-items: center !important; 
   justify-content: center !important; 
-  color: #fff !important; 
+  color: #94a3b8 !important; /* 彻底变成图片里的灰心图标 */
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
-  padding: 0 !important; /* 确保没有自带内边距干扰 */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important; /* 极其微弱的阴影，让它悬浮起来 */
+  padding: 0 !important; 
 }
 .main-play-btn:hover { 
-  background: #000 !important; 
-  transform: scale(1.08) !important; 
-  box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+  background: #f8fafc !important; /* 悬浮时极其轻微的底色变化 */
+  transform: scale(1.05) !important; 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05) !important;
 }
 .main-play-btn .el-icon { 
-  font-size: 22px !important; 
-  margin: 0 !important; /* 🔪 极其无情地干掉之前那个愚蠢的 margin-left: 2px */
+  font-size: 24px !important; /* 图标稍微大一点点，更有占位图的神韵 */
+  margin: 0 !important;
 }
-.prev-next-btn { color: #71717a !important; transform: scale(1.3); transition: 0.2s; }
+
+/* 顺便把切歌按钮也变成灰色，保持视觉统一 */
+.prev-next-btn { color: #94a3b8 !important; transform: scale(1.3); transition: 0.2s; }
 .prev-next-btn:hover { color: #18181b !important; transform: scale(1.4); }
 
 /* 顺手把上方 AI 便当盒的厚重按钮也削薄！ */
