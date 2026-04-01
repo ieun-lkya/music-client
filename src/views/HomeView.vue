@@ -376,7 +376,7 @@
               <span class="likes">{{ cmt.likes }} <el-icon><Star /></el-icon></span>
             </div>
             <div class="comment-text">{{ cmt.content }}</div>
-            <div class="comment-time">{{ cmt.time }}</div>
+            <div class="comment-time">{{ cmt.createTime }}</div>
           </div>
         </div>
         <el-empty v-if="currentComments.length === 0" description="还没有人评论，快来抢沙发~" />
@@ -440,7 +440,7 @@ import { useRouter } from 'vue-router'
 import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit, ChatDotRound, Close, Position } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getMusicPageAPI, getCommentsAPI, addCommentAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -636,8 +636,8 @@ watch(currentSong, (newSong) => {
     if (playHistory.value.length > 50) playHistory.value.pop()
     localStorage.setItem('echo_play_history', JSON.stringify(playHistory.value))
     
-    // 加载歌曲时，清空当前评论并拉取新热评
-    fetchMockComments()
+    // 🚀 加载新歌时，去数据库拉取这首歌独有的真实热评！
+    fetchComments(newSong.id)
   }
 })
 
@@ -702,35 +702,39 @@ const drawVisualizer = () => {
   }
 }
 
-// 🚀 核心升维 2：云村热评系统 (本地 Mock + 虚拟提交)
+// 🚀 核心升维 2：真实的云端热评系统接入！
 const commentDrawerVisible = ref(false)
 const newComment = ref('')
 const currentComments = ref([])
 
-const fetchMockComments = () => {
-  // 模拟从数据库拉取热评
-  currentComments.value = [
-    { username: 'Echo 音乐星人', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', content: '前奏一响，就回到了那个属于我们的夏天。', likes: 12580, time: '2023-08-12' },
-    { username: '代码敲不完', avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', content: '耳机一戴，全世界都与我无关，只有这首歌懂我的疲惫。', likes: 8902, time: '2023-09-01' },
-    { username: '匿名架构师', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', content: '这个播放器的极简设计加上这首歌，简直是绝配！', likes: 6500, time: '2023-11-22' }
-  ]
+// 去后端拉取真实的数据库评论
+const fetchComments = async (musicId) => {
+  try {
+    currentComments.value = await getCommentsAPI(musicId) || []
+  } catch (error) {
+    console.error('获取热评失败')
+  }
 }
 
-const submitComment = () => {
+// 提交真实评论到 MySQL
+const submitComment = async () => {
   if (!newComment.value.trim()) return
-  if (!currentUser.value) return ElMessage.warning('请先登录哦！')
+  if (!currentUser.value) return ElMessage.warning('请先登录才能发表你的故事哦！')
+  if (!currentSong.value) return
   
-  // 模拟提交入库
-  currentComments.value.unshift({
-    username: currentUser.value.username,
-    avatar: currentUser.value.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    content: newComment.value.trim(),
-    likes: 0,
-    time: new Date().toISOString().split('T')[0]
-  })
-  
-  ElMessage.success('评论发送成功！')
-  newComment.value = ''
+  try {
+    await addCommentAPI({
+      musicId: currentSong.value.id,
+      userId: currentUser.value.id,
+      content: newComment.value.trim()
+    })
+    ElMessage.success('🎉 你的故事已成功留在云村！')
+    newComment.value = ''
+    // 提交成功后立刻重新拉取最新评论
+    await fetchComments(currentSong.value.id)
+  } catch (error) {
+    ElMessage.error('评论发送失败，请检查网络')
+  }
 }
 
 const fetchMyLikes = async () => {
@@ -994,48 +998,91 @@ const switchMenu = async (menuName) => {
 .t { font-weight: 700; font-size: 14px; color: #18181b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px; }
 .a { font-size: 12px; color: #71717a; font-weight: 500; }
 
-.play-btns { display: flex; align-items: center; gap: 32px; justify-content: center; flex: 1; }
+/* 🚀 ================= 核心重构区：极简控制中枢 ================= 🚀 */
+.play-btns { display: flex; align-items: center; gap: 35px; justify-content: center; flex: 1; }
 
-/* 🚀 极其核爆的终极返璞归真修正：采用图片里的极简兜底图案风格 */
+/* 极其克制的圆形外框，平时透明，悬浮时微微浮现 */
 .main-play-btn { 
-  background: #fff !important; 
-  border: 1px solid rgba(0,0,0,0.08) !important; 
-  width: 48px !important; 
-  height: 48px !important; 
+  background: transparent !important; 
+  border: 1px solid transparent !important;
+  width: 52px !important; 
+  height: 52px !important; 
   border-radius: 50% !important; 
   display: flex !important; 
   align-items: center !important; 
   justify-content: center !important; 
-  color: #94a3b8 !important; 
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important; 
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+  box-shadow: none !important; 
   padding: 0 !important; 
+  cursor: pointer;
 }
 .main-play-btn:hover { 
-  background: #f8fafc !important; 
-  transform: scale(1.05) !important; 
-  box-shadow: 0 6px 14px rgba(0,0,0,0.05) !important;
+  background: #f4f4f5 !important; 
+  border-color: #e4e4e7 !important;
+  transform: scale(1.1) !important; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
 }
 
-/* 🎯 极其无情地干掉所有自带 margin，换用 SVG 路径手动像素级視覺修正 */
-.main-play-btn .el-icon { 
-  font-size: 24px !important; 
-  margin: 0 !important; 
+/* 播放三角：利用 border 画出一个绝对完美的实心三角形 */
+.main-play-btn::before {
+  content: '';
+  display: block;
+  box-sizing: border-box;
+  width: 0;
+  height: 20px;
+  border-color: transparent transparent transparent #18181b;
+  transition: 100ms all ease;
+  will-change: border-width;
+  border-style: solid;
+  border-width: 10px 0 10px 16px;
+  margin-left: 4px; /* 唯一需要的视觉补偿 */
 }
 
-/* 将切歌按钮图案也修正为图片里的极简纯几何风格 */
+/* 暂停双竖线：极其对称！ */
+.main-play-btn.is-playing::before {
+  border-style: double;
+  border-width: 0px 0 0px 16px;
+  margin-left: 0; /* 绝对居中 */
+}
+
+/* 切歌按钮：纯 CSS 画，绝对不会反！ */
 .prev-next-btn { 
-  color: #94a3b8 !important; 
-  font-size: 20px !important; 
-  cursor: pointer; 
+  position: relative;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
   transition: 0.2s ease; 
+  opacity: 0.6;
 }
-.prev-next-btn:hover { color: #18181b !important; }
+.prev-next-btn:hover { opacity: 1; transform: scale(1.1); }
+
+/* 用纯 CSS 画极其高级的切歌键（左） */
+.prev-next-btn:first-child::before, .prev-next-btn:first-child::after {
+  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+}
+.prev-next-btn:first-child::before {
+  left: 10px; width: 0; height: 0; border-style: solid; border-width: 7px 10px 7px 0; border-color: transparent #18181b transparent transparent;
+}
+.prev-next-btn:first-child::after {
+  left: 6px; width: 3px; height: 14px; background: #18181b; border-radius: 1px;
+}
+
+/* 用纯 CSS 画极其高级的切歌键（右） */
+.prev-next-btn:last-child::before, .prev-next-btn:last-child::after {
+  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+}
+.prev-next-btn:last-child::before {
+  right: 10px; width: 0; height: 0; border-style: solid; border-width: 7px 0 7px 10px; border-color: transparent transparent transparent #18181b;
+}
+.prev-next-btn:last-child::after {
+  right: 6px; width: 3px; height: 14px; background: #18181b; border-radius: 1px;
+}
 
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
-.time-display { font-size: 12px; font-family: monospace; color: #71717a; font-weight: 600; }
-.vol-icon { cursor: pointer; color: #71717a; }
-.mode-icon { cursor: pointer; color: #71717a; transition: 0.3s; }
+.time-display { font-size: 13px; font-family: monospace; color: #a1a1aa; font-weight: 600; }
+.vol-icon { cursor: pointer; color: #a1a1aa; transition: 0.2s;}
+.vol-icon:hover { color: #18181b; }
+.mode-icon { cursor: pointer; color: #a1a1aa; transition: 0.2s; }
 .mode-icon:hover { color: #18181b; }
 
 /* ================= 🚀 核心视效：动态频谱与歌词面板 ================= */

@@ -33,3 +33,7 @@ export const deletePlaylistAPI = (playlistId) => http.delete('/playlist/delete',
 
 // 🚀 呼叫 AI 场景匹配 - 毒瘤已拔除！
 export const recommendMusicAPI = (scene) => http.get('/music/ai/recommend', { params: { scene } })
+
+// 🚀 云村热评系统接口
+export const getCommentsAPI = (musicId) => http.get('/comment/list', { params: { musicId } })
+export const addCommentAPI = (data) => http.post('/comment/add', data)
