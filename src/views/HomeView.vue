@@ -148,7 +148,6 @@
                 </div>
                 
                 <span class="modern-title">{{ item.title }}</span>
-                <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
               </span>
               
               <span class="col-like-cell">
@@ -197,7 +196,6 @@
                         <el-icon v-else><VideoPlay /></el-icon>
                       </div>
                       <span class="modern-title">{{ item.title }}</span>
-                      <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
                     </span>
                     <span class="col-like-cell">
                       <el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="isLiked(item.id) ? StarFilled : Star" /></el-icon>
@@ -311,7 +309,6 @@
                 </div>
                 
                 <span class="modern-title">{{ item.title }}</span>
-                <el-tag v-if="item.tags && item.tags.includes('爱情')" size="small" effect="plain" round type="danger" style="margin-left: 10px; transform: scale(0.85); font-weight: bold;">❤️ 爱情</el-tag>
               </span>
               
               <span class="col-like-cell">
@@ -344,7 +341,7 @@
           <div class="lyric-content-wrapper">
             <div class="record-side">
               <div class="record-wrapper" :class="{ 'is-paused': !isPlaying }">
-                <img :src="currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
+                <img :src="currentSong?.coverUrl" class="record-cover" />
               </div>
             </div>
             <div class="lyric-side">
@@ -401,7 +398,7 @@
       <div class="progress-slider-wrapper"><el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!currentSong" /></div>
       <div class="controls-content" v-if="currentSong">
         <div class="track-info">
-          <img :src="currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" crossorigin="anonymous" />
+          <img :src="currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" />
           <div class="meta">
             <span class="t">{{ currentSong.title }}</span>
             <span class="a">{{ currentSong.artist }}</span>
@@ -412,12 +409,9 @@
         </div>
         
         <div class="play-btns">
-          <el-icon class="prev-next-btn" @click="playPrev"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path></svg></el-icon>
-          <div class="main-play-btn" @click="togglePlay">
-            <svg v-if="!isPlaying" class="play-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v14.72a1 1 0 001.5.86l11-7.36a1 1 0 000-1.72l-11-7.36a1 1 0 00-1.5.86z"></path></svg>
-            <svg v-else class="pause-svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
-          </div>
-          <el-icon class="prev-next-btn" @click="playNext"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M16 6h2v12h-2zm-10 6l8.5-6v12z"></path></svg></el-icon>
+          <div class="prev-next-btn" @click="playPrev"></div>
+          <div class="main-play-btn" :class="{'is-playing': isPlaying}" @click="togglePlay"></div>
+          <div class="prev-next-btn" @click="playNext"></div>
         </div>
 
         <div class="extra-funcs">
@@ -428,7 +422,7 @@
       </div>
       <div class="empty-player" v-else>请在上方点击歌曲播放</div>
       
-      <audio ref="audioRef" :src="currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
+      <audio ref="audioRef" :src="currentSong?.audioUrl" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
     </footer>
   </div>
 </template>
@@ -440,7 +434,7 @@ import { useRouter } from 'vue-router'
 import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit, ChatDotRound, Close, Position } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getMusicPageAPI, getCommentsAPI, addCommentAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getCommentsAPI, addCommentAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -636,31 +630,29 @@ watch(currentSong, (newSong) => {
     if (playHistory.value.length > 50) playHistory.value.pop()
     localStorage.setItem('echo_play_history', JSON.stringify(playHistory.value))
     
-    // 🚀 加载新歌时，去数据库拉取这首歌独有的真实热评！
+    // 加载新歌时，去数据库拉取这首歌独有的真实热评！
     fetchComments(newSong.id)
   }
 })
 
-// 🚀 核心升维 1：Web Audio API 动效频谱解析引擎
+// Web Audio API 动效频谱解析引擎
 const spectrumCanvasRef = ref(null)
 let audioCtx = null, analyser = null, audioSource = null, animationFrameId = null
 
 const initAudioVisualizer = () => {
   if (!audioRef.value || audioCtx) return
-  
-  // 必须在用户发生交互（点击播放）后才能初始化 AudioContext
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext
     audioCtx = new AudioContext()
     analyser = audioCtx.createAnalyser()
-    analyser.fftSize = 256 // 提取 128 个频段数据
+    analyser.fftSize = 256 
     
     audioSource = audioCtx.createMediaElementSource(audioRef.value)
     audioSource.connect(analyser)
     analyser.connect(audioCtx.destination)
     
     drawVisualizer()
-  } catch (e) { console.warn("跨域或浏览器策略导致频谱无法加载，需配置 OSS 的 CORS 头。", e) }
+  } catch (e) { console.warn("频谱无法加载", e) }
 }
 
 const drawVisualizer = () => {
@@ -669,7 +661,6 @@ const drawVisualizer = () => {
   
   const canvas = spectrumCanvasRef.value
   const ctx = canvas.getContext('2d')
-  // 为了高清，动态设置宽高
   canvas.width = canvas.clientWidth * window.devicePixelRatio
   canvas.height = canvas.clientHeight * window.devicePixelRatio
   
@@ -679,22 +670,17 @@ const drawVisualizer = () => {
   
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   
-  // 绘制极其炫酷的底部发光柱状图
   const barWidth = (canvas.width / bufferLength) * 2.5
   let barHeight
   let x = 0
   
   for (let i = 0; i < bufferLength; i++) {
-    // 数据越靠前是低音，适当放大视觉效果
     barHeight = dataArray[i] * 1.5 
-    
     const r = 59 + (barHeight / 2)
     const g = 130 + (barHeight / 2)
     const b = 246
     
     ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`
-    
-    // 圆角矩形柱子
     ctx.beginPath()
     ctx.roundRect(x, canvas.height - barHeight, barWidth - 4, barHeight, [10, 10, 0, 0])
     ctx.fill()
@@ -702,12 +688,11 @@ const drawVisualizer = () => {
   }
 }
 
-// 🚀 核心升维 2：真实的云端热评系统接入！
+// 真实的云端热评系统接入！
 const commentDrawerVisible = ref(false)
 const newComment = ref('')
 const currentComments = ref([])
 
-// 去后端拉取真实的数据库评论
 const fetchComments = async (musicId) => {
   try {
     currentComments.value = await getCommentsAPI(musicId) || []
@@ -716,7 +701,6 @@ const fetchComments = async (musicId) => {
   }
 }
 
-// 提交真实评论到 MySQL
 const submitComment = async () => {
   if (!newComment.value.trim()) return
   if (!currentUser.value) return ElMessage.warning('请先登录才能发表你的故事哦！')
@@ -730,7 +714,6 @@ const submitComment = async () => {
     })
     ElMessage.success('🎉 你的故事已成功留在云村！')
     newComment.value = ''
-    // 提交成功后立刻重新拉取最新评论
     await fetchComments(currentSong.value.id)
   } catch (error) {
     ElMessage.error('评论发送失败，请检查网络')
@@ -747,7 +730,7 @@ const handleLogout = () => {
   localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token'); router.push('/login')
 }
 
-// 🚀 极其霸气的全量拉取，放弃物理分页
+// 🚀 极其霸气的全量拉取，彻底放弃物理分页
 const loadDiscoverData = async () => {
   try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {}
 }
@@ -762,12 +745,11 @@ const initRadio = async (force = false) => {
 
   if (playHistory.value && playHistory.value.length > 0) {
     const songGenes = playHistory.value.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
-    // 注入爱情基因识别
     dynamicPrompt = `用户最近循环了：${songGenes}。请你作为懂情感的顶级DJ，剖析这些歌是否包含【爱情】、浪漫元素。请推荐10首风格相似、且带有明显【爱情】标签或浪漫氛围的音乐。`
-    ElMessage.info('📡 正在解析听歌 DNA，演算私人爱情频段...')
+    ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
   } else {
     dynamicPrompt = '推荐一些适合【恋爱】氛围、充满浪漫甜蜜感、或者细腻伤感的经典爱情流行歌曲。'
-    ElMessage.info('📡 正在感知此刻时空，为您生成爱情调频...')
+    ElMessage.info('📡 正在感知此刻时空，为您生成电台调频...')
   }
 
   try {
@@ -803,14 +785,14 @@ const selectSong = (song) => {
     if (audioRef.value) { 
       audioRef.value.volume = volume.value / 100
       audioRef.value.play() 
-      initAudioVisualizer() // 唤醒频谱引擎！
+      initAudioVisualizer() 
     } 
   }, 100)
 }
 
 const togglePlay = () => {
   if (!audioRef.value) return
-  initAudioVisualizer() // 确保用户点击时唤醒频谱
+  initAudioVisualizer() 
   
   if (isPlaying.value) {
     audioRef.value.pause()
@@ -885,7 +867,6 @@ const switchMenu = async (menuName) => {
 
 .discover-section { display: flex; flex-direction: column; gap: 20px; }
 
-/* 1. 极其奢华的 Hero Banner */
 .hero-banner { position: relative; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 28px; padding: 45px 50px; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; box-shadow: 0 20px 40px rgba(59, 130, 246, 0.06); margin-bottom: 10px; border: 1px solid #fff; }
 .hero-content { position: relative; z-index: 2; }
 .hero-title { font-size: 42px; font-weight: 900; color: #0f172a; margin: 0 0 10px 0; letter-spacing: -1px; }
@@ -896,7 +877,6 @@ const switchMenu = async (menuName) => {
 .shape-1 { width: 300px; height: 300px; background: #bae6fd; top: -100px; right: -50px; }
 .shape-2 { width: 250px; height: 250px; background: #ddd6fe; bottom: -80px; right: 200px; }
 
-/* 2. iOS 灵动分段控件 */
 .ios-segment-control { display: flex; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); padding: 6px; border-radius: 20px; gap: 5px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); border: 1px solid rgba(255,255,255,0.8); }
 .segment-btn { padding: 10px 24px; border-radius: 14px; font-weight: 600; font-size: 14px; color: #64748b; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 6px; }
 .segment-btn:hover { color: #0f172a; }
@@ -904,7 +884,6 @@ const switchMenu = async (menuName) => {
 .batch-btn-hero { font-weight: bold; padding: 0 24px; height: 40px; box-shadow: 0 8px 20px rgba(59,130,246,0.3); transition: 0.3s; }
 .batch-btn-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(59,130,246,0.4); }
 
-/* 3. Bento 便当盒网格 (AI 卡片) */
 .bento-grid { padding: 10px 0; }
 .bento-card { background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(255,255,255,0.8); cursor: pointer; position: relative; margin-bottom: 20px;}
 .bento-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(59,130,246,0.12); border-color: #e0e7ff; }
@@ -920,7 +899,6 @@ const switchMenu = async (menuName) => {
 .bento-artist { font-size: 13px; color: #64748b; font-weight: 500; }
 .checkbox-overlay { position: absolute; top: 12px; left: 12px; z-index: 10; background: rgba(255,255,255,0.95); border-radius: 8px; padding: 4px 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
 
-/* 4. 漂浮胶囊列表 (全局极客曲库) */
 .modern-list-view { display: flex; flex-direction: column; gap: 8px; padding: 10px 0;}
 .modern-list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 16px 30px; background: #fff; border-radius: 20px; transition: all 0.3s ease; border: 1px solid transparent; box-shadow: 0 4px 15px rgba(0,0,0,0.02); cursor: pointer; position: relative; overflow: hidden; }
 .modern-list-item:hover { transform: scale(1.01); box-shadow: 0 10px 25px rgba(0,0,0,0.06); z-index: 1; border-color: #f1f5f9; }
@@ -942,7 +920,6 @@ const switchMenu = async (menuName) => {
 .modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
 
 /* 🚀 ================= 保留的原有顶级架构样式 ================= 🚀 */
-.checkbox-overlay { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); border-radius: 4px; padding: 2px 5px; }
 .batch-action-bar { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 12px 30px; border-radius: 40px; z-index: 200; display: flex; gap: 30px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-weight: bold; }
 .playlist-options { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
 .pl-option { padding: 10px 15px; background: #f3f4f6; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; color: #374151; font-weight: 500; }
@@ -952,7 +929,6 @@ const switchMenu = async (menuName) => {
 *, *::before, *::after { box-sizing: border-box; }
 .main-layout { display: flex; width: 100vw; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
-/* 🚀 ================= 顶级大厂 Glassmorphism 核心 UI 升维 ================= 🚀 */
 /* 1. 极其克制的 Apple Music 级侧边栏 */
 .sidebar { width: 240px; background-color: #f4f4f5; border-right: none; padding: 35px 20px; display: flex; flex-direction: column; z-index: 10; }
 .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 45px; padding-left: 10px; }
@@ -985,7 +961,6 @@ const switchMenu = async (menuName) => {
 .empty-player { color: #a1a1aa; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
 .progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
 
-/* 进度条去油：变成高级的暗黑色 */
 .player-slider :deep(.el-slider__runway) { height: 4px; background: #e4e4e7; margin: 0; }
 .player-slider :deep(.el-slider__bar) { height: 4px; background-color: #18181b; }
 .player-slider :deep(.el-slider__button) { width: 12px; height: 12px; border: none; background-color: #18181b; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -1001,7 +976,6 @@ const switchMenu = async (menuName) => {
 /* 🚀 ================= 核心重构区：极简控制中枢 ================= 🚀 */
 .play-btns { display: flex; align-items: center; gap: 35px; justify-content: center; flex: 1; }
 
-/* 极其克制的圆形外框，平时透明，悬浮时微微浮现 */
 .main-play-btn { 
   background: transparent !important; 
   border: 1px solid transparent !important;
@@ -1020,10 +994,8 @@ const switchMenu = async (menuName) => {
   background: #f4f4f5 !important; 
   border-color: #e4e4e7 !important;
   transform: scale(1.1) !important; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
 }
 
-/* 播放三角：利用 border 画出一个绝对完美的实心三角形 */
 .main-play-btn::before {
   content: '';
   display: block;
@@ -1035,17 +1007,15 @@ const switchMenu = async (menuName) => {
   will-change: border-width;
   border-style: solid;
   border-width: 10px 0 10px 16px;
-  margin-left: 4px; /* 唯一需要的视觉补偿 */
+  margin-left: 4px; 
 }
 
-/* 暂停双竖线：极其对称！ */
 .main-play-btn.is-playing::before {
   border-style: double;
   border-width: 0px 0 0px 16px;
-  margin-left: 0; /* 绝对居中 */
+  margin-left: 0; 
 }
 
-/* 切歌按钮：纯 CSS 画，绝对不会反！ */
 .prev-next-btn { 
   position: relative;
   width: 24px;
@@ -1056,7 +1026,6 @@ const switchMenu = async (menuName) => {
 }
 .prev-next-btn:hover { opacity: 1; transform: scale(1.1); }
 
-/* 用纯 CSS 画极其高级的切歌键（左） */
 .prev-next-btn:first-child::before, .prev-next-btn:first-child::after {
   content: ''; position: absolute; top: 50%; transform: translateY(-50%);
 }
@@ -1067,7 +1036,6 @@ const switchMenu = async (menuName) => {
   left: 6px; width: 3px; height: 14px; background: #18181b; border-radius: 1px;
 }
 
-/* 用纯 CSS 画极其高级的切歌键（右） */
 .prev-next-btn:last-child::before, .prev-next-btn:last-child::after {
   content: ''; position: absolute; top: 50%; transform: translateY(-50%);
 }
