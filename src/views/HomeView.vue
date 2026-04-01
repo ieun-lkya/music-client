@@ -724,24 +724,67 @@ const switchMenu = async (menuName) => {
 
 .discover-section { display: flex; flex-direction: column; gap: 20px; }
 
-/* 1. 极其奢华的 Hero Banner */
-.hero-banner { position: relative; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 28px; padding: 45px 50px; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; box-shadow: 0 20px 40px rgba(59, 130, 246, 0.06); margin-bottom: 10px; border: 1px solid #fff; }
-.hero-content { position: relative; z-index: 2; }
-.hero-title { font-size: 42px; font-weight: 900; color: #0f172a; margin: 0 0 10px 0; letter-spacing: -1px; }
-.hero-title span { color: transparent; background-clip: text; -webkit-background-clip: text; background-image: linear-gradient(to right, #3b82f6, #8b5cf6); }
-.hero-subtitle { font-size: 15px; color: #475569; margin: 0; font-weight: 600; letter-spacing: 0.5px;}
-.hero-actions { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 20px; }
-.hero-glow { position: absolute; border-radius: 50%; filter: blur(60px); z-index: 1; opacity: 0.6; }
-.shape-1 { width: 300px; height: 300px; background: #bae6fd; top: -100px; right: -50px; }
-.shape-2 { width: 250px; height: 250px; background: #ddd6fe; bottom: -80px; right: 200px; }
+/* 1. 极其克制的 Apple Music 级侧边栏 */
+.sidebar { width: 240px; background-color: #f4f4f5; border-right: none; padding: 35px 20px; display: flex; flex-direction: column; z-index: 10; }
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 45px; padding-left: 10px; }
+.logo-text { font-size: 22px; font-weight: 800; color: #18181b; letter-spacing: -0.5px; }
+.badge { font-size: 10px; background: #18181b; color: #fff; padding: 2px 6px; border-radius: 4px; vertical-align: super; }
+.nav-group { font-size: 12px; color: #a1a1aa; font-weight: 700; margin: 35px 0 12px 10px; letter-spacing: 1px; }
+.nav-item { padding: 10px 15px; border-radius: 8px; cursor: pointer; color: #52525b; margin-bottom: 2px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; transition: all 0.2s ease; }
+.nav-item:hover { color: #18181b; background-color: #e4e4e7; }
+.nav-item.active { background-color: #d4d4d8; color: #18181b; font-weight: 700; }
+.nav-sub-item { padding: 10px 15px; font-size: 14px; color: #52525b; font-weight: 500; cursor: pointer; border-radius: 8px; margin-bottom: 2px; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+.nav-sub-item:hover { color: #18181b; background-color: #e4e4e7; }
+.nav-sub-item.active { background-color: #d4d4d8; color: #18181b; font-weight: 700; }
 
-/* 2. iOS 灵动分段控件 */
-.ios-segment-control { display: flex; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); padding: 6px; border-radius: 20px; gap: 5px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); border: 1px solid rgba(255,255,255,0.8); }
-.segment-btn { padding: 10px 24px; border-radius: 14px; font-weight: 600; font-size: 14px; color: #64748b; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 6px; }
-.segment-btn:hover { color: #0f172a; }
-.segment-btn.active { background: #fff; color: #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transform: scale(1.02); }
-.batch-btn-hero { font-weight: bold; padding: 0 24px; height: 40px; box-shadow: 0 8px 20px rgba(59,130,246,0.3); transition: 0.3s; }
-.batch-btn-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(59,130,246,0.4); }
+/* 2. 极致纯粹的 Spotify 级底部播放器 */
+.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.empty-player { color: #a1a1aa; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
+.progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
+
+/* 进度条去油：变成高级的暗黑色 */
+.player-slider :deep(.el-slider__runway) { height: 4px; background: #e4e4e7; margin: 0; }
+.player-slider :deep(.el-slider__bar) { height: 4px; background-color: #18181b; }
+.player-slider :deep(.el-slider__button) { width: 12px; height: 12px; border: none; background-color: #18181b; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+
+.controls-content { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
+.track-info { display: flex; align-items: center; gap: 15px; width: 30%; }
+.mini-cover { width: 56px; height: 56px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); object-fit: cover; transition: 0.3s; }
+.mini-cover:hover { transform: scale(1.05); }
+.meta { display: flex; flex-direction: column; gap: 4px; }
+.t { font-weight: 700; font-size: 14px; color: #18181b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 150px; }
+.a { font-size: 12px; color: #71717a; font-weight: 500; }
+
+.play-btns { display: flex; align-items: center; gap: 30px; justify-content: center; flex: 1; }
+
+/* 🚀 播放按钮终极去油：摒弃蓝色大圆，采用纯净暗黑悬浮按钮 */
+.main-play-btn { 
+  background: #18181b !important; 
+  border: none !important; 
+  width: 44px !important; 
+  height: 44px !important; 
+  border-radius: 50% !important; 
+  display: flex !important; 
+  align-items: center !important; 
+  justify-content: center !important; 
+  color: #fff !important; 
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+}
+.main-play-btn:hover { 
+  background: #000 !important; 
+  transform: scale(1.08) !important; 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+}
+.main-play-btn .el-icon { font-size: 20px !important; margin-left: 2px; } /* 稍微往右偏一点点，视觉居中 */
+.prev-next-btn { color: #71717a !important; transform: scale(1.3); transition: 0.2s; }
+.prev-next-btn:hover { color: #18181b !important; transform: scale(1.4); }
+
+.extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
+.time-display { font-size: 12px; font-family: monospace; color: #71717a; font-weight: 600; }
+.vol-icon { cursor: pointer; color: #71717a; }
+.mode-icon { cursor: pointer; color: #71717a; transition: 0.3s; }
+.mode-icon:hover { color: #18181b; }
 
 /* 3. Bento 便当盒网格 (AI 卡片) */
 .bento-grid { padding: 10px 0; }
