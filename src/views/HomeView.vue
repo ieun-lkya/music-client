@@ -190,10 +190,10 @@
                 <div class="modern-list-view queue-list">
                   <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
                     <span class="modern-title-group">
-                      <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                      <div class="modern-play-icon">
-                        <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                        <el-icon v-else><VideoPlay /></el-icon>
+                      <div class="track-status-box" v-if="!isBatchMode">
+                        <span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                        <el-icon class="track-play"><VideoPlay /></el-icon>
+                        <el-icon class="track-pause"><VideoPause /></el-icon>
                       </div>
                       <span class="modern-title">{{ item.title }}</span>
                     </span>
@@ -224,10 +224,10 @@
             <div class="modern-list-view fade-in dark-list" v-else>
               <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
                 <span class="modern-title-group">
-                  <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                  <div class="modern-play-icon">
-                    <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                    <el-icon v-else><VideoPlay /></el-icon>
+                  <div class="track-status-box" v-if="!isBatchMode">
+                    <span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                    <el-icon class="track-play"><VideoPlay /></el-icon>
+                    <el-icon class="track-pause"><VideoPause /></el-icon>
                   </div>
                   <span class="modern-title">{{ item.title }}</span>
                 </span>
@@ -301,11 +301,11 @@
             <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
-                <span class="index-num" v-else-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
                 
-                <div class="modern-play-icon" v-if="!isBatchMode">
-                  <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
-                  <el-icon v-else><VideoPlay /></el-icon>
+                <div class="track-status-box" v-if="!isBatchMode">
+                  <span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <el-icon class="track-play"><VideoPlay /></el-icon>
+                  <el-icon class="track-pause"><VideoPause /></el-icon>
                 </div>
                 
                 <span class="modern-title">{{ item.title }}</span>
@@ -752,8 +752,8 @@ const switchMenu = async (menuName) => {
 .bento-card:hover .bento-cover { transform: scale(1.08); }
 .bento-play-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.25); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; opacity: 0; transition: all 0.3s ease; }
 .bento-card:hover .bento-play-overlay { opacity: 1; }
-.bento-play-btn { width: 64px; height: 64px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); transform: translateY(20px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-.bento-card:hover .bento-play-btn { transform: translateY(0); }
+.bento-play-btn { width: 50px; height: 50px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.8); box-shadow: none; backdrop-filter: none;}
+.bento-play-btn .el-icon { font-size: 24px !important; }
 .bento-info { padding: 16px 4px 4px; text-align: center; }
 .bento-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bento-artist { font-size: 13px; color: #64748b; font-weight: 500; }
@@ -765,10 +765,28 @@ const switchMenu = async (menuName) => {
 .modern-list-item:hover { transform: scale(1.01); box-shadow: 0 10px 25px rgba(0,0,0,0.06); z-index: 1; border-color: #f1f5f9; }
 .modern-list-item.is-playing { background: linear-gradient(to right, #eff6ff, #fff); border-color: #bfdbfe; }
 .modern-title-group { display: flex; align-items: center; gap: 16px; }
+
+/* 🚀 强行干掉之前的丑陋大圆圈，换成 Spotify 级极简悬浮体验 */
+.track-status-box { width: 30px; text-align: center; display: flex; justify-content: center; align-items: center; color: #94a3b8; }
+.track-play, .track-pause { display: none; font-size: 22px; cursor: pointer; }
+
+/* 默认状态：显示数字，隐藏图标 */
+.modern-list-item .track-num { display: block; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 悬浮状态：隐藏数字，显示播放图标 */
+.modern-list-item:hover .track-num { display: none; }
+.modern-list-item:hover .track-play { display: block; color: #3b82f6; }
+
+/* 播放中状态：锁定为暂停图标（或跳动的音轨），并且变成主题色 */
+.modern-list-item.is-playing .track-num { display: none; }
+.modern-list-item.is-playing .track-play { display: none; }
+.modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
+
+/* 顺手把上方 AI 便当盒的厚重按钮也削薄！ */
+.bento-play-btn { width: 50px; height: 50px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.8); box-shadow: none; backdrop-filter: none;}
+.bento-play-btn .el-icon { font-size: 24px !important; }
+
 .index-num { font-size: 14px; font-weight: bold; color: #cbd5e1; width: 24px; text-align: center; font-variant-numeric: tabular-nums;}
-.modern-play-icon { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; display: flex; justify-content: center; align-items: center; color: #64748b; transition: 0.3s; }
-.modern-list-item:hover .modern-play-icon { background: #3b82f6; color: #fff; transform: scale(1.1); box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
-.modern-list-item.is-playing .modern-play-icon { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59,130,246,0.4); }
 .modern-title { font-size: 16px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;}
 .modern-list-item.is-playing .modern-title { color: #3b82f6; }
 .modern-artist { font-size: 14px; color: #64748b; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;}
