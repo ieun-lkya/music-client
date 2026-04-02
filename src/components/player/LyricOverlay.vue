@@ -1,6 +1,6 @@
 <template>
   <transition name="slide-up">
-    <div class="lyric-overlay" v-if="musicStore.showLyricPanel" :style="{ backgroundImage: `url(${musicStore.currentSong?.coverUrl})` }">
+    <div class="lyric-overlay" v-if="musicStore.showLyricPanel" :style="{ backgroundImage: `url(${musicStore.currentSong?.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'})` }">
       <div class="lyric-blur-bg"></div>
       <canvas ref="spectrumCanvasRef" class="spectrum-canvas"></canvas>
 
@@ -16,7 +16,7 @@
       <div class="lyric-content-wrapper">
         <div class="record-side">
           <div class="record-wrapper" :class="{ 'is-paused': !musicStore.isPlaying }">
-            <img :src="musicStore.currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
+            <img :src="musicStore.currentSong?.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="record-cover" crossorigin="anonymous" />
           </div>
         </div>
         <div class="lyric-side">
@@ -24,7 +24,7 @@
           <p class="lyric-song-artist">{{ musicStore.currentSong?.artist }}</p>
           <div class="lyric-scroll-box" ref="lyricBoxRef" @wheel="handleLyricScroll" @touchmove="handleLyricScroll">
             <div class="lyric-inner">
-              <p v-for="(line, index) in parsedLyrics" :key="index" class="lyric-line" :class="{ 'active': currentLyricIndex === index }" @click="seekToLyric(line.time)">{{ line.text }}</p>
+              <p v-for="(line, index) in parsedLyrics" :key="index" class="lyric-line" :class="{ 'active': currentLyricIndex === index }" @click="seekToLyric(line.time, index)">{{ line.text }}</p>
               <p v-if="parsedLyrics.length === 0" class="lyric-line active"> {{ isLoadingLyric ? '加载中...' : '暂无歌词' }}</p>
             </div>
           </div>
@@ -49,8 +49,15 @@
                {{ cmt.likes }} <el-icon><component :is="cmt.isLiked ? StarFilled : Star" /></el-icon>
             </span>
           </div>
-          <div class="comment-text">{{ cmt.content }}</div>
-          <div class="comment-time">{{ cmt.createTime }}</div>
+          <div class="comment-text" @click="setReply(cmt)">{{ cmt.content }}</div>
+          <div class="comment-time">{{ cmt.createTime }} <span class="reply-btn" @click="setReply(cmt)">回复</span></div>
+          
+          <div class="replies-box" v-if="cmt.replies && cmt.replies.length > 0">
+            <div class="reply-item" v-for="(reply, rIdx) in cmt.replies" :key="rIdx">
+              <span class="reply-user">{{ reply.username }} <span style="color:#94a3b8; font-weight:normal;">回复</span> @{{ reply.targetUsername }} : </span>
+              <span class="reply-content" @click="setReply(reply)">{{ reply.content }}</span>
+            </div>
+          </div>
         </div>
       </div>
       <el-empty v-if="currentComments.length === 0" description="还没有人评论，快来抢沙发~" />
@@ -66,12 +73,11 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onUnmounted } from 'vue'
-import { useMusicStore } from '../../store/music'
-import axios from 'axios'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ChatDotRound, ArrowDownBold, Close, Star, StarFilled, Position } from '@element-plus/icons-vue'
-import { getCommentsAPI, addCommentAPI, likeCommentAPI } from '../../api/music'
 import { ElMessage } from 'element-plus'
+import { useMusicStore } from '../../store/music'
+import { getCommentsAPI, addCommentAPI, likeCommentAPI } from '../../api/music'
 
 const musicStore = useMusicStore()
 
@@ -83,27 +89,61 @@ const lyricBoxRef = ref(null)
 const isUserScrolling = ref(false)
 let scrollTimeout = null  
 
-const parseLrc = (lrcStr) => {
-  const lines = lrcStr.split('\n'); const result = []; const timeReg = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/
-  for (let line of lines) {
-    const match = line.match(timeReg)
-    if (match) {
-      const time = parseInt(match[1]) * 60 + parseInt(match[2]) + (match[3].length === 2 ? parseInt(match[3]) * 10 : parseInt(match[3])) / 1000
-      const text = line.replace(timeReg, '').trim()
-      if (text) result.push({ time, text })
-    }
+// 解析歌词
+const parseLyrics = (rawLyric) => {
+  if (!rawLyric) {
+    parsedLyrics.value = []
+    return
   }
-  return result
+  
+  const lines = rawLyric.split('\n')
+  const lyrics = []
+  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g
+  
+  lines.forEach(line => {
+    const times = [...line.matchAll(timeRegex)]
+    if (times.length > 0) {
+      const text = line.replace(timeRegex, '').trim()
+      times.forEach(timeMatch => {
+        const minutes = parseInt(timeMatch[1])
+        const seconds = parseInt(timeMatch[2])
+        const milliseconds = parseInt(timeMatch[3])
+        const totalTime = minutes * 60 + seconds + milliseconds / 1000
+        
+        lyrics.push({ time: totalTime, text })
+      })
+    }
+  })
+  
+  lyrics.sort((a, b) => a.time - b.time)
+  parsedLyrics.value = lyrics
 }
 
-const loadLyrics = async (song) => {
-  parsedLyrics.value = []; currentLyricIndex.value = 0; isLoadingLyric.value = true
-  if (lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: 0 })
-  try {
-    if (!song.lyricUrl) return
-    const response = await axios.get(song.lyricUrl)
-    parsedLyrics.value = parseLrc(response.data)
-  } catch (e) {} finally { isLoadingLyric.value = false }
+// 更新当前歌词索引
+const updateLyricIndex = () => {
+  if (parsedLyrics.value.length === 0) return
+  
+  const currentTime = musicStore.currentTime
+  let currentIndex = 0
+  
+  for (let i = 0; i < parsedLyrics.value.length; i++) {
+    if (currentTime >= parsedLyrics.value[i].time) {
+      currentIndex = i
+    } else {
+      break
+    }
+  }
+  
+  currentLyricIndex.value = currentIndex
+  
+  // 如果不是用户滚动，则自动滚动到当前歌词位置
+  if (!isUserScrolling.value && lyricBoxRef.value) {
+    nextTick(() => {
+      const containerHeight = lyricBoxRef.value.clientHeight
+      const scrollTo = currentIndex * 45 - containerHeight / 2 + 22.5
+      lyricBoxRef.value.scrollTo({ top: scrollTo, behavior: 'smooth' })
+    })
+  }
 }
 
 const handleLyricScroll = () => {
@@ -115,27 +155,29 @@ const handleLyricScroll = () => {
   }, 3000) 
 }
 
-const seekToLyric = (time) => { 
+// 🚀 终极修复：点击歌词后，立刻解除防滚屏封印，并强行居中！
+const seekToLyric = (time, index) => { 
   const audio = document.getElementById('echo-audio-player')
   if (audio) { 
-    audio.currentTime = time; audio.play(); musicStore.isPlaying = true; 
-    isUserScrolling.value = false; if (scrollTimeout) clearTimeout(scrollTimeout) 
+    audio.currentTime = time; 
+    audio.play(); 
+    musicStore.isPlaying = true; 
+    
+    // 💥 极其关键：彻底解除用户的"手动滚动锁定"状态
+    isUserScrolling.value = false; 
+    if (scrollTimeout) clearTimeout(scrollTimeout); 
+    
+    // 💥 极其关键：强行更新当前歌词行数，并立刻执行平滑滚动居中！
+    currentLyricIndex.value = index;
+    if (lyricBoxRef.value) {
+      lyricBoxRef.value.scrollTo({ top: index * 45, behavior: 'smooth' });
+    }
   } 
 }
 
-watch(() => musicStore.currentTime, (time) => {
-  if (parsedLyrics.value.length > 0) {
-    let activeIndex = parsedLyrics.value.findIndex((line, index) => { 
-      const nextLine = parsedLyrics.value[index + 1]; 
-      return time >= line.time && (!nextLine || time < nextLine.time) 
-    })
-    if (activeIndex !== -1 && activeIndex !== currentLyricIndex.value) {
-      currentLyricIndex.value = activeIndex
-      if (!isUserScrolling.value && lyricBoxRef.value && musicStore.showLyricPanel) {
-        lyricBoxRef.value.scrollTo({ top: activeIndex * 45, behavior: 'smooth' })
-      }
-    }
-  }
+// 监听时间变化
+watch(() => musicStore.currentTime, () => {
+  updateLyricIndex()
 })
 
 // --- 频谱分析引擎 ---
@@ -234,26 +276,44 @@ const submitComment = async () => {
   } catch (e) {}
 }
 
-const handleLikeComment = async (cmt) => {
-  if (!musicStore.currentUser) return ElMessage.warning('请先登录再给神评点赞哦！')
-  if (cmt.isLiked) return 
-  cmt.likes++; cmt.isLiked = true 
-  try { await likeCommentAPI(cmt.id) } catch (e) { cmt.likes--; cmt.isLiked = false }
+const handleLikeComment = async (comment) => {
+  if (!musicStore.currentUser) return
+  try {
+    await likeCommentAPI(comment.id, musicStore.currentUser.id)
+    comment.isLiked = !comment.isLiked
+    comment.likes += comment.isLiked ? 1 : -1
+  } catch (error) {}
 }
 
+// 监听歌曲变化
 watch(() => musicStore.currentSong, (newSong) => {
   if (newSong) {
-    loadLyrics(newSong)
+    // 如果有歌词就解析，否则清空
+    if (newSong.lyrics) {
+      isLoadingLyric.value = false
+      parseLyrics(newSong.lyrics)
+    } else {
+      parsedLyrics.value = []
+      isLoadingLyric.value = false
+    }
     fetchComments(newSong.id)
     setTimeout(() => { initAudioVisualizer() }, 100)
   }
-})
+}, { immediate: true })
 
 watch(() => musicStore.showLyricPanel, async (isOpen) => {
   if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45 }) }, 50) }
 })
 
+onMounted(() => {
+  // 初始化评论
+  if (musicStore.currentSong?.id) {
+    fetchComments(musicStore.currentSong.id)
+  }
+})
+
 onUnmounted(() => {
+  if (scrollTimeout) clearTimeout(scrollTimeout)
   if (animationFrameId) cancelAnimationFrame(animationFrameId)
   if (audioCtx) audioCtx.close()
 })
