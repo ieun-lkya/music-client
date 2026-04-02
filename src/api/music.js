@@ -37,3 +37,4 @@ export const recommendMusicAPI = (scene) => http.get('/music/ai/recommend', { pa
 // 🚀 云村热评系统接口
 export const getCommentsAPI = (musicId) => http.get('/comment/list', { params: { musicId } })
 export const addCommentAPI = (data) => http.post('/comment/add', data)
+export const likeCommentAPI = (id) => http.post(`/comment/like/${id}`)
