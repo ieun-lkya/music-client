@@ -18,37 +18,27 @@ export const deleteMusicAPI = (id) => http.delete(`/music/delete/${id}`)
 // 更新封面
 export const updateCoverAPI = (id, coverUrl) => http.post('/music/updateCover', null, { params: { id, coverUrl } })
 
-// 🚀 获取所有音乐（大厅）- 毒瘤已拔除！
+// 🚀 获取所有音乐（大厅）
 export const getMusicListAPI = () => http.get('/music/list')
-export const recommendMusicAPI = (prompt) => http.post('/music/recommend', { prompt })
 
-export const getCommentsAPI = (musicId) => http.get(`/comment/list/${musicId}`)
+// 🚀 呼叫 AI 场景匹配 (必须是老版本的路径和传参)
+export const recommendMusicAPI = (scene) => http.get('/music/ai/recommend', { params: { scene } })
+
+// 🚀 云村热评系统接口 (完美适配咱们刚才改过的双保险后端)
+export const getCommentsAPI = (musicId) => http.get('/comment/list', { params: { musicId } })
 export const addCommentAPI = (data) => http.post('/comment/add', data)
-export const likeCommentAPI = (commentId, userId) => http.post(`/comment/like/${commentId}/${userId}`)
-
-export const getUserPlaylistsAPI = (userId) => http.get(`/playlist/user/${userId}`)
-export const createPlaylistAPI = (userId, name) => http.post('/playlist/create', { userId, name })
-export const deletePlaylistAPI = (playlistId) => http.delete(`/playlist/delete/${playlistId}`)
-export const addMusicToPlaylistAPI = (playlistId, musicId) => http.post(`/playlist/add-music`, { playlistId, musicId })
-export const getPlaylistMusicAPI = (playlistId) => http.get(`/playlist/music/${playlistId}`)
-
-export const addPlayCountAPI = (id) => http.post(`/music/play/${id}`)
-export const getTopMusicAPI = () => http.get('/music/top')
+export const likeCommentAPI = (id) => http.post(`/comment/like/${id}`)
 
 // 🚀 真实后端分页接口 (PageHelper)
 export const getMusicPageAPI = (pageNum, pageSize) => http.get('/music/page', { params: { pageNum, pageSize } })
 
-// 🚀 云端歌单相关接口（重复定义，保留上面的版本）
-// export const createPlaylistAPI = (userId, name) => http.post('/playlist/create', null, { params: { userId, name } })
-// export const getUserPlaylistsAPI = (userId) => http.get('/playlist/list', { params: { userId } })
-// export const addMusicToPlaylistAPI = (playlistId, musicId) => http.post('/playlist/addMusic', null, { params: { playlistId, musicId } })
-// export const getPlaylistMusicAPI = (playlistId) => http.get('/playlist/musicList', { params: { playlistId } })
-// export const deletePlaylistAPI = (playlistId) => http.delete('/playlist/delete', { params: { playlistId } })
+// 🚀 播放量脉冲 & 热歌榜 (流量变现基建)
+export const addPlayCountAPI = (id) => http.post(`/music/play/${id}`)
+export const getTopMusicAPI = () => http.get('/music/top')
 
-// 🚀 呼叫 AI 场景匹配 - 毒瘤已拔除！
-// export const recommendMusicAPI = (scene) => http.get('/music/ai/recommend', { params: { scene } })
-
-// 🚀 云村热评系统接口（重复定义，保留上面的版本）
-// export const getCommentsAPI = (musicId) => http.get('/comment/list', { params: { musicId } })
-// export const addCommentAPI = (data) => http.post('/comment/add', data)
-// export const likeCommentAPI = (id) => http.post(`/comment/like/${id}`)
+// 💥💥💥 核心抢救区：云端歌单接口（绝不使用错乱的路径传参，严格改回 params 传参！）
+export const createPlaylistAPI = (userId, name) => http.post('/playlist/create', null, { params: { userId, name } })
+export const getUserPlaylistsAPI = (userId) => http.get('/playlist/list', { params: { userId } })
+export const addMusicToPlaylistAPI = (playlistId, musicId) => http.post('/playlist/addMusic', null, { params: { playlistId, musicId } })
+export const getPlaylistMusicAPI = (playlistId) => http.get('/playlist/musicList', { params: { playlistId } })
+export const deletePlaylistAPI = (playlistId) => http.delete('/playlist/delete', { params: { playlistId } })
