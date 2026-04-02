@@ -38,9 +38,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useMusicStore } from '../../store/music'
 import { Headset, Refresh, RefreshLeft, Star, StarFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
@@ -53,11 +54,17 @@ const isDragging = ref(false)
 const togglePlay = () => {
   const audio = document.getElementById('echo-audio-player')
   if (!audio) return
-  if (musicStore.isPlaying) { audio.pause() } else { audio.play() }
+  if (musicStore.isPlaying) { 
+    audio.pause() 
+  } else { 
+    audio.play().catch(() => {
+      ElMessage.error('播放失败，请检查音频文件状态！')
+      musicStore.isPlaying = false
+    }) 
+  }
   musicStore.togglePlay()
 }
 
-// 💥 补齐播放模式切换函数，防止点击后报错
 const togglePlayMode = () => {
   playMode.value = playMode.value === 'list' ? 'single' : 'list'
 }
@@ -70,7 +77,9 @@ const onSliderSeek = (val) => {
 }
 const onTimeUpdate = (e) => {
   musicStore.currentTime = e.target.currentTime
-  if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
+  if (!isDragging.value) {
+    playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
+  }
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 const onPlayEnded = () => { 
@@ -85,18 +94,46 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-watch(() => musicStore.currentSong, (newSong) => {
+// 🚀 核心大修复：换歌时的状态重置与防拦截
+watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
-    setTimeout(() => { 
-      const audio = document.getElementById('echo-audio-player')
-      if (audio) { audio.volume = volume.value / 100; audio.play() }
-    }, 100)
+    // 💥 1. 切歌的瞬间，将前端状态引擎里的进度条彻彻底底清零！
+    musicStore.currentTime = 0
+    playPercent.value = 0
+
+    // 💥 2. 放弃极其危险的 setTimeout，使用 nextTick 维持浏览器的信任链
+    await nextTick()
+
+    const audio = document.getElementById('echo-audio-player')
+    if (audio) {
+      // 💥 3. 将底层原生 audio 标签的时间轴强制物理归零！绝不继承进度！
+      audio.currentTime = 0 
+      audio.volume = volume.value / 100
+
+      // 💥 4. 捕获浏览器拦截与死链异常，防止系统静默崩溃！
+      try {
+        await audio.play()
+      } catch (error) {
+        console.error("音频播放失败:", error)
+        ElMessage.error(`《${newSong.title}》播放失败，音频链接可能走失在异次元了~`)
+        musicStore.isPlaying = false // 立刻把 UI 上的暂停按钮恢复成播放按钮
+      }
+    }
   }
 })
 
+// 监听状态引擎的播放控制
 watch(() => musicStore.isPlaying, (playing) => {
   const audio = document.getElementById('echo-audio-player')
-  if (audio) { playing ? audio.play() : audio.pause() }
+  if (audio) { 
+    if (playing) {
+      audio.play().catch(() => {
+        musicStore.isPlaying = false
+      })
+    } else {
+      audio.pause()
+    }
+  }
 })
 </script>
 
