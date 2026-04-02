@@ -504,4 +504,18 @@ onMounted(async () => {
 .stat-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.04); border-color: #e2e8f0; background: #fff;}
 .stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace;}
 .stat-label { font-size: 15px; color: #64748b; font-weight: 700; }
+
+/* 🚀 修复极其经典的 CSS 悬浮冲突Bug (互斥锁) */
+.track-status-box { width: 30px; text-align: center; display: flex; justify-content: center; align-items: center; color: #94a3b8; }
+.track-play, .track-pause { display: none; font-size: 22px; }
+.modern-list-item .track-num { display: block; font-size: 14px; font-weight: 600; }
+
+/* 1. 正常状态下的悬浮：只有在【没有播放】时，才显示播放键！ */
+.modern-list-item:not(.is-playing):hover .track-num { display: none; }
+.modern-list-item:not(.is-playing):hover .track-play { display: block; }
+
+/* 2. 播放状态下的绝对锁定：永远只显示暂停键，强杀播放键！ */
+.modern-list-item.is-playing .track-num { display: none; }
+.modern-list-item.is-playing .track-play { display: none !important; }
+.modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
 </style>
