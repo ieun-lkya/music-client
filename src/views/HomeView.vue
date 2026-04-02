@@ -341,17 +341,50 @@ const handleLogout = () => {
 
 const loadDiscoverData = async () => { try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {} }
 
+// 🚀 终极修复：带有缓存拦截与 AI 听歌历史剖析的电台引擎
 const initRadio = async (force = false) => {
+  // 💥 救命拦截：如果不是点击强制刷新，且列表里已经有歌，绝对不发请求！
+  if (!force && radioMusicList.value.length > 0) return 
+  
   isRadioLoading.value = true
+  let dynamicPrompt = ''
+
+  if (musicStore.playHistory && musicStore.playHistory.length > 0) {
+    const songGenes = musicStore.playHistory.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
+    dynamicPrompt = `用户最近循环了：${songGenes}。请你作为懂情感的顶级DJ，剖析这些歌是否包含【爱情】、浪漫元素。请推荐10首风格相似、且带有明显【爱情】标签或浪漫氛围的音乐。`
+    if(force) ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
+  } else {
+    dynamicPrompt = '推荐一些适合【恋爱】氛围、充满浪漫甜蜜感、或者细腻伤感的经典爱情流行歌曲。'
+    if(force) ElMessage.info('📡 正在感知此刻时空，为您生成电台调频...')
+  }
+
   try {
-    radioMusicList.value = await recommendMusicAPI('推荐浪漫流行的经典歌曲。') || []
+    const data = await recommendMusicAPI(dynamicPrompt)
+    radioMusicList.value = data || []
     if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0])
-  } catch (error) {} finally { isRadioLoading.value = false }
+  } catch (error) { 
+    ElMessage.error('电台生成失败，请检查网络') 
+  } finally { 
+    isRadioLoading.value = false 
+  }
 }
 
+// 🚀 终极修复：带有缓存拦截与高精度提示词的助眠引擎
 const initSleepMode = async (force = false) => {
+  // 💥 救命拦截：只要有了数据，切回页面绝对不重新请求！
+  if (!force && sleepMusicList.value.length > 0) return
+  
   isSleepLoading.value = true
-  try { sleepMusicList.value = await recommendMusicAPI('助眠白噪音') || [] } catch (error) {} finally { isSleepLoading.value = false }
+  if (force) ElMessage.info('🌙 正在为您编织助眠梦境...')
+  
+  try { 
+    // 🚀 恢复最原始、命中率最高的极其丰富的提示词！绝不偷工减料！
+    sleepMusicList.value = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音') || [] 
+  } catch (error) {
+    console.error('助眠频段生成失败', error)
+  } finally { 
+    isSleepLoading.value = false 
+  }
 }
 
 const handleSearch = async () => {
