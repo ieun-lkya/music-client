@@ -341,7 +341,7 @@
           <div class="lyric-content-wrapper">
             <div class="record-side">
               <div class="record-wrapper" :class="{ 'is-paused': !isPlaying }">
-                <img :src="currentSong?.coverUrl" class="record-cover" />
+                <img :src="currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
               </div>
             </div>
             <div class="lyric-side">
@@ -422,7 +422,7 @@
       </div>
       <div class="empty-player" v-else>请在上方点击歌曲播放</div>
       
-      <audio ref="audioRef" :src="currentSong?.audioUrl" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
+      <audio ref="audioRef" :src="currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
     </footer>
   </div>
 </template>
@@ -641,6 +641,7 @@ let audioCtx = null, analyser = null, audioSource = null, animationFrameId = nul
 
 const initAudioVisualizer = () => {
   if (!audioRef.value || audioCtx) return
+  
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext
     audioCtx = new AudioContext()
@@ -652,7 +653,9 @@ const initAudioVisualizer = () => {
     analyser.connect(audioCtx.destination)
     
     drawVisualizer()
-  } catch (e) { console.warn("频谱无法加载", e) }
+  } catch (e) { 
+    console.warn("频谱加载失败", e) 
+  }
 }
 
 const drawVisualizer = () => {
