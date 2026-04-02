@@ -2,5 +2,5 @@ node_modules
 .vscode
 README.md
 assets
-components/icons/*
+src/components/icons/
 public
