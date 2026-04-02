@@ -230,8 +230,9 @@ onUnmounted(() => {
 .glass-btn { background: rgba(255,255,255,0.1) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.2) !important; backdrop-filter: blur(10px); font-weight: bold; }
 .glass-btn:hover { background: rgba(255,255,255,0.2) !important; transform: scale(1.05); }
 
-.record-side { width: 350px; display: flex; justify-content: center; }
-.record-wrapper { width: 340px; height: 340px; border-radius: 50%; background: #000; padding: 50px; box-shadow: 0 0 0 12px rgba(255,255,255,0.05), 0 20px 50px rgba(0,0,0,0.6); animation: spin 20s linear infinite; }
+.record-side { width: 350px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
+
+.record-wrapper { width: 340px; height: 340px; flex-shrink: 0; aspect-ratio: 1 / 1; border-radius: 50%; background: #000; padding: 50px; box-shadow: 0 0 0 12px rgba(255,255,255,0.05), 0 20px 50px rgba(0,0,0,0.6); animation: spin 20s linear infinite; }
 .record-wrapper.is-paused { animation-play-state: paused; }
 .record-cover { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
 @keyframes spin { 100% { transform: rotate(360deg); } }

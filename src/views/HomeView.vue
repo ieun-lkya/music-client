@@ -442,7 +442,7 @@ onMounted(async () => {
 .radio-layout { display: flex; gap: 30px; align-items: flex-start; }
 .radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); position: sticky; top: 20px; border: 1px solid #f1f5f9;}
 .radio-queue-panel { flex: 1; min-width: 0; }
-.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; position: relative; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.2);}
+.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; position: relative; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.2); flex-shrink: 0; aspect-ratio: 1 / 1; }
 .fm-cover-wrapper.is-playing { animation-play-state: running; }
 .fm-cover { width: 100%; height: 100%; }
 .fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
