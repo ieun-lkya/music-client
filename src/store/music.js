@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
-// 🚀 极其轻量级的全局状态引擎 (终极完整版)
-export const useMusicStore = reactive({
+// 🚀 将对象包裹在内部
+const store = reactive({
   currentUser: JSON.parse(localStorage.getItem('echo_user')) || null,
   currentMenu: 'discover',
   
@@ -35,8 +35,11 @@ export const useMusicStore = reactive({
     localStorage.setItem('echo_play_history', JSON.stringify(this.playHistory));
   },
 
-  // 🚀 快捷判断是否红心 (修复白屏的救命稻草！)
+  // 🚀 快捷判断是否红心
   isLiked(musicId) {
     return this.likedMusicList.some(item => item.id === musicId)
   }
 })
+
+// 💥 极其关键的救命修复：导出一个函数！这样前端写 useMusicStore() 才不会白屏暴毙！
+export const useMusicStore = () => store

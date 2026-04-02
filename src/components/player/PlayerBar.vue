@@ -57,6 +57,11 @@ const togglePlay = () => {
   musicStore.togglePlay()
 }
 
+// 💥 补齐播放模式切换函数，防止点击后报错
+const togglePlayMode = () => {
+  playMode.value = playMode.value === 'list' ? 'single' : 'list'
+}
+
 const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
 const onSliderSeek = (val) => { 
   const audio = document.getElementById('echo-audio-player')
