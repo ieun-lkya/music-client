@@ -57,7 +57,9 @@
     </div>
 
     <div class="comment-input-area">
-      <el-input v-model="newComment" placeholder="听懂这首歌的人，一定也有故事吧..." maxlength="100" @keyup.enter="submitComment" />
+      <el-tag v-if="replyTarget" closable @close="replyTarget = null" class="reply-tag" effect="dark" round>回复 @{{ replyTarget.username }}</el-tag>
+      
+      <el-input v-model="newComment" :placeholder="replyTarget ? '写下你的回复...' : '听懂这首歌的人，一定也有故事吧...'" maxlength="100" @keyup.enter="submitComment" />
       <el-button type="primary" circle @click="submitComment" :disabled="!newComment.trim()"><el-icon><Position /></el-icon></el-button>
     </div>
   </el-drawer>
@@ -180,16 +182,55 @@ const commentDrawerVisible = ref(false)
 const newComment = ref('')
 const currentComments = ref([])
 
+// 锁定你要回复的人
+const replyTarget = ref(null)
+const setReply = (cmt) => { replyTarget.value = cmt }
+
 const fetchComments = async (musicId) => {
-  try { currentComments.value = await getCommentsAPI(musicId) || [] } catch (e) {}
+  try {
+    const data = await getCommentsAPI(musicId) || []
+    // 处理评论数据，将子评论挂到对应的父评论下
+    const commentsMap = {}
+    const rootComments = []
+    
+    // 先建立映射关系
+    data.forEach(comment => {
+      commentsMap[comment.id] = { ...comment, replies: [] }
+    })
+    
+    // 再组织层级结构
+    data.forEach(comment => {
+      if (comment.parentId) {
+        const parent = commentsMap[comment.parentId]
+        if (parent) {
+          parent.replies.push(comment)
+        }
+      } else {
+        rootComments.push(commentsMap[comment.id])
+      }
+    })
+    
+    currentComments.value = rootComments
+  } catch (error) {
+    currentComments.value = []
+  }
 }
 
 const submitComment = async () => {
   if (!newComment.value.trim() || !musicStore.currentUser || !musicStore.currentSong) return
   try {
-    await addCommentAPI({ musicId: musicStore.currentSong.id, userId: musicStore.currentUser.id, content: newComment.value.trim() })
-    ElMessage.success('🎉 你的故事已成功留在云村！'); newComment.value = ''
-    await fetchComments(musicStore.currentSong.id)
+    // 扁平化：不管你回复的是根评论还是子评论，全都挂在根评论的肚子里
+    const pId = replyTarget.value ? (replyTarget.value.parentId || replyTarget.value.id) : null;
+    
+    await addCommentAPI({ 
+      musicId: musicStore.currentSong.id, 
+      userId: musicStore.currentUser.id, 
+      content: newComment.value.trim(),
+      parentId: pId
+    })
+    ElMessage.success('🎉 你的故事已成功留在云村！'); 
+    newComment.value = ''; replyTarget.value = null; // 清空输入框和目标
+    await fetchComments(musicStore.currentSong.id) // 刷新列表，树形结构立刻展现！
   } catch (e) {}
 }
 
@@ -263,9 +304,17 @@ onUnmounted(() => {
 .comment-user .name { font-size: 14px; font-weight: bold; color: #334155; }
 .comment-user .likes { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: 0.2s;}
 .comment-user .likes:hover, .comment-user .likes.is-liked { color: #ef4444; font-weight: bold;}
-.comment-text { font-size: 14px; color: #1e293b; line-height: 1.6; margin-bottom: 8px; word-break: break-all; }
+.comment-text { font-size: 14px; color: #1e293b; line-height: 1.6; margin-bottom: 8px; word-break: break-all; cursor: pointer; }
 .comment-time { font-size: 12px; color: #94a3b8; }
+.reply-btn { margin-left: 15px; color: #3b82f6; cursor: pointer; display: none; }
+.comment-item:hover .reply-btn { display: inline; }
+.replies-box { background: #f8fafc; border-radius: 8px; padding: 12px; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.reply-item { font-size: 13px; line-height: 1.5; word-break: break-all; }
+.reply-user { font-weight: 700; color: #334155; cursor: pointer; }
+.reply-content { color: #475569; cursor: pointer; transition: 0.2s; }
+.reply-content:hover { color: #0f172a; }
 .comment-input-area { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 30px; background: #fff; border-top: 1px solid #f1f5f9; display: flex; gap: 15px; align-items: center;}
 .comment-input-area :deep(.el-input__wrapper) { background: #f8fafc; box-shadow: none; border: 1px solid #e2e8f0; border-radius: 20px; }
 .comment-input-area :deep(.el-input__inner) { color: #0f172a; }
+.reply-tag { margin-bottom: -10px; z-index: 10; margin-left: 10px; }
 </style>

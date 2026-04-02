@@ -28,6 +28,10 @@ const store = reactive({
   selectSong(song) {
     this.currentSong = song;
     this.isPlaying = true;
+    
+    // 🚀 发射播放脉冲，引爆热歌榜！
+    import('../api/music').then(api => api.addPlayCountAPI(song.id).catch(()=>{}));
+    
     const index = this.playHistory.findIndex(item => item.id === song.id);
     if (index !== -1) this.playHistory.splice(index, 1);
     this.playHistory.unshift(song);
