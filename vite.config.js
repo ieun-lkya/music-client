@@ -4,6 +4,12 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
+  // 🚀 极其致命的一步：补上 resolve.alias 别名配置！让 Vite 认识 '@'！
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
   server: {
     port: 5173,
     open: true,
@@ -11,7 +17,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080', 
         changeOrigin: true,
-        // 🚀 极其致命的一行代码：在发给后端前，自动把路径里的 /api 抹掉！
+        // 🚀 在发给后端前，自动把路径里的 /api 抹掉
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
