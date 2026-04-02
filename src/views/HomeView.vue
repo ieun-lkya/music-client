@@ -1,48 +1,12 @@
 <template>
   <div class="main-layout">
-    <aside class="sidebar">
-      <div class="logo">
-        <el-icon :size="28" color="#3b82f6"><MagicStick /></el-icon>
-        <span class="logo-text">EchoScene <span class="badge">AI</span></span>
-      </div>
-      
-      <nav class="nav-menu">
-        <div class="nav-item" :class="{ active: currentMenu === 'discover' }" @click="switchMenu('discover')">
-          <el-icon><Compass /></el-icon> 发现音乐
-        </div>
-        <div class="nav-item" :class="{ active: currentMenu === 'radio' }" @click="switchMenu('radio')">
-          <el-icon><Mic /></el-icon> 智能场景电台
-        </div>
-        <div class="nav-item" :class="{ active: currentMenu === 'profile' }" @click="switchMenu('profile')">
-          <el-icon><User /></el-icon> 个人中心
-        </div>
-      </nav>
-
-      <div class="nav-group">我的音乐</div>
-      <div class="nav-sub-item" :class="{ active: currentMenu === 'liked' }" @click="switchMenu('liked')">❤️ 我喜欢的</div>
-      <div class="nav-sub-item" :class="{ active: currentMenu === 'sleep' }" @click="switchMenu('sleep')">🌙 助眠系列</div>
-      <div class="nav-sub-item" :class="{ active: currentMenu === 'history' }" @click="switchMenu('history')">🕒 最近播放</div>
-
-      <div class="nav-group" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>自建歌单</span>
-        <el-icon style="cursor:pointer; color:#3b82f6;" @click="openPlaylistDialog"><Plus /></el-icon>
-      </div>
-      <div 
-        v-for="pl in customPlaylists" 
-        :key="pl.id"
-        class="nav-sub-item" 
-        :class="{ active: currentMenu === 'playlist_' + pl.id }" 
-        @click="switchMenu('playlist_' + pl.id)"
-      >
-        💿 {{ pl.name }}
-      </div>
-    </aside>
+    <Sidebar @switch-menu="switchMenu" @open-playlist-dialog="openPlaylistDialog" />
 
     <main class="main-content">
       <header class="top-header">
         <div class="ai-input-wrapper">
           <el-input
-            v-if="currentMenu === 'discover' && discoverMode === 'ai'"
+            v-if="musicStore.currentMenu === 'discover' && discoverMode === 'ai'"
             v-model="userInput"
             placeholder="描述此刻场景，让 AI 懂你，例如：失恋后看雨..."
             class="scene-search ai-search-pulse"
@@ -91,7 +55,7 @@
           </div>
         </transition>
 
-        <section v-if="currentMenu === 'discover'" class="discover-section fade-in">
+        <section v-if="musicStore.currentMenu === 'discover'" class="discover-section fade-in">
           
           <div class="hero-banner">
             <div class="hero-glow shape-1"></div>
@@ -137,7 +101,7 @@
           </div>
 
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 
@@ -161,7 +125,7 @@
           </div>
         </section>
 
-        <section v-else-if="currentMenu === 'radio'" class="hero-section fade-in">
+        <section v-else-if="musicStore.currentMenu === 'radio'" class="hero-section fade-in">
           <div class="discover-header">
             <div>
               <h2>📡 Echo 私人智能 FM</h2>
@@ -176,23 +140,23 @@
             <el-empty v-if="radioMusicList.length === 0" description="正在接收宇宙电波..." style="width: 100%;" />
             <template v-else>
               <div class="radio-player-panel fade-in">
-                <div class="fm-cover-wrapper" :class="{ 'is-playing': isPlaying }">
-                  <el-image :src="currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
+                <div class="fm-cover-wrapper" :class="{ 'is-playing': musicStore.isPlaying }">
+                  <el-image :src="musicStore.currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
                   <div class="fm-center-hole"></div>
                 </div>
                 <div class="fm-info">
-                  <h3>{{ currentSong?.title || radioMusicList[0]?.title }}</h3>
-                  <p>{{ currentSong?.artist || radioMusicList[0]?.artist }}</p>
+                  <h3>{{ musicStore.currentSong?.title || radioMusicList[0]?.title }}</h3>
+                  <p>{{ musicStore.currentSong?.artist || radioMusicList[0]?.artist }}</p>
                 </div>
               </div>
               <div class="radio-queue-panel fade-in">
                 <h3 class="queue-title">即将播放队列</h3>
                 <div class="modern-list-view queue-list">
-                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
                     <span class="modern-title-group">
-                      <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
                       <div class="modern-play-icon">
-                        <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                        <el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
                         <el-icon v-else><VideoPlay /></el-icon>
                       </div>
                       <span class="modern-title">{{ item.title }}</span>
@@ -208,7 +172,7 @@
           </div>
         </section>
 
-        <section v-else-if="currentMenu === 'sleep'" class="hero-section fade-in sleep-mode-bg">
+        <section v-else-if="musicStore.currentMenu === 'sleep'" class="hero-section fade-in sleep-mode-bg">
           <div class="discover-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
             <div>
               <h2 style="color: #fff;">🌙 深度助眠频段</h2>
@@ -222,11 +186,11 @@
           <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
             <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
             <div class="modern-list-view fade-in dark-list" v-else>
-              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
                 <span class="modern-title-group">
-                  <span class="index-num" v-if="!currentSong || currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
                   <div class="modern-play-icon">
-                    <el-icon v-if="currentSong && currentSong.id === item.id && isPlaying"><VideoPause /></el-icon>
+                    <el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
                     <el-icon v-else><VideoPlay /></el-icon>
                   </div>
                   <span class="modern-title">{{ item.title }}</span>
@@ -240,7 +204,7 @@
           </div>
         </section>
 
-        <section v-else-if="currentMenu === 'profile'" class="hero-section fade-in">
+        <section v-else-if="musicStore.currentMenu === 'profile'" class="hero-section fade-in">
           <div class="profile-container">
             <div class="profile-header">
               <div class="avatar-wrapper">
@@ -262,13 +226,13 @@
               </el-col>
               <el-col :span="8">
                 <div class="stat-card">
-                  <div class="stat-num">{{ customPlaylists.length }}</div>
+                  <div class="stat-num">{{ musicStore.customPlaylists.length }}</div>
                   <div class="stat-label">💿 云端歌单</div>
                 </div>
               </el-col>
               <el-col :span="8">
                 <div class="stat-card">
-                  <div class="stat-num">{{ playHistory.length }}</div>
+                  <div class="stat-num">{{ musicStore.playHistory.length }}</div>
                   <div class="stat-label">🕒 历史足迹</div>
                 </div>
               </el-col>
@@ -276,29 +240,29 @@
           </div>
         </section>
 
-        <section v-else-if="['liked', 'history'].includes(currentMenu) || currentMenu.startsWith('playlist_')" class="hero-section fade-in">
+        <section v-else-if="['liked', 'history'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
-              <h2 v-if="currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
-              <h2 v-else-if="currentMenu === 'history'">🕒 最近播放</h2>
+              <h2 v-if="musicStore.currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
+              <h2 v-else-if="musicStore.currentMenu === 'history'">🕒 最近播放</h2>
               <h2 v-else>💿 {{ currentActivePlaylist?.name }}</h2>
               
-              <p class="theory-note" v-if="currentMenu === 'liked'">专属红心云端歌单。</p>
-              <p class="theory-note" v-else-if="currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
+              <p class="theory-note" v-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
+              <p class="theory-note" v-else-if="musicStore.currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
               <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
               <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="activePlayList.length > 0">
                 <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
               </el-button>
-              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="currentMenu.startsWith('playlist_')">删除该歌单</el-button>
+              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="musicStore.currentMenu.startsWith('playlist_')">删除该歌单</el-button>
             </div>
           </div>
           
           <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': currentSong && currentSong.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 
@@ -324,7 +288,7 @@
       </div>
 
       <transition name="slide-up">
-        <div class="lyric-overlay" v-if="showLyricPanel" :style="{ backgroundImage: `url(${currentSong?.coverUrl})` }">
+        <div class="lyric-overlay" v-if="showLyricPanel" :style="{ backgroundImage: `url(${musicStore.currentSong?.coverUrl})` }">
           <div class="lyric-blur-bg"></div>
           
           <canvas ref="spectrumCanvasRef" class="spectrum-canvas"></canvas>
@@ -340,12 +304,12 @@
 
           <div class="lyric-content-wrapper">
             <div class="record-side">
-              <div class="record-wrapper" :class="{ 'is-paused': !isPlaying }">
-                <img :src="currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
+              <div class="record-wrapper" :class="{ 'is-paused': !musicStore.isPlaying }">
+                <img :src="musicStore.currentSong?.coverUrl" class="record-cover" crossorigin="anonymous" />
               </div>
             </div>
             <div class="lyric-side">
-              <h2 class="lyric-song-title">{{ currentSong?.title }}</h2><p class="lyric-song-artist">{{ currentSong?.artist }}</p>
+              <h2 class="lyric-song-title">{{ musicStore.currentSong?.title }}</h2><p class="lyric-song-artist">{{ musicStore.currentSong?.artist }}</p>
               <div class="lyric-scroll-box" ref="lyricBoxRef" @wheel="handleLyricScroll" @touchmove="handleLyricScroll">
                 <div class="lyric-inner">
                   <p v-for="(line, index) in parsedLyrics" :key="index" class="lyric-line" :class="{ 'active': currentLyricIndex === index }" @click="seekToLyric(line.time)">{{ line.text }}</p>
@@ -360,7 +324,7 @@
 
     <el-drawer v-model="commentDrawerVisible" title="🎵 云村热评" direction="rtl" size="420px" class="dark-comment-drawer" :with-header="false">
       <div class="drawer-header">
-        <h3>{{ currentSong?.title }} - 热评</h3>
+        <h3>{{ musicStore.currentSong?.title }} - 热评</h3>
         <el-icon class="drawer-close" @click="commentDrawerVisible = false"><Close /></el-icon>
       </div>
       
@@ -388,29 +352,29 @@
     <el-dialog v-model="playlistDialogVisible" title="操作云端歌单" width="400px" top="30vh" append-to-body>
       <div v-if="selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
       <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20"><template #append><el-button type="primary" @click="createNewPlaylist">创建并加入</el-button></template></el-input>
-      <el-divider v-if="customPlaylists.length > 0">或加入已有云端歌单</el-divider>
-      <div class="playlist-options" v-if="customPlaylists.length > 0">
-        <div class="pl-option" v-for="pl in customPlaylists" :key="pl.id" @click="addToExistingPlaylist(pl)"><el-icon><Menu /></el-icon> {{ pl.name }}</div>
+      <el-divider v-if="musicStore.customPlaylists.length > 0">或加入已有云端歌单</el-divider>
+      <div class="playlist-options" v-if="musicStore.customPlaylists.length > 0">
+        <div class="pl-option" v-for="pl in musicStore.customPlaylists" :key="pl.id" @click="addToExistingPlaylist(pl)"><el-icon><Menu /></el-icon> {{ pl.name }}</div>
       </div>
     </el-dialog>
 
-    <footer class="player-bar" :class="{ 'is-active': currentSong }">
-      <div class="progress-slider-wrapper"><el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!currentSong" /></div>
-      <div class="controls-content" v-if="currentSong">
+    <footer class="player-bar" :class="{ 'is-active': musicStore.currentSong }">
+      <div class="progress-slider-wrapper"><el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!musicStore.currentSong" /></div>
+      <div class="controls-content" v-if="musicStore.currentSong">
         <div class="track-info">
-          <img :src="currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" />
+          <img :src="musicStore.currentSong.coverUrl" class="mini-cover" style="cursor: pointer;" @click="showLyricPanel = true" />
           <div class="meta">
-            <span class="t">{{ currentSong.title }}</span>
-            <span class="a">{{ currentSong.artist }}</span>
+            <span class="t">{{ musicStore.currentSong.title }}</span>
+            <span class="a">{{ musicStore.currentSong.artist }}</span>
           </div>
-          <el-icon :size="22" class="like-icon" :class="{ 'is-liked': isLiked(currentSong.id) }" @click="toggleLike(currentSong)">
-            <component :is="isLiked(currentSong.id) ? StarFilled : Star" />
+          <el-icon :size="22" class="like-icon" :class="{ 'is-liked': isLiked(musicStore.currentSong.id) }" @click="toggleLike(musicStore.currentSong)">
+            <component :is="isLiked(musicStore.currentSong.id) ? StarFilled : Star" />
           </el-icon>
         </div>
         
         <div class="play-btns">
           <div class="prev-next-btn" @click="playPrev"></div>
-          <div class="main-play-btn" :class="{'is-playing': isPlaying}" @click="togglePlay"></div>
+          <div class="main-play-btn" :class="{'is-playing': musicStore.isPlaying}" @click="togglePlay"></div>
           <div class="prev-next-btn" @click="playNext"></div>
         </div>
 
@@ -422,7 +386,7 @@
       </div>
       <div class="empty-player" v-else>请在上方点击歌曲播放</div>
       
-      <audio ref="audioRef" :src="currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
+      <audio ref="audioRef" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
     </footer>
   </div>
 </template>
@@ -434,13 +398,18 @@ import { useRouter } from 'vue-router'
 import { Compass, Mic, User, MagicStick, Search, VideoPlay, VideoPause, ArrowLeftBold, ArrowRightBold, Headset, Refresh, RefreshLeft, Star, StarFilled, List, ArrowDownBold, Check, Plus, Menu, RefreshRight, Edit, ChatDotRound, Close, Position } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 🚀 引入解耦后的核心引擎与子组件
+import Sidebar from '../components/layout/Sidebar.vue'
+import { useMusicStore } from '../store/music'
+
 import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getCommentsAPI, addCommentAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
 
-const currentMenu = ref('discover')
+const musicStore = useMusicStore()
+
 const discoverMode = ref('library') 
 const userInput = ref('')
 const isSearching = ref(false)
@@ -449,41 +418,39 @@ const allMusicList = ref([])
 const aiMusicList = ref([]) 
 const currentUser = ref(null)
 const likedMusicList = ref([])
-const playHistory = ref([])
 const localSearchKeyword = ref('')
 
 const searchPlaceholder = computed(() => {
-  if (currentMenu.value === 'discover') return '极速检索全站曲库...'
-  if (currentMenu.value === 'liked') return '检索我的收藏...'
-  if (currentMenu.value === 'history') return '检索播放历史...'
-  if (currentMenu.value.startsWith('playlist_')) return `检索 ${currentActivePlaylist.value?.name}...`
+  if (musicStore.currentMenu === 'discover') return '极速检索全站曲库...'
+  if (musicStore.currentMenu === 'liked') return '检索我的收藏...'
+  if (musicStore.currentMenu === 'history') return '检索播放历史...'
+  if (musicStore.currentMenu.startsWith('playlist_')) return `检索 ${currentActivePlaylist.value?.name}...`
   return '极速检索歌名/歌手...'
 })
 
-const customPlaylists = ref([])
 const isBatchMode = ref(false)
 const selectedMusicIds = ref([])
 const playlistDialogVisible = ref(false)
 const newPlaylistName = ref('')
 
 const rawActivePlayList = computed(() => {
-  if (currentMenu.value === 'liked') return likedMusicList.value
-  if (currentMenu.value === 'history') return playHistory.value
-  if (currentMenu.value.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
-  if (currentMenu.value === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
+  if (musicStore.currentMenu === 'liked') return likedMusicList.value
+  if (musicStore.currentMenu === 'history') return musicStore.playHistory
+  if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
+  if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
   return []
 })
 
 const activePlayList = computed(() => {
   const list = rawActivePlayList.value
-  if (currentMenu.value === 'discover' && discoverMode.value === 'ai') return list 
+  if (musicStore.currentMenu === 'discover' && discoverMode.value === 'ai') return list 
   if (!localSearchKeyword.value) return list
   const kw = localSearchKeyword.value.toLowerCase().trim()
   return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
 })
 
 const currentActivePlaylist = computed(() => {
-  if (currentMenu.value.startsWith('playlist_')) { return customPlaylists.value.find(p => p.id == currentMenu.value.split('_')[1]) }
+  if (musicStore.currentMenu.startsWith('playlist_')) { return musicStore.customPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[1]) }
   return null
 })
 
@@ -492,7 +459,7 @@ const toggleSelection = (id) => { const index = selectedMusicIds.value.indexOf(i
 
 const handleItemClick = (item) => {
   if (isBatchMode.value) toggleSelection(item.id) 
-  else selectSong(item) 
+  else musicStore.selectSong(item) 
 }
 
 const openPlaylistDialog = () => {
@@ -515,7 +482,7 @@ const batchLikeSongs = async () => {
 
 const fetchMyPlaylists = async () => {
   if (!currentUser.value) return
-  try { customPlaylists.value = await getUserPlaylistsAPI(currentUser.value.id) || [] } catch (error) {}
+  try { musicStore.customPlaylists = await getUserPlaylistsAPI(currentUser.value.id) || [] } catch (error) {}
 }
 
 const createNewPlaylist = async () => {
@@ -523,7 +490,7 @@ const createNewPlaylist = async () => {
   try {
     await createPlaylistAPI(currentUser.value.id, newPlaylistName.value.trim())
     await fetchMyPlaylists() 
-    const newPl = customPlaylists.value.find(p => p.name === newPlaylistName.value.trim())
+    const newPl = musicStore.customPlaylists.find(p => p.name === newPlaylistName.value.trim())
     if (newPl && selectedMusicIds.value.length > 0) {
       for(let sid of selectedMusicIds.value) { await addMusicToPlaylistAPI(newPl.id, sid) }
       ElMessage.success('🎉 歌单创建并添加成功！')
@@ -539,26 +506,24 @@ const addToExistingPlaylist = async (pl) => {
   }
   if (successCount > 0) ElMessage.success(`✅ 成功将 ${successCount} 首歌加入【${pl.name}】！`)
   playlistDialogVisible.value = false; toggleBatchMode()
-  if (currentMenu.value === `playlist_${pl.id}`) loadPlaylistSongs(pl.id)
+  if (musicStore.currentMenu === `playlist_${pl.id}`) loadPlaylistSongs(pl.id)
 }
 
 const deletePlaylist = (pId) => {
   ElMessageBox.confirm('确定要删除这个云端歌单吗？', '删除确认', { type: 'warning' }).then(async () => {
-    try { await deletePlaylistAPI(pId); await fetchMyPlaylists(); currentMenu.value = 'discover'; ElMessage.success('歌单已删除') } catch (error) {}
+    try { await deletePlaylistAPI(pId); await fetchMyPlaylists(); musicStore.currentMenu = 'discover'; ElMessage.success('歌单已删除') } catch (error) {}
   }).catch(() => {})
 }
 
 const loadPlaylistSongs = async (plId) => {
   try {
     const res = await getPlaylistMusicAPI(plId)
-    const pl = customPlaylists.value.find(p => p.id == plId)
+    const pl = musicStore.customPlaylists.find(p => p.id == plId)
     if (pl) pl.songs = res || []
   } catch (error) {}
 }
 
-const currentSong = ref(null)
 const audioRef = ref(null)
-const isPlaying = ref(false)
 const currentTime = ref(0)
 const volume = ref(70)
 const duration = ref(0) 
@@ -609,7 +574,7 @@ const handleLyricScroll = () => {
   scrollTimeout = setTimeout(() => { isUserScrolling.value = false; if (currentLyricIndex.value !== -1 && lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45, behavior: 'smooth' }) }, 3000) 
 }
 
-const seekToLyric = (time) => { if (audioRef.value) { audioRef.value.currentTime = time; audioRef.value.play(); isPlaying.value = true; isUserScrolling.value = false; if (scrollTimeout) clearTimeout(scrollTimeout) } }
+const seekToLyric = (time) => { if (audioRef.value) { audioRef.value.currentTime = time; audioRef.value.play(); musicStore.isPlaying = true; isUserScrolling.value = false; if (scrollTimeout) clearTimeout(scrollTimeout) } }
 
 const loadLyrics = async (song) => {
   parsedLyrics.value = []; currentLyricIndex.value = 0; isLoadingLyric.value = true
@@ -621,17 +586,18 @@ const loadLyrics = async (song) => {
   } catch (error) {} finally { isLoadingLyric.value = false }
 }
 
-watch(currentSong, (newSong) => {
+// 🚀 监听仓库里的歌曲切换，自动触发加载并准备播放
+watch(() => musicStore.currentSong, (newSong) => {
   if (newSong) {
     loadLyrics(newSong)
-    const index = playHistory.value.findIndex(item => item.id === newSong.id)
-    if (index !== -1) playHistory.value.splice(index, 1)
-    playHistory.value.unshift(newSong)
-    if (playHistory.value.length > 50) playHistory.value.pop()
-    localStorage.setItem('echo_play_history', JSON.stringify(playHistory.value))
-    
-    // 加载新歌时，去数据库拉取这首歌独有的真实热评！
     fetchComments(newSong.id)
+    setTimeout(() => { 
+      if (audioRef.value) { 
+        audioRef.value.volume = volume.value / 100
+        audioRef.value.play() 
+        initAudioVisualizer() 
+      } 
+    }, 100)
   }
 })
 
@@ -707,17 +673,17 @@ const fetchComments = async (musicId) => {
 const submitComment = async () => {
   if (!newComment.value.trim()) return
   if (!currentUser.value) return ElMessage.warning('请先登录才能发表你的故事哦！')
-  if (!currentSong.value) return
+  if (!musicStore.currentSong) return
   
   try {
     await addCommentAPI({
-      musicId: currentSong.value.id,
+      musicId: musicStore.currentSong.id,
       userId: currentUser.value.id,
       content: newComment.value.trim()
     })
     ElMessage.success('🎉 你的故事已成功留在云村！')
     newComment.value = ''
-    await fetchComments(currentSong.value.id)
+    await fetchComments(musicStore.currentSong.id)
   } catch (error) {
     ElMessage.error('评论发送失败，请检查网络')
   }
@@ -729,7 +695,7 @@ const fetchMyLikes = async () => {
 }
 
 const handleLogout = () => {
-  currentUser.value = null; likedMusicList.value = []; customPlaylists.value = [];
+  currentUser.value = null; likedMusicList.value = []; musicStore.customPlaylists = [];
   localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token'); router.push('/login')
 }
 
@@ -746,8 +712,8 @@ const initRadio = async (force = false) => {
   isRadioLoading.value = true
   let dynamicPrompt = ''
 
-  if (playHistory.value && playHistory.value.length > 0) {
-    const songGenes = playHistory.value.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
+  if (musicStore.playHistory && musicStore.playHistory.length > 0) {
+    const songGenes = musicStore.playHistory.slice(0, 5).map(s => `《${s.title}》(${s.artist})`).join('、')
     dynamicPrompt = `用户最近循环了：${songGenes}。请你作为懂情感的顶级DJ，剖析这些歌是否包含【爱情】、浪漫元素。请推荐10首风格相似、且带有明显【爱情】标签或浪漫氛围的音乐。`
     ElMessage.info('📡 正在解析听歌 DNA，演算私人频段...')
   } else {
@@ -758,7 +724,7 @@ const initRadio = async (force = false) => {
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
     radioMusicList.value = data || []
-    if (radioMusicList.value.length > 0 && force) { selectSong(radioMusicList.value[0]) }
+    if (radioMusicList.value.length > 0 && force) { musicStore.selectSong(radioMusicList.value[0]) }
   } catch (error) { ElMessage.error('电台生成失败，请检查网络') } finally { isRadioLoading.value = false }
 }
 
@@ -776,47 +742,37 @@ const initSleepMode = async (force = false) => {
 
 const handleSearch = async () => {
   if (!userInput.value.trim()) return ElMessage.warning('请输入场景描述哦')
-  if (currentMenu.value !== 'discover') currentMenu.value = 'discover'
+  if (musicStore.currentMenu !== 'discover') musicStore.currentMenu = 'discover'
   discoverMode.value = 'ai'; isSearching.value = true
   try { aiMusicList.value = await recommendMusicAPI(userInput.value) || []; ElMessage.success('匹配成功！') } 
   catch (error) {} finally { isSearching.value = false }
 }
 
-const selectSong = (song) => {
-  currentSong.value = song; isPlaying.value = true
-  setTimeout(() => { 
-    if (audioRef.value) { 
-      audioRef.value.volume = volume.value / 100
-      audioRef.value.play() 
-      initAudioVisualizer() 
-    } 
-  }, 100)
-}
-
+// 🚀 本地触发控制器的状态反转
 const togglePlay = () => {
   if (!audioRef.value) return
   initAudioVisualizer() 
   
-  if (isPlaying.value) {
+  if (musicStore.isPlaying) {
     audioRef.value.pause()
     if (audioCtx && audioCtx.state === 'running') audioCtx.suspend()
   } else {
     audioRef.value.play()
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume()
   }
-  isPlaying.value = !isPlaying.value
+  musicStore.togglePlay()
 }
 
 const playPrev = () => {
-  const index = activePlayList.value.findIndex(item => item.id === currentSong.value?.id)
+  const index = activePlayList.value.findIndex(item => item.id === musicStore.currentSong?.id)
   if (index === -1) return
-  selectSong(activePlayList.value[(index - 1 + activePlayList.value.length) % activePlayList.value.length])
+  musicStore.selectSong(activePlayList.value[(index - 1 + activePlayList.value.length) % activePlayList.value.length])
 }
 
 const playNext = () => {
-  const index = activePlayList.value.findIndex(item => item.id === currentSong.value?.id)
+  const index = activePlayList.value.findIndex(item => item.id === musicStore.currentSong?.id)
   if (index === -1) return
-  selectSong(activePlayList.value[(index + 1) % activePlayList.value.length])
+  musicStore.selectSong(activePlayList.value[(index + 1) % activePlayList.value.length])
 }
 
 const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
@@ -846,8 +802,6 @@ onMounted(async () => {
   await loadDiscoverData()
   const savedUser = localStorage.getItem('echo_user')
   if (savedUser) { currentUser.value = JSON.parse(savedUser); await fetchMyLikes(); await fetchMyPlaylists() }
-  const savedHistory = localStorage.getItem('echo_play_history')
-  if (savedHistory) playHistory.value = JSON.parse(savedHistory)
 })
 
 onUnmounted(() => {
@@ -856,7 +810,7 @@ onUnmounted(() => {
 })
 
 const switchMenu = async (menuName) => {
-  currentMenu.value = menuName; isBatchMode.value = false ; localSearchKeyword.value = '' 
+  musicStore.currentMenu = menuName; isBatchMode.value = false ; localSearchKeyword.value = '' 
   if (menuName === 'discover') await loadDiscoverData()
   else if (menuName === 'liked') await fetchMyLikes()
   else if (menuName.startsWith('playlist_')) await loadPlaylistSongs(menuName.split('_')[1])
@@ -931,19 +885,6 @@ const switchMenu = async (menuName) => {
 :global(body), :global(html), :global(#app) { margin: 0; padding: 0; height: 100%; width: 100%; box-sizing: border-box; }
 *, *::before, *::after { box-sizing: border-box; }
 .main-layout { display: flex; width: 100vw; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-
-/* 1. 极其克制的 Apple Music 级侧边栏 */
-.sidebar { width: 240px; background-color: #f4f4f5; border-right: none; padding: 35px 20px; display: flex; flex-direction: column; z-index: 10; }
-.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 45px; padding-left: 10px; }
-.logo-text { font-size: 22px; font-weight: 800; color: #18181b; letter-spacing: -0.5px; }
-.badge { font-size: 10px; background: #18181b; color: #fff; padding: 2px 6px; border-radius: 4px; vertical-align: super; }
-.nav-group { font-size: 12px; color: #a1a1aa; font-weight: 700; margin: 35px 0 12px 10px; letter-spacing: 1px; }
-.nav-item { padding: 10px 15px; border-radius: 8px; cursor: pointer; color: #52525b; margin-bottom: 2px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; transition: all 0.2s ease; }
-.nav-item:hover { color: #18181b; background-color: #e4e4e7; }
-.nav-item.active { background-color: #d4d4d8; color: #18181b; font-weight: 700; }
-.nav-sub-item { padding: 10px 15px; font-size: 14px; color: #52525b; font-weight: 500; cursor: pointer; border-radius: 8px; margin-bottom: 2px; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
-.nav-sub-item:hover { color: #18181b; background-color: #e4e4e7; }
-.nav-sub-item.active { background-color: #d4d4d8; color: #18181b; font-weight: 700; }
 
 .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
 .top-header { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #f1f5f9; z-index: 5; }
