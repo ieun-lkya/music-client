@@ -104,7 +104,7 @@
                 <div class="modern-list-view queue-list">
                   <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
                     <span class="modern-title-group">
-                      <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                      <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id"> {{ (index + 1).toString().padStart(2, '0') }}</span>
                       <div class="modern-play-icon"><el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon><el-icon v-else><VideoPlay /></el-icon></div>
                       <span class="modern-title">{{ item.title }}</span>
                     </span>
@@ -117,7 +117,81 @@
           </div>
         </section>
 
-        </div>
+        <section v-else-if="musicStore.currentMenu === 'sleep'" class="hero-section fade-in sleep-mode-bg">
+          <div class="discover-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div><h2 style="color: #fff;">🌙 深度助眠频段</h2><p style="color: #9ca3af;">褪去白日的喧嚣，AI 为您精选的白噪音与轻音乐。</p></div>
+            <el-button type="primary" color="#4f46e5" round @click="initSleepMode(true)" :loading="isSleepLoading"><el-icon><Refresh /></el-icon> 重新生成梦境</el-button>
+          </div>
+          <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
+            <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
+            <div class="modern-list-view fade-in dark-list" v-else>
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+                <span class="modern-title-group">
+                  <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id"> {{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <div class="modern-play-icon"><el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon><el-icon v-else><VideoPlay /></el-icon></div>
+                  <span class="modern-title">{{ item.title }}</span>
+                </span>
+                <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
+                <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section v-else-if="musicStore.currentMenu === 'profile'" class="hero-section fade-in">
+          <div class="profile-container">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                <el-avatar :size="100" :src="musicStore.currentUser?.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+                <div class="avatar-edit"><el-icon><Edit /></el-icon></div>
+              </div>
+              <div class="profile-info">
+                <h2>{{ musicStore.currentUser?.username || '未命名架构师' }}</h2>
+                <p>EchoScene 尊贵会员 ｜ 听歌品味：<el-tag size="small" type="success">极度硬核</el-tag></p>
+              </div>
+            </div>
+            <el-row :gutter="20" class="stats-row">
+              <el-col :span="8"><div class="stat-card"><div class="stat-num">{{ musicStore.likedMusicList.length }}</div><div class="stat-label">❤️ 累计红心</div></div></el-col>
+              <el-col :span="8"><div class="stat-card"><div class="stat-num">{{ musicStore.customPlaylists.length }}</div><div class="stat-label">💿 云端歌单</div></div></el-col>
+              <el-col :span="8"><div class="stat-card"><div class="stat-num">{{ musicStore.playHistory.length }}</div><div class="stat-label">🕒 历史足迹</div></div></el-col>
+            </el-row>
+          </div>
+        </section>
+
+        <section v-else-if="['liked', 'history'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
+            <div>
+              <h2 v-if="musicStore.currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
+              <h2 v-else-if="musicStore.currentMenu === 'history'">🕒 最近播放</h2>
+              <h2 v-else>💿 {{ currentActivePlaylist?.name }}</h2>
+              <p class="theory-note" v-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
+              <p class="theory-note" v-else-if="musicStore.currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
+              <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="activePlayList.length > 0">
+                <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
+              </el-button>
+              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="musicStore.currentMenu.startsWith('playlist_')">删除该歌单</el-button>
+            </div>
+          </div>
+          
+          <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
+          
+          <div class="modern-list-view fade-in" v-else>
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+              <span class="modern-title-group">
+                <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
+                <div class="track-status-box" v-if="!isBatchMode"><span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span><el-icon class="track-play"><VideoPlay /></el-icon><el-icon class="track-pause"><VideoPause /></el-icon></div>
+                <span class="modern-title">{{ item.title }}</span>
+              </span>
+              <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
+              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+            </div>
+          </div>
+        </section>
+
+      </div>
       
       <LyricOverlay />
     </main>
@@ -138,10 +212,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 🚀 引入解耦后的终极组件群
+// 引入解耦后的组件与状态
 import Sidebar from '../components/layout/Sidebar.vue'
 import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
@@ -311,7 +385,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 原有的通用布局样式、大厅样式统统保留，播放器和歌词的CSS已全部转移 */
+/* ================= 🎨 完整无损的 CSS 样式区 ================= */
 .discover-section { display: flex; flex-direction: column; gap: 20px; }
 .hero-banner { position: relative; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 28px; padding: 45px 50px; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; border: 1px solid #fff; }
 .hero-content { position: relative; z-index: 2; }
@@ -329,6 +403,8 @@ onMounted(async () => {
 .bento-cover { width: 100%; height: 100%; object-fit: cover; }
 .bento-play-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.25); opacity: 0; transition: 0.3s; display: flex; align-items: center; justify-content: center;}
 .bento-card:hover .bento-play-overlay { opacity: 1; }
+.bento-play-btn { width: 64px; height: 64px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.6); transform: translateY(20px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+.bento-card:hover .bento-play-btn { transform: translateY(0); }
 .bento-info { padding: 16px 4px 4px; text-align: center; }
 .bento-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -358,14 +434,41 @@ onMounted(async () => {
 .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
 .scroll-container { flex: 1; overflow-y: auto; padding: 30px 40px 120px; }
 
-/* 其他电台、个人中心样式省略（均与上一版完全一致，没有任何改动） */
+/* ================= 📻 修复后的电台与唱片旋转动画 ================= */
+.discover-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+.hero-section h2 { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -1px;}
+.theory-note { color: #64748b; font-size: 15px; margin: 0; font-weight: 500;}
+
 .radio-layout { display: flex; gap: 30px; align-items: flex-start; }
-.radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; }
+.radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); position: sticky; top: 20px; border: 1px solid #f1f5f9;}
 .radio-queue-panel { flex: 1; min-width: 0; }
-.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; }
+.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; position: relative; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.2);}
 .fm-cover-wrapper.is-playing { animation-play-state: running; }
 .fm-cover { width: 100%; height: 100%; }
-.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; border: 3px solid #333; }
+.fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+.fm-info { text-align: center; width: 100%; }
+.fm-info h3 { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-info p { color: #64748b; font-size: 14px; margin: 0; font-weight: 500;}
 @keyframes spin { 100% { transform: rotate(360deg); } }
-.sleep-mode-bg { background: linear-gradient(135deg, #0f172a, #1e1b4b); border-radius: 28px; padding: 40px; }
+
+/* ================= 🌙 助眠与暗黑列表 ================= */
+.sleep-mode-bg { background: linear-gradient(135deg, #0f172a, #1e1b4b); border-radius: 28px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.3) inset; border: 1px solid rgba(255,255,255,0.1);}
+.dark-list { background: transparent !important; padding: 0;}
+.dark-list .modern-list-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #fff; box-shadow: none;}
+.dark-list .modern-list-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1);}
+.dark-list .modern-title, .dark-list .modern-artist { color: #e2e8f0; }
+
+/* ================= 👤 找回被遗忘的个人中心样式 ================= */
+.profile-container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 28px; padding: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;}
+.profile-header { display: flex; align-items: center; gap: 35px; margin-bottom: 60px; }
+.avatar-wrapper { position: relative; cursor: pointer; }
+.avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #fff; transition: 0.3s; box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
+.avatar-wrapper:hover .avatar-edit { transform: scale(1.1); background: #2563eb; }
+.profile-info h2 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; color: #0f172a; letter-spacing: -1px;}
+.profile-info p { margin: 0; color: #64748b; display: flex; align-items: center; gap: 10px; font-weight: 500;}
+.stats-row { text-align: center; }
+.stat-card { padding: 35px 20px; background: #f8fafc; border-radius: 24px; transition: 0.4s; border: 1px solid transparent;}
+.stat-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.04); border-color: #e2e8f0; background: #fff;}
+.stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace;}
+.stat-label { font-size: 15px; color: #64748b; font-weight: 700; }
 </style>
