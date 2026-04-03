@@ -177,12 +177,39 @@
           </div>
         </section>
 
-        <section v-else-if="['liked', 'history'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
+        <section v-else-if="musicStore.currentMenu === 'square'" class="hero-section fade-in">
+          <div class="discover-header">
+            <div>
+              <h2>🌍 云端歌单广场</h2>
+              <p class="theory-note">探索全站音乐达人创建的精选集，寻找灵魂共鸣。</p>
+            </div>
+            <el-button type="primary" plain round @click="switchMenu('square')"><el-icon><Refresh /></el-icon> 刷新广场</el-button>
+          </div>
+          
+          <el-row :gutter="25" class="bento-grid">
+            <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="pl in squarePlaylists" :key="pl.id">
+              <div class="bento-card" @click="openSquarePlaylist(pl)">
+                <div class="bento-cover-box" style="background: linear-gradient(135deg, #e0e7ff 0%, #bae6fd 100%); display:flex; justify-content:center; align-items:center;">
+                  <el-icon :size="48" color="#3b82f6"><DataBoard /></el-icon>
+                </div>
+                <div class="bento-info">
+                  <div class="bento-title"> {{ pl.name }} </div>
+                  <div class="bento-artist">创建者: @{{ pl.creatorName || '神秘达人' }} </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </section>
+
+        <section v-else-if="['liked', 'history', 'public_playlist'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
               <h2 v-if="musicStore.currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
               <h2 v-else-if="musicStore.currentMenu === 'history'">🕒 最近播放</h2>
-              <h2 v-else>💿 {{ currentActivePlaylist?.name }}</h2>
+              <h2 v-else-if="musicStore.currentMenu === 'public_playlist'">🌍 {{ publicPlaylistData.name }} </h2>
+              <h2 v-else>💿 {{ currentActivePlaylist?.name }} </h2>
+
+              <p class="theory-note" v-if="musicStore.currentMenu === 'public_playlist'">By @ {{ publicPlaylistData.creator }} · 共 {{ publicPlaylistData.songs.length }} 首歌曲</p>
               <p class="theory-note" v-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
               <p class="theory-note" v-else-if="musicStore.currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
               <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
@@ -236,7 +263,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, DataBoard } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -244,7 +271,7 @@ import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -255,6 +282,10 @@ const discoverMode = ref('library')
 const userInput = ref('')
 const isSearching = ref(false)
 const localSearchKeyword = ref('')
+
+// 🚀 新增：广场数据状态
+const squarePlaylists = ref([])
+const publicPlaylistData = ref({ name: '', creator: '', songs: [] })
 
 const allMusicList = ref([]); const aiMusicList = ref([]); const radioMusicList = ref([]); const sleepMusicList = ref([])
 const isRadioLoading = ref(false); const isSleepLoading = ref(false)
@@ -271,6 +302,7 @@ const rawActivePlayList = computed(() => {
   if (musicStore.currentMenu === 'liked') return musicStore.likedMusicList
   if (musicStore.currentMenu === 'history') return musicStore.playHistory
   if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
+  if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs // 兼容别人的歌单！
   if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
   return []
 })
@@ -424,6 +456,7 @@ const playNext = () => {
   if (index !== -1) musicStore.selectSong(activePlayList.value[(index + 1) % activePlayList.value.length])
 }
 
+// 🚀 修改 switchMenu，接管 square 逻辑
 const switchMenu = async (menuName) => {
   musicStore.currentMenu = menuName; isBatchMode.value = false ; localSearchKeyword.value = '' 
   if (menuName === 'discover') await loadDiscoverData()
@@ -431,6 +464,20 @@ const switchMenu = async (menuName) => {
   else if (menuName.startsWith('playlist_')) await loadPlaylistSongs(menuName.split('_')[1])
   else if (menuName === 'radio') initRadio() 
   else if (menuName === 'sleep') initSleepMode() 
+  // 💥 点击广场，拉取全站歌单！
+  else if (menuName === 'square') {
+    const res = await getAllPlaylistsAPI();
+    squarePlaylists.value = res || [];
+  }
+}
+
+// 🚀 新增：点击广场里别人的歌单
+const openSquarePlaylist = async (pl) => {
+  musicStore.currentMenu = 'public_playlist';
+  publicPlaylistData.value.name = pl.name;
+  publicPlaylistData.value.creator = pl.creatorName;
+  const res = await getPlaylistMusicAPI(pl.id);
+  publicPlaylistData.value.songs = res || [];
 }
 
 onMounted(async () => {

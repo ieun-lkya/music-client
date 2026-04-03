@@ -90,33 +90,32 @@ const isUserScrolling = ref(false)
 let scrollTimeout = null  
 
 // 解析歌词
-const parseLyrics = (rawLyric) => {
-  if (!rawLyric) {
+const parseLyrics = (lrcStr) => {
+  if (!lrcStr) {
     parsedLyrics.value = []
     return
   }
   
-  const lines = rawLyric.split('\n')
-  const lyrics = []
-  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g
-  
-  lines.forEach(line => {
-    const times = [...line.matchAll(timeRegex)]
-    if (times.length > 0) {
-      const text = line.replace(timeRegex, '').trim()
-      times.forEach(timeMatch => {
-        const minutes = parseInt(timeMatch[1])
-        const seconds = parseInt(timeMatch[2])
-        const milliseconds = parseInt(timeMatch[3])
-        const totalTime = minutes * 60 + seconds + milliseconds / 1000
-        
-        lyrics.push({ time: totalTime, text })
-      })
+  const lines = lrcStr.split('\n');
+  const result = [];
+  // 兼容 [00:00]、[00:00.0]、[00:00.000] 等所有格式
+  const timeReg = /\[(\d{2,}):(\d{2})(?:\.(\d{1,3}))?\]/;
+  for (let line of lines) {
+    const match = line.match(timeReg);
+    if (match) {
+      const m = parseInt(match[1]);
+      const s = parseInt(match[2]);
+      // 极其智能的毫秒补齐机制
+      const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
+      const time = m * 60 + s + ms;
+      // 暴力剥离所有时间标签，留下纯净的歌词文本
+      const text = line.replace(/\[.*?\]/g, '').trim();
+      if (text) result.push({ time, text });
     }
-  })
+  }
   
-  lyrics.sort((a, b) => a.time - b.time)
-  parsedLyrics.value = lyrics
+  result.sort((a, b) => a.time - b.time)
+  parsedLyrics.value = result
 }
 
 // 更新当前歌词索引

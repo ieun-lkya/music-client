@@ -42,3 +42,5 @@ export const getUserPlaylistsAPI = (userId) => http.get('/playlist/list', { para
 export const addMusicToPlaylistAPI = (playlistId, musicId) => http.post('/playlist/addMusic', null, { params: { playlistId, musicId } })
 export const getPlaylistMusicAPI = (playlistId) => http.get('/playlist/musicList', { params: { playlistId } })
 export const deletePlaylistAPI = (playlistId) => http.delete('/playlist/delete', { params: { playlistId } })
+
+export const getAllPlaylistsAPI = () => http.get('/playlist/all')
