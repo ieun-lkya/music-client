@@ -90,17 +90,15 @@ const lyricBoxRef = ref(null)
 const isUserScrolling = ref(false)
 let scrollTimeout = null  
 
-// 🚀 终极修复 1：废弃 45px 假高度，使用极其精确的真实 DOM 追踪居中！
+// 🚀 终极修复：加上 + 60 抵消 CSS Padding 的视觉偏差！
 const scrollToCenter = () => {
   if (!lyricBoxRef.value) return
-  // 必须用 nextTick 等待 Vue 把 .active 样式加给当前行
   nextTick(() => {
-    // 直接去 DOM 里抓取当前高亮的那句歌词
     const activeLine = lyricBoxRef.value.querySelector('.lyric-line.active')
     if (activeLine) {
       const container = lyricBoxRef.value
-      // 绝对居中神级公式：当前歌词的真实顶部距离 - 容器高度的一半 + 歌词自身真实高度的一半
-      const scrollToPos = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2
+      // 💥 加上 60px 补偿，把歌词强行往上提，达到绝对的视觉中心！
+      const scrollToPos = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2 + 60 
       container.scrollTo({ top: scrollToPos, behavior: 'smooth' })
     }
   })

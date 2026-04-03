@@ -9,8 +9,9 @@
             <template #prefix><el-icon class="el-input__icon"><Search /></el-icon></template>
             <template #suffix><el-button type="primary" link class="match-btn" :loading="isSearching" @click="handleSearch">AI 匹配</el-button></template>
           </el-input>
-          <el-input v-else v-model="localSearchKeyword" :placeholder="searchPlaceholder" class="scene-search local-search" clearable>
+          <el-input v-else v-model="localSearchKeyword" :placeholder="searchPlaceholder" class="scene-search local-search" clearable @keyup.enter="executeGlobalSearch">
             <template #prefix><el-icon class="el-input__icon"><Search /></el-icon></template>
+            <template #suffix><el-button type="primary" link :loading="isGlobalSearching" @click="executeGlobalSearch">全站搜索</el-button></template>
           </el-input>
         </div>
         
@@ -201,6 +202,39 @@
           </el-row>
         </section>
 
+        <section v-else-if="musicStore.currentMenu === 'search_results'" class="hero-section fade-in">
+          <div class="discover-header">
+            <div>
+              <h2>🔍 探索全网</h2>
+              <p class="theory-note">关于「{{ lastSearchKeyword }}」的检索结果，共发现 {{ searchMusicList.length }} 首灵魂共鸣。</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <el-button type="primary" round @click="playAllSearch" v-if="searchMusicList.length > 0">
+                <el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部
+              </el-button>
+              <el-button plain round @click="switchMenu('discover')">返回大厅</el-button>
+            </div>
+          </div>
+          
+          <el-empty v-if="searchMusicList.length === 0" description="在这片星系中，没有找到与此相关的频率..." />
+          
+          <div class="modern-list-view fade-in" v-else>
+            <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+              <span class="modern-title-group">
+                <div class="track-status-box">
+                  <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                  <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                  <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                </div>
+                <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
+              </span>
+              <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
+              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+            </div>
+          </div>
+        </section>
+
         <section v-else-if="['liked', 'history', 'public_playlist'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
@@ -215,6 +249,13 @@
               <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
+              <el-button type="primary" round @click="playAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
+                <el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部
+              </el-button>
+              <el-button type="success" plain round @click="collectAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
+                <el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏全部
+              </el-button>
+
               <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="activePlayList.length > 0">
                 <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
               </el-button>
@@ -271,7 +312,7 @@ import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
 
 const router = useRouter()
@@ -298,21 +339,27 @@ const searchPlaceholder = computed(() => {
   return '极速检索歌名/歌手...'
 })
 
+// 🚀 终极修正：让本地搜索在特定页面失效，避免与全局搜索发生冲突！
+const activePlayList = computed(() => {
+  const list = rawActivePlayList.value
+  // 如果是 AI 面板、或者是全局搜索面板，绝对不要执行本地的 keyword 过滤，原样展示！
+  if ((musicStore.currentMenu === 'discover' && discoverMode.value === 'ai') || musicStore.currentMenu === 'search_results') {
+    return list 
+  }
+  // 其他普通的本地页面（如历史、收藏）依然保留轻量级的本地过滤
+  if (!localSearchKeyword.value) return list
+  const kw = localSearchKeyword.value.toLowerCase().trim()
+  return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
+})
+
 const rawActivePlayList = computed(() => {
   if (musicStore.currentMenu === 'liked') return musicStore.likedMusicList
   if (musicStore.currentMenu === 'history') return musicStore.playHistory
   if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
   if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs // 兼容别人的歌单！
+  if (musicStore.currentMenu === 'search_results') return searchMusicList.value // 🚀 接管搜索数据
   if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
   return []
-})
-
-const activePlayList = computed(() => {
-  const list = rawActivePlayList.value
-  if (musicStore.currentMenu === 'discover' && discoverMode.value === 'ai') return list 
-  if (!localSearchKeyword.value) return list
-  const kw = localSearchKeyword.value.toLowerCase().trim()
-  return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
 })
 
 const currentActivePlaylist = computed(() => {
@@ -389,6 +436,34 @@ const deletePlaylist = (pId) => {
   }).catch(() => {})
 }
 
+// 🚀 新增：一键播放公共歌单的全部歌曲
+const playAllPublic = () => {
+  if (publicPlaylistData.value.songs.length === 0) return;
+  // 直接播放该歌单的第一首歌，后续的"下一首"会自动在 activePlayList 里循环！
+  musicStore.selectSong(publicPlaylistData.value.songs[0]);
+  ElMessage.success('▶️ 正在播放歌单...');
+}
+
+// 🚀 新增：一键将公共歌单的所有歌"洗劫"到我的红心列表！
+const collectAllPublic = async () => {
+  if (!musicStore.currentUser) return goToLogin();
+  let successCount = 0;
+  for (let song of publicPlaylistData.value.songs) {
+    if (!musicStore.isLiked(song.id)) {
+      try { 
+        await likeMusicAPI(musicStore.currentUser.id, song.id); 
+        successCount++; 
+      } catch (e) {}
+    }
+  }
+  if (successCount > 0) {
+    ElMessage.success(`🎉 成功将 ${successCount} 首歌洗劫到您的红心列表！`);
+    await fetchMyLikes(); // 刷新本地红心状态
+  } else {
+    ElMessage.info('这些歌您都已经收藏过啦！');
+  }
+}
+
 const loadPlaylistSongs = async (plId) => {
   try {
     const res = await getPlaylistMusicAPI(plId)
@@ -445,6 +520,39 @@ const handleSearch = async () => {
   if (!userInput.value.trim()) return
   musicStore.currentMenu = 'discover'; discoverMode.value = 'ai'; isSearching.value = true
   try { aiMusicList.value = await recommendMusicAPI(userInput.value) || [] } catch (error) {} finally { isSearching.value = false }
+}
+
+// 🚀 全局搜索核心状态
+const searchMusicList = ref([])
+const isGlobalSearching = ref(false)
+const lastSearchKeyword = ref('') // 记录最后一次搜索的词，防止用户改输入框导致标题乱跳
+
+// 🚀 发动全站搜索脉冲！
+const executeGlobalSearch = async () => {
+  if (!localSearchKeyword.value.trim()) {
+    ElMessage.warning('请输入搜索内容！')
+    return
+  }
+  isGlobalSearching.value = true
+  lastSearchKeyword.value = localSearchKeyword.value.trim()
+  musicStore.currentMenu = 'search_results' // 强行切到搜索结果面板
+  
+  try {
+    const res = await searchMusicAPI(lastSearchKeyword.value)
+    searchMusicList.value = res || []
+  } catch (error) {
+    ElMessage.error('全站检索网络异常！')
+  } finally {
+    isGlobalSearching.value = false
+  }
+}
+
+// 播放搜索出来的全部
+const playAllSearch = () => {
+  if (searchMusicList.value.length > 0) {
+    musicStore.selectSong(searchMusicList.value[0])
+    ElMessage.success('▶️ 正在为您播放检索结果...')
+  }
 }
 
 const playPrev = () => {
