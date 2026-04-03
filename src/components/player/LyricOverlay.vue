@@ -90,13 +90,20 @@ const lyricBoxRef = ref(null)
 const isUserScrolling = ref(false)
 let scrollTimeout = null  
 
-// 🚀 终极修复 1：抽离出绝对完美的"歌词居中算法"
-const scrollToCenter = (index) => {
+// 🚀 终极修复 1：废弃 45px 假高度，使用极其精确的真实 DOM 追踪居中！
+const scrollToCenter = () => {
   if (!lyricBoxRef.value) return
-  const containerHeight = lyricBoxRef.value.clientHeight
-  // 45 是行高，精准计算出一半的高度，把歌词完美推到正中央！
-  const scrollTo = Math.max(0, index * 45 - containerHeight / 2 + 22.5)
-  lyricBoxRef.value.scrollTo({ top: scrollTo, behavior: 'smooth' })
+  // 必须用 nextTick 等待 Vue 把 .active 样式加给当前行
+  nextTick(() => {
+    // 直接去 DOM 里抓取当前高亮的那句歌词
+    const activeLine = lyricBoxRef.value.querySelector('.lyric-line.active')
+    if (activeLine) {
+      const container = lyricBoxRef.value
+      // 绝对居中神级公式：当前歌词的真实顶部距离 - 容器高度的一半 + 歌词自身真实高度的一半
+      const scrollToPos = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2
+      container.scrollTo({ top: scrollToPos, behavior: 'smooth' })
+    }
+  })
 }
 
 // 🚀 终极修复：真正去阿里云下载 .lrc 文件的引擎
@@ -153,24 +160,26 @@ const updateLyricIndex = () => {
     }
   }
   
-  // 💥 终极修复 2：绝对防卡死装甲！只有在【歌词真正换行】时，才触发系统平滑滚动！
   if (currentLyricIndex.value !== currentIndex) {
     currentLyricIndex.value = currentIndex
+    // 只要用户没在手动滑动，就执行绝对居中
     if (!isUserScrolling.value) {
-      nextTick(() => scrollToCenter(currentIndex))
+      scrollToCenter()
     }
   }
 }
 
+// 🚀 终极修复 3：3 秒滑动解除后，精确弹回
 const handleLyricScroll = () => {
   isUserScrolling.value = true
   if (scrollTimeout) clearTimeout(scrollTimeout)
   scrollTimeout = setTimeout(() => { 
     isUserScrolling.value = false
-    if (currentLyricIndex.value !== -1) scrollToCenter(currentLyricIndex.value)
+    if (currentLyricIndex.value !== -1) scrollToCenter()
   }, 3000) 
 }
 
+// 🚀 终极修复 4：点击跳转后，瞬间精确居中
 const seekToLyric = (time, index) => { 
   const audio = document.getElementById('echo-audio-player')
   if (audio) { 
@@ -178,13 +187,11 @@ const seekToLyric = (time, index) => {
     audio.play().catch(()=>{}); 
     musicStore.isPlaying = true; 
     
-    // 解除锁定
     isUserScrolling.value = false; 
     if (scrollTimeout) clearTimeout(scrollTimeout); 
     
     currentLyricIndex.value = index;
-    // 💥 终极修复 3：点击时调用居中算法，不要再粗暴地推到容器最顶部吃灰了！
-    nextTick(() => scrollToCenter(index))
+    scrollToCenter()
   } 
 }
 
@@ -204,7 +211,7 @@ watch(() => musicStore.currentSong, (newSong) => {
 }, { immediate: true })
 
 watch(() => musicStore.showLyricPanel, async (isOpen) => {
-  if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) scrollToCenter(currentLyricIndex.value) }, 50) }
+  if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) scrollToCenter() }, 50) }
 })
 
 // --- 频谱分析引擎 ---
