@@ -9,9 +9,11 @@
       <div class="nav-item" :class="{ active: musicStore.currentMenu === 'discover' }" @click="switchMenu('discover')">
         <el-icon><Compass /></el-icon> 发现音乐
       </div>
-      <div class="menu-item" :class="{ active: musicStore.currentMenu === 'square' }" @click="switchMenu('square')">
-  <el-icon><DataBoard /></el-icon> 歌单广场
-</div>
+      
+      <div class="nav-item" :class="{ active: musicStore.currentMenu === 'square' }" @click="switchMenu('square')">
+        <el-icon><DataBoard /></el-icon> 歌单广场
+      </div>
+      
       <div class="nav-item" :class="{ active: musicStore.currentMenu === 'radio' }" @click="switchMenu('radio')">
         <el-icon><Mic /></el-icon> 智能场景电台
       </div>

@@ -44,3 +44,6 @@ export const getPlaylistMusicAPI = (playlistId) => http.get('/playlist/musicList
 export const deletePlaylistAPI = (playlistId) => http.delete('/playlist/delete', { params: { playlistId } })
 
 export const getAllPlaylistsAPI = () => http.get('/playlist/all')
+
+// 🚀 全局搜索引擎
+export const searchMusicAPI = (keyword) => http.get('/music/search', { params: { keyword } })

@@ -339,27 +339,28 @@ const searchPlaceholder = computed(() => {
   return '极速检索歌名/歌手...'
 })
 
-// 🚀 终极修正：让本地搜索在特定页面失效，避免与全局搜索发生冲突！
+// 🚀 终极修正 1：必须先声明 rawActivePlayList！
+const rawActivePlayList = computed(() => {
+  if (musicStore.currentMenu === 'liked') return musicStore.likedMusicList
+  if (musicStore.currentMenu === 'history') return musicStore.playHistory
+  if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
+  if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs 
+  if (musicStore.currentMenu === 'search_results') return searchMusicList.value // 接管搜索数据
+  if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
+  return []
+})
+
+// 🚀 终极修正 2：然后再声明 activePlayList（因为它依赖了上面的 rawActivePlayList.value）
 const activePlayList = computed(() => {
   const list = rawActivePlayList.value
   // 如果是 AI 面板、或者是全局搜索面板，绝对不要执行本地的 keyword 过滤，原样展示！
   if ((musicStore.currentMenu === 'discover' && discoverMode.value === 'ai') || musicStore.currentMenu === 'search_results') {
     return list 
   }
-  // 其他普通的本地页面（如历史、收藏）依然保留轻量级的本地过滤
+  // 其他普通的本地页面依然保留轻量级的本地过滤
   if (!localSearchKeyword.value) return list
   const kw = localSearchKeyword.value.toLowerCase().trim()
   return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
-})
-
-const rawActivePlayList = computed(() => {
-  if (musicStore.currentMenu === 'liked') return musicStore.likedMusicList
-  if (musicStore.currentMenu === 'history') return musicStore.playHistory
-  if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
-  if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs // 兼容别人的歌单！
-  if (musicStore.currentMenu === 'search_results') return searchMusicList.value // 🚀 接管搜索数据
-  if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
-  return []
 })
 
 const currentActivePlaylist = computed(() => {
