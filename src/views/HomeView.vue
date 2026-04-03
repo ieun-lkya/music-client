@@ -210,7 +210,7 @@
               <h2 v-else>💿 {{ currentActivePlaylist?.name }} </h2>
 
               <p class="theory-note" v-if="musicStore.currentMenu === 'public_playlist'">By @ {{ publicPlaylistData.creator }} · 共 {{ publicPlaylistData.songs.length }} 首歌曲</p>
-              <p class="theory-note" v-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
+              <p class="theory-note" v-else-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
               <p class="theory-note" v-else-if="musicStore.currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
               <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>

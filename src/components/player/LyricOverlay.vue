@@ -74,6 +74,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import axios from 'axios' // 🚀 救命恩人：把 axios 请回来！
 import { ChatDotRound, ArrowDownBold, Close, Star, StarFilled, Position } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMusicStore } from '../../store/music'
@@ -89,31 +90,51 @@ const lyricBoxRef = ref(null)
 const isUserScrolling = ref(false)
 let scrollTimeout = null  
 
+// 🚀 终极修复 1：抽离出绝对完美的"歌词居中算法"
+const scrollToCenter = (index) => {
+  if (!lyricBoxRef.value) return
+  const containerHeight = lyricBoxRef.value.clientHeight
+  // 45 是行高，精准计算出一半的高度，把歌词完美推到正中央！
+  const scrollTo = Math.max(0, index * 45 - containerHeight / 2 + 22.5)
+  lyricBoxRef.value.scrollTo({ top: scrollTo, behavior: 'smooth' })
+}
+
+// 🚀 终极修复：真正去阿里云下载 .lrc 文件的引擎
+const loadLyrics = async (song) => {
+  parsedLyrics.value = []
+  currentLyricIndex.value = 0
+  isLoadingLyric.value = true
+  if (lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: 0 })
+
+  try {
+    if (!song.lyricUrl) {
+      isLoadingLyric.value = false
+      return
+    }
+    // 💥 发射真正的 GET 请求，去阿里云拉取歌词文本！
+    const response = await axios.get(song.lyricUrl)
+    parseLyrics(response.data) // 把拉下来的文本交给正则解析器
+  } catch (error) {
+    console.error('从阿里云拉取歌词失败:', error)
+  } finally {
+    isLoadingLyric.value = false
+  }
+}
+
 // 解析歌词
 const parseLyrics = (lrcStr) => {
-  if (!lrcStr) {
-    parsedLyrics.value = []
-    return
-  }
-  
-  const lines = lrcStr.split('\n');
-  const result = [];
-  // 兼容 [00:00]、[00:00.0]、[00:00.000] 等所有格式
+  if (!lrcStr) { parsedLyrics.value = []; return }
+  const lines = lrcStr.split('\n'); const result = [];
   const timeReg = /\[(\d{2,}):(\d{2})(?:\.(\d{1,3}))?\]/;
   for (let line of lines) {
     const match = line.match(timeReg);
     if (match) {
-      const m = parseInt(match[1]);
-      const s = parseInt(match[2]);
-      // 极其智能的毫秒补齐机制
+      const m = parseInt(match[1]); const s = parseInt(match[2]);
       const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
-      const time = m * 60 + s + ms;
-      // 暴力剥离所有时间标签，留下纯净的歌词文本
       const text = line.replace(/\[.*?\]/g, '').trim();
-      if (text) result.push({ time, text });
+      if (text) result.push({ time: m * 60 + s + ms, text });
     }
   }
-  
   result.sort((a, b) => a.time - b.time)
   parsedLyrics.value = result
 }
@@ -121,27 +142,23 @@ const parseLyrics = (lrcStr) => {
 // 更新当前歌词索引
 const updateLyricIndex = () => {
   if (parsedLyrics.value.length === 0) return
-  
   const currentTime = musicStore.currentTime
   let currentIndex = 0
-  
   for (let i = 0; i < parsedLyrics.value.length; i++) {
-    if (currentTime >= parsedLyrics.value[i].time) {
+    // 加上 0.2 秒提前量，让歌词高亮视觉上更跟脚
+    if (currentTime >= parsedLyrics.value[i].time - 0.2) {
       currentIndex = i
     } else {
       break
     }
   }
   
-  currentLyricIndex.value = currentIndex
-  
-  // 如果不是用户滚动，则自动滚动到当前歌词位置
-  if (!isUserScrolling.value && lyricBoxRef.value) {
-    nextTick(() => {
-      const containerHeight = lyricBoxRef.value.clientHeight
-      const scrollTo = currentIndex * 45 - containerHeight / 2 + 22.5
-      lyricBoxRef.value.scrollTo({ top: scrollTo, behavior: 'smooth' })
-    })
+  // 💥 终极修复 2：绝对防卡死装甲！只有在【歌词真正换行】时，才触发系统平滑滚动！
+  if (currentLyricIndex.value !== currentIndex) {
+    currentLyricIndex.value = currentIndex
+    if (!isUserScrolling.value) {
+      nextTick(() => scrollToCenter(currentIndex))
+    }
   }
 }
 
@@ -150,33 +167,44 @@ const handleLyricScroll = () => {
   if (scrollTimeout) clearTimeout(scrollTimeout)
   scrollTimeout = setTimeout(() => { 
     isUserScrolling.value = false
-    if (currentLyricIndex.value !== -1 && lyricBoxRef.value) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45, behavior: 'smooth' }) 
+    if (currentLyricIndex.value !== -1) scrollToCenter(currentLyricIndex.value)
   }, 3000) 
 }
 
-// 🚀 终极修复：点击歌词后，立刻解除防滚屏封印，并强行居中！
 const seekToLyric = (time, index) => { 
   const audio = document.getElementById('echo-audio-player')
   if (audio) { 
     audio.currentTime = time; 
-    audio.play(); 
+    audio.play().catch(()=>{}); 
     musicStore.isPlaying = true; 
     
-    // 💥 极其关键：彻底解除用户的"手动滚动锁定"状态
+    // 解除锁定
     isUserScrolling.value = false; 
     if (scrollTimeout) clearTimeout(scrollTimeout); 
     
-    // 💥 极其关键：强行更新当前歌词行数，并立刻执行平滑滚动居中！
     currentLyricIndex.value = index;
-    if (lyricBoxRef.value) {
-      lyricBoxRef.value.scrollTo({ top: index * 45, behavior: 'smooth' });
-    }
+    // 💥 终极修复 3：点击时调用居中算法，不要再粗暴地推到容器最顶部吃灰了！
+    nextTick(() => scrollToCenter(index))
   } 
 }
 
 // 监听时间变化
 watch(() => musicStore.currentTime, () => {
   updateLyricIndex()
+})
+
+// 监听歌曲变化
+watch(() => musicStore.currentSong, (newSong) => {
+  if (newSong) {
+    // 🚀 不再掩耳盗铃，老老实实调用下载引擎！
+    loadLyrics(newSong)
+    fetchComments(newSong.id)
+    setTimeout(() => { initAudioVisualizer() }, 100)
+  }
+}, { immediate: true })
+
+watch(() => musicStore.showLyricPanel, async (isOpen) => {
+  if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) scrollToCenter(currentLyricIndex.value) }, 50) }
 })
 
 // --- 频谱分析引擎 ---
@@ -283,26 +311,6 @@ const handleLikeComment = async (comment) => {
     comment.likes += comment.isLiked ? 1 : -1
   } catch (error) {}
 }
-
-// 监听歌曲变化
-watch(() => musicStore.currentSong, (newSong) => {
-  if (newSong) {
-    // 如果有歌词就解析，否则清空
-    if (newSong.lyrics) {
-      isLoadingLyric.value = false
-      parseLyrics(newSong.lyrics)
-    } else {
-      parsedLyrics.value = []
-      isLoadingLyric.value = false
-    }
-    fetchComments(newSong.id)
-    setTimeout(() => { initAudioVisualizer() }, 100)
-  }
-}, { immediate: true })
-
-watch(() => musicStore.showLyricPanel, async (isOpen) => {
-  if (isOpen) { await nextTick(); setTimeout(() => { if (lyricBoxRef.value && currentLyricIndex.value !== -1) lyricBoxRef.value.scrollTo({ top: currentLyricIndex.value * 45 }) }, 50) }
-})
 
 onMounted(() => {
   // 初始化评论
