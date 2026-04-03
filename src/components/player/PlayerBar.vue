@@ -6,7 +6,7 @@
     
     <div class="controls-content" v-if="musicStore.currentSong">
       <div class="track-info">
-        <img :src="musicStore.currentSong.coverUrl" class="mini-cover" crossorigin="anonymous" @click="musicStore.showLyricPanel = true" />
+        <img :src="musicStore.currentSong.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="mini-cover" crossorigin="anonymous" @click="musicStore.showLyricPanel = true" />
         <div class="meta">
           <span class="t">{{ musicStore.currentSong.title }}</span>
           <span class="a">{{ musicStore.currentSong.artist }}</span>
@@ -33,7 +33,13 @@
     </div>
     <div class="empty-player" v-else>请在上方点击歌曲播放</div>
     
-    <audio id="echo-audio-player" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata" @ended="onPlayEnded"></audio>
+    <audio id="echo-audio-player" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" 
+           @timeupdate="onTimeUpdate" 
+           @loadedmetadata="onLoadedMetadata" 
+           @ended="onPlayEnded"
+           @play="musicStore.isPlaying = true"
+           @pause="musicStore.isPlaying = false">
+    </audio>
   </footer>
 </template>
 
@@ -52,23 +58,11 @@ const playPercent = ref(0)
 const isDragging = ref(false)
 
 const togglePlay = () => {
-  const audio = document.getElementById('echo-audio-player')
-  if (!audio) return
-  if (musicStore.isPlaying) { 
-    audio.pause() 
-  } else { 
-    audio.play().catch(() => {
-      ElMessage.error('播放失败，请检查音频文件状态！')
-      musicStore.isPlaying = false
-    }) 
-  }
+  if(!musicStore.currentSong) return;
   musicStore.togglePlay()
 }
 
-const togglePlayMode = () => {
-  playMode.value = playMode.value === 'list' ? 'single' : 'list'
-}
-
+const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
 const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
 const onSliderSeek = (val) => { 
   const audio = document.getElementById('echo-audio-player')
@@ -77,9 +71,7 @@ const onSliderSeek = (val) => {
 }
 const onTimeUpdate = (e) => {
   musicStore.currentTime = e.target.currentTime
-  if (!isDragging.value) {
-    playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
-  }
+  if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 const onPlayEnded = () => { 
@@ -94,43 +86,38 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-// 🚀 核心大修复：换歌时的状态重置与防拦截
+// 🚀 核心大修复 1：换歌的绝对霸权！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
-    // 💥 1. 切歌的瞬间，将前端状态引擎里的进度条彻彻底底清零！
-    musicStore.currentTime = 0
-    playPercent.value = 0
-
-    // 💥 2. 放弃极其危险的 setTimeout，使用 nextTick 维持浏览器的信任链
+    musicStore.currentTime = 0; playPercent.value = 0
+    // 等待 Vue 把 src 属性真正挂载到 HTML 标签上
     await nextTick()
-
+    
     const audio = document.getElementById('echo-audio-player')
     if (audio) {
-      // 💥 3. 将底层原生 audio 标签的时间轴强制物理归零！绝不继承进度！
-      audio.currentTime = 0 
-      audio.volume = volume.value / 100
-
-      // 💥 4. 捕获浏览器拦截与死链异常，防止系统静默崩溃！
-      try {
-        await audio.play()
-      } catch (error) {
-        console.error("音频播放失败:", error)
-        ElMessage.error(`《${newSong.title}》播放失败，音频链接可能走失在异次元了~`)
-        musicStore.isPlaying = false // 立刻把 UI 上的暂停按钮恢复成播放按钮
-      }
+      audio.currentTime = 0; audio.volume = volume.value / 100
+      // 💥 不管三七二十一，只要换了歌，强行按头播放！
+      audio.play().then(() => {
+        musicStore.isPlaying = true
+      }).catch(e => { 
+        musicStore.isPlaying = false 
+      })
     }
   }
 })
 
-// 监听状态引擎的播放控制
-watch(() => musicStore.isPlaying, (playing) => {
+// 🚀 核心大修复 2：给播放状态加上"防抢跑时序锁"
+watch(() => musicStore.isPlaying, async (playing) => {
+  // 💥 致命防线：必须等 DOM 渲染完毕，绝不允许在没有 src 的时候瞎播！
+  await nextTick() 
+  
   const audio = document.getElementById('echo-audio-player')
-  if (audio) { 
-    if (playing) {
-      audio.play().catch(() => {
-        musicStore.isPlaying = false
-      })
-    } else {
+  // 只有当 audio 存在，并且真的有了音频链接时，才允许执行播放/暂停控制！
+  if (audio && audio.getAttribute('src')) { 
+    if (playing && audio.paused) {
+      audio.play().catch(() => { musicStore.isPlaying = false })
+    }
+    else if (!playing && !audio.paused) {
       audio.pause()
     }
   }
@@ -138,6 +125,7 @@ watch(() => musicStore.isPlaying, (playing) => {
 </script>
 
 <style scoped>
+/* 样式保留与上一版本一致 */
 .player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; z-index: 100; }
 .empty-player { color: #94a3b8; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
 .progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
@@ -154,8 +142,6 @@ watch(() => musicStore.isPlaying, (playing) => {
 .like-icon { cursor: pointer; color: #94a3b8; transition: 0.2s;}
 .like-icon.is-liked { color: #ef4444; }
 .like-icon:hover { transform: scale(1.1); }
-
-/* 🚀 极简控制中枢 */
 .play-btns { display: flex; align-items: center; gap: 35px; justify-content: center; flex: 1; }
 .main-play-btn { background: transparent; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.3s; cursor: pointer; border: 1px solid transparent;}
 .main-play-btn:hover { background: #f1f5f9; border-color: #e2e8f0; transform: scale(1.1); }
@@ -169,7 +155,6 @@ watch(() => musicStore.isPlaying, (playing) => {
 .prev-next-btn:last-child::before, .prev-next-btn:last-child::after { content: ''; position: absolute; top: 50%; transform: translateY(-50%); }
 .prev-next-btn:last-child::before { right: 10px; width: 0; height: 0; border-style: solid; border-width: 7px 0 7px 10px; border-color: transparent transparent transparent #0f172a; }
 .prev-next-btn:last-child::after { right: 6px; width: 3px; height: 14px; background: #0f172a; border-radius: 1px; }
-
 .extra-funcs { display: flex; align-items: center; gap: 20px; width: 30%; justify-content: flex-end; }
 .time-display { font-size: 13px; font-family: monospace; color: #64748b; font-weight: 600; }
 .vol-icon, .mode-icon { cursor: pointer; color: #64748b; transition: 0.2s;}

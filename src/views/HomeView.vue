@@ -5,7 +5,7 @@
     <main class="main-content">
       <header class="top-header">
         <div class="ai-input-wrapper">
-          <el-input v-if="musicStore.currentMenu === 'discover' && discoverMode === 'ai'" v-model="userInput" placeholder="描述此刻场景，让 AI 懂你..." class="scene-search ai-search-pulse" @keyup.enter="handleSearch">
+          <el-input v-if="musicStore.currentMenu === 'discover' && discoverMode === 'ai'" v-model="userInput" placeholder="描述此刻场景，让 AI 懂你，例如：失恋后看雨..." class="scene-search ai-search-pulse" @keyup.enter="handleSearch">
             <template #prefix><el-icon class="el-input__icon"><Search /></el-icon></template>
             <template #suffix><el-button type="primary" link class="match-btn" :loading="isSearching" @click="handleSearch">AI 匹配</el-button></template>
           </el-input>
@@ -62,7 +62,13 @@
                 <div class="bento-card" @click="handleItemClick(item)">
                   <div class="bento-cover-box">
                     <el-image :src="item.coverUrl" fit="cover" lazy class="bento-cover" />
-                    <div class="bento-play-overlay"><div class="bento-play-btn"><el-icon :size="28" color="#fff"><VideoPlay /></el-icon></div></div>
+                    <div class="bento-play-overlay">
+                      <div class="bento-play-btn">
+                        <el-icon :size="28" color="#fff">
+                          <component :is="musicStore.currentSong?.id === item.id && musicStore.isPlaying ? VideoPause : VideoPlay" />
+                        </el-icon>
+                      </div>
+                    </div>
                     <div class="checkbox-overlay" v-if="isBatchMode" @click.stop><el-checkbox :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" size="large"/></div>
                   </div>
                   <div class="bento-info"><div class="bento-title">{{ item.title }}</div><div class="bento-artist">{{ item.artist }}</div></div>
@@ -72,11 +78,16 @@
           </div>
 
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
-                <div class="track-status-box" v-if="!isBatchMode"><span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span><el-icon class="track-play"><VideoPlay /></el-icon><el-icon class="track-pause"><VideoPause /></el-icon></div>
-                <span class="modern-title">{{ item.title }}</span>
+                <div class="track-status-box" v-if="!isBatchMode">
+                  <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                  <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                  <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                </div>
+                <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
               <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
@@ -94,7 +105,7 @@
             <template v-else>
               <div class="radio-player-panel fade-in">
                 <div class="fm-cover-wrapper" :class="{ 'is-playing': musicStore.isPlaying }">
-                  <el-image :src="musicStore.currentSong?.coverUrl || radioMusicList[0]?.coverUrl" class="fm-cover" fit="cover" />
+                  <el-image :src="musicStore.currentSong?.coverUrl || radioMusicList[0]?.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="fm-cover" fit="cover" />
                   <div class="fm-center-hole"></div>
                 </div>
                 <div class="fm-info"><h3>{{ musicStore.currentSong?.title || radioMusicList[0]?.title }}</h3><p>{{ musicStore.currentSong?.artist || radioMusicList[0]?.artist }}</p></div>
@@ -102,11 +113,15 @@
               <div class="radio-queue-panel fade-in">
                 <h3 class="queue-title">即将播放队列</h3>
                 <div class="modern-list-view queue-list">
-                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
                     <span class="modern-title-group">
-                      <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id"> {{ (index + 1).toString().padStart(2, '0') }}</span>
-                      <div class="modern-play-icon"><el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon><el-icon v-else><VideoPlay /></el-icon></div>
-                      <span class="modern-title">{{ item.title }}</span>
+                      <div class="track-status-box" style="margin-right: 0;">
+                        <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                        <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                        <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                        <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                      </div>
+                      <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
                     </span>
                     <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
                     <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
@@ -125,11 +140,15 @@
           <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
             <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
             <div class="modern-list-view fade-in dark-list" v-else>
-              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
                 <span class="modern-title-group">
-                  <span class="index-num" v-if="!musicStore.currentSong || musicStore.currentSong.id !== item.id"> {{ (index + 1).toString().padStart(2, '0') }}</span>
-                  <div class="modern-play-icon"><el-icon v-if="musicStore.currentSong && musicStore.currentSong.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon><el-icon v-else><VideoPlay /></el-icon></div>
-                  <span class="modern-title">{{ item.title }}</span>
+                  <div class="track-status-box" style="margin-right: 0;">
+                    <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                    <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                    <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                    <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                  </div>
+                  <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
                 </span>
                 <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
                 <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
@@ -179,11 +198,16 @@
           <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-playing': musicStore.currentSong && musicStore.currentSong.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
-                <div class="track-status-box" v-if="!isBatchMode"><span class="track-num">{{ (index + 1).toString().padStart(2, '0') }}</span><el-icon class="track-play"><VideoPlay /></el-icon><el-icon class="track-pause"><VideoPause /></el-icon></div>
-                <span class="modern-title">{{ item.title }}</span>
+                <div class="track-status-box" v-if="!isBatchMode">
+                  <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                  <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                  <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                </div>
+                <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
               <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
@@ -215,7 +239,6 @@ import { useRouter } from 'vue-router'
 import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 引入解耦后的组件与状态
 import Sidebar from '../components/layout/Sidebar.vue'
 import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
@@ -268,9 +291,17 @@ const currentActivePlaylist = computed(() => {
 const toggleBatchMode = () => { isBatchMode.value = !isBatchMode.value; selectedMusicIds.value = [] }
 const toggleSelection = (id) => { const index = selectedMusicIds.value.indexOf(id); if (index > -1) selectedMusicIds.value.splice(index, 1); else selectedMusicIds.value.push(id) }
 
+// 🚀 核心修复 4：完美切歌逻辑！如果是当前歌曲，改为切换播放/暂停！
 const handleItemClick = (item) => {
-  if (isBatchMode.value) toggleSelection(item.id) 
-  else musicStore.selectSong(item) 
+  if (isBatchMode.value) {
+    toggleSelection(item.id) 
+  } else {
+    if (musicStore.currentSong && musicStore.currentSong.id === item.id) {
+      musicStore.togglePlay() 
+    } else {
+      musicStore.selectSong(item) 
+    }
+  }
 }
 
 const openPlaylistDialog = () => {
@@ -341,11 +372,8 @@ const handleLogout = () => {
 
 const loadDiscoverData = async () => { try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {} }
 
-// 🚀 终极修复：带有缓存拦截与 AI 听歌历史剖析的电台引擎
 const initRadio = async (force = false) => {
-  // 💥 救命拦截：如果不是点击强制刷新，且列表里已经有歌，绝对不发请求！
   if (!force && radioMusicList.value.length > 0) return 
-  
   isRadioLoading.value = true
   let dynamicPrompt = ''
 
@@ -369,19 +397,13 @@ const initRadio = async (force = false) => {
   }
 }
 
-// 🚀 终极修复：带有缓存拦截与高精度提示词的助眠引擎
 const initSleepMode = async (force = false) => {
-  // 💥 救命拦截：只要有了数据，切回页面绝对不重新请求！
   if (!force && sleepMusicList.value.length > 0) return
-  
   isSleepLoading.value = true
   if (force) ElMessage.info('🌙 正在为您编织助眠梦境...')
-  
   try { 
-    // 🚀 恢复最原始、命中率最高的极其丰富的提示词！绝不偷工减料！
     sleepMusicList.value = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音') || [] 
   } catch (error) {
-    console.error('助眠频段生成失败', error)
   } finally { 
     isSleepLoading.value = false 
   }
@@ -418,7 +440,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ================= 🎨 完整无损的 CSS 样式区 ================= */
 .discover-section { display: flex; flex-direction: column; gap: 20px; }
 .hero-banner { position: relative; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 28px; padding: 45px 50px; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; border: 1px solid #fff; }
 .hero-content { position: relative; z-index: 2; }
@@ -441,19 +462,23 @@ onMounted(async () => {
 .bento-info { padding: 16px 4px 4px; text-align: center; }
 .bento-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* 🚀 核心修复 5：废除冲突的 CSS Hover，拥抱干净的逻辑！ */
 .modern-list-view { display: flex; flex-direction: column; gap: 8px; padding: 10px 0;}
-.modern-list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 16px 30px; background: #fff; border-radius: 20px; transition: 0.3s; cursor: pointer; }
+.modern-list-item { display: grid; grid-template-columns: 1fr 80px 1fr; align-items: center; padding: 16px 30px; background: #fff; border-radius: 20px; transition: 0.3s; cursor: pointer; border: 1px solid transparent;}
 .modern-list-item:hover { transform: scale(1.01); box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
-.modern-list-item.is-playing { background: linear-gradient(to right, #eff6ff, #fff); }
+.modern-list-item.is-active-row { background: linear-gradient(to right, #eff6ff, #fff); border-color: #bfdbfe; }
 .modern-title-group { display: flex; align-items: center; gap: 16px; }
 .modern-title { font-size: 16px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;}
+.active-text { color: #3b82f6; }
+
 .track-status-box { width: 30px; text-align: center; display: flex; justify-content: center; align-items: center; color: #94a3b8; }
-.track-play, .track-pause { display: none; font-size: 22px; }
-.modern-list-item .track-num { display: block; font-size: 14px; font-weight: 600; }
+.track-num { display: block; font-size: 14px; font-weight: 600; }
+.track-play { display: none; font-size: 22px; color: #94a3b8;}
 .modern-list-item:hover .track-num { display: none; }
 .modern-list-item:hover .track-play { display: block; }
-.modern-list-item.is-playing .track-num { display: none; }
-.modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
+
+.track-playing-icon { font-size: 22px; color: #3b82f6; }
+.track-paused-icon { font-size: 22px; color: #3b82f6; }
 .list-like-icon { color: #94a3b8; transition: 0.2s;}
 .list-like-icon.is-liked { color: #ef4444; }
 
@@ -467,7 +492,6 @@ onMounted(async () => {
 .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
 .scroll-container { flex: 1; overflow-y: auto; padding: 30px 40px 120px; }
 
-/* ================= 📻 修复后的电台与唱片旋转动画 ================= */
 .discover-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
 .hero-section h2 { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -1px;}
 .theory-note { color: #64748b; font-size: 15px; margin: 0; font-weight: 500;}
@@ -475,7 +499,7 @@ onMounted(async () => {
 .radio-layout { display: flex; gap: 30px; align-items: flex-start; }
 .radio-player-panel { flex: 0 0 320px; display: flex; flex-direction: column; align-items: center; background: #fff; padding: 40px 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); position: sticky; top: 20px; border: 1px solid #f1f5f9;}
 .radio-queue-panel { flex: 1; min-width: 0; }
-.fm-cover-wrapper { width: 240px; height: 240px; border-radius: 50%; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; position: relative; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.2); flex-shrink: 0; aspect-ratio: 1 / 1; }
+.fm-cover-wrapper { width: 240px; height: 240px; flex-shrink: 0; aspect-ratio: 1 / 1; border-radius: 50%; box-shadow: 0 15px 35px rgba(0,0,0,0.2); position: relative; overflow: hidden; animation: spin 20s linear infinite; animation-play-state: paused; border: 6px solid #0f172a; margin-bottom: 25px; }
 .fm-cover-wrapper.is-playing { animation-play-state: running; }
 .fm-cover { width: 100%; height: 100%; }
 .fm-center-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: #f8fafc; border-radius: 50%; border: 3px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
@@ -484,19 +508,20 @@ onMounted(async () => {
 .fm-info p { color: #64748b; font-size: 14px; margin: 0; font-weight: 500;}
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* ================= 🌙 助眠与暗黑列表 ================= */
 .sleep-mode-bg { background: linear-gradient(135deg, #0f172a, #1e1b4b); border-radius: 28px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.3) inset; border: 1px solid rgba(255,255,255,0.1);}
 .dark-list { background: transparent !important; padding: 0;}
 .dark-list .modern-list-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #fff; box-shadow: none;}
 .dark-list .modern-list-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1);}
 .dark-list .modern-title, .dark-list .modern-artist { color: #e2e8f0; }
+.dark-list .modern-list-item.is-active-row { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3);}
+.dark-list .active-text { color: #93c5fd; }
+.dark-list .track-playing-icon, .dark-list .track-paused-icon { color: #93c5fd; }
+.dark-list .track-play { color: #cbd5e1; }
 
-/* ================= 👤 找回被遗忘的个人中心样式 ================= */
 .profile-container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 28px; padding: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;}
 .profile-header { display: flex; align-items: center; gap: 35px; margin-bottom: 60px; }
 .avatar-wrapper { position: relative; cursor: pointer; }
 .avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #fff; transition: 0.3s; box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
-.avatar-wrapper:hover .avatar-edit { transform: scale(1.1); background: #2563eb; }
 .profile-info h2 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; color: #0f172a; letter-spacing: -1px;}
 .profile-info p { margin: 0; color: #64748b; display: flex; align-items: center; gap: 10px; font-weight: 500;}
 .stats-row { text-align: center; }
@@ -504,18 +529,4 @@ onMounted(async () => {
 .stat-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.04); border-color: #e2e8f0; background: #fff;}
 .stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace;}
 .stat-label { font-size: 15px; color: #64748b; font-weight: 700; }
-
-/* 🚀 修复极其经典的 CSS 悬浮冲突Bug (互斥锁) */
-.track-status-box { width: 30px; text-align: center; display: flex; justify-content: center; align-items: center; color: #94a3b8; }
-.track-play, .track-pause { display: none; font-size: 22px; }
-.modern-list-item .track-num { display: block; font-size: 14px; font-weight: 600; }
-
-/* 1. 正常状态下的悬浮：只有在【没有播放】时，才显示播放键！ */
-.modern-list-item:not(.is-playing):hover .track-num { display: none; }
-.modern-list-item:not(.is-playing):hover .track-play { display: block; }
-
-/* 2. 播放状态下的绝对锁定：永远只显示暂停键，强杀播放键！ */
-.modern-list-item.is-playing .track-num { display: none; }
-.modern-list-item.is-playing .track-play { display: none !important; }
-.modern-list-item.is-playing .track-pause { display: block; color: #3b82f6; }
 </style>
