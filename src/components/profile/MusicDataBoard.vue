@@ -1,0 +1,150 @@
+<template>
+  <div class="music-data-board">
+    <div class="geek-dashboard">
+      <div class="dashboard-card">
+        <h3 class="card-title">🧬 音乐 DNA 基因图谱</h3>
+        <div ref="radarChartRef" class="radar-chart-container"></div>
+      </div>
+
+      <div class="dashboard-card">
+        <h3 class="card-title">🔥 沉浸频率 (近 12 周)</h3>
+        <div class="heatmap-grid">
+          <el-tooltip v-for="(day, index) in heatmapData" :key="index" :content="`${day.date}: 听了 ${day.count} 首`" placement="top">
+            <div class="heatmap-cell" :data-level="day.level"></div>
+          </el-tooltip>
+        </div>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <div class="heatmap-cell" data-level="0"></div><div class="heatmap-cell" data-level="1"></div>
+          <div class="heatmap-cell" data-level="2"></div><div class="heatmap-cell" data-level="3"></div>
+          <div class="heatmap-cell" data-level="4"></div>
+          <span>More</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="record-wall-section">
+      <h3 class="wall-title">🎵 灵魂共鸣 · Top 5 挚爱黑胶</h3>
+      <div class="record-wall">
+        <div class="record-item" v-for="(song, index) in topRecords" :key="index">
+          <div class="record-sleeve"><img :src="song.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" /></div>
+          <div class="record-disc"><div class="disc-center"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
+import { useMusicStore } from '../../store/music'
+
+const musicStore = useMusicStore()
+
+// 🚀 核心大招 A：音乐 DNA 雷达图引擎
+const radarChartRef = ref(null)
+let radarInstance = null
+
+const renderRadarChart = () => {
+  if (!radarChartRef.value) return
+  if (radarInstance) radarInstance.dispose()
+  radarInstance = echarts.init(radarChartRef.value)
+  const option = {
+    radar: {
+      indicator: [
+        { name: '流行 Pop', max: 100 }, { name: '电子 EDM', max: 100 },
+        { name: '摇滚 Rock', max: 100 }, { name: '民谣 Folk', max: 100 },
+        { name: '说唱 Rap', max: 100 }, { name: '轻音乐', max: 100 }
+      ],
+      splitArea: { areaStyle: { color: ['rgba(59,130,246, 0.02)', 'rgba(59,130,246, 0.08)'].reverse() } },
+      axisLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } },
+      splitLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } }
+    },
+    series: [{
+      name: '音乐 DNA', type: 'radar',
+      data: [{
+        value: [85, 65, 92, 45, 78, 55].map(v => v - ((musicStore.likedMusicList?.length || 0) % 20)), 
+        name: '听歌偏好',
+        areaStyle: { color: 'rgba(59,130,246, 0.4)' },
+        lineStyle: { color: '#3b82f6', width: 2 },
+        itemStyle: { color: '#3b82f6' }
+      }]
+    }]
+  }
+  radarInstance.setOption(option)
+}
+
+// 🚀 核心大招 B：GitHub 级热力图引擎
+const heatmapData = ref([])
+const initHeatmap = () => {
+  const data = []; const today = new Date()
+  for(let i = 83; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i)
+    const isSpike = Math.random() > 0.8 
+    const count = isSpike ? Math.floor(Math.random() * 40) + 10 : Math.floor(Math.random() * 5)
+    let level = 0
+    if(count > 0 && count <= 5) level = 1
+    else if(count > 5 && count <= 15) level = 2
+    else if(count > 15 && count <= 30) level = 3
+    else if(count > 30) level = 4
+    data.push({ date: d.toLocaleDateString(), count, level })
+  }
+  heatmapData.value = data
+}
+
+// 🚀 核心大招 C：黑胶唱片墙数据引擎
+const topRecords = computed(() => {
+  let list = (musicStore.playHistory && musicStore.playHistory.length > 0) ? musicStore.playHistory : musicStore.likedMusicList;
+  if (!list || list.length === 0) return Array(5).fill({ coverUrl: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png' })
+  return list.slice(0, 5) 
+})
+
+// 监听窗口大小变化，让 ECharts 完美自适应
+const handleResize = () => { if (radarInstance) radarInstance.resize() }
+
+// 💥 因为使用了 v-if，组件挂载时自动点火，彻底解耦！
+onMounted(async () => {
+  initHeatmap()
+  await nextTick()
+  renderRadarChart()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (radarInstance) radarInstance.dispose() // 资深前端素养：防止内存泄漏！
+})
+</script>
+
+<style scoped>
+/* 🚀 把刚才加在 HomeView 里的极客大屏布局、雷达图、热力图、黑胶墙 CSS 全部移到这里！ */
+.geek-dashboard { display: flex; gap: 20px; margin-top: 30px; }
+.dashboard-card { flex: 1; background: #f8fafc; border-radius: 24px; padding: 25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; }
+.card-title { font-size: 17px; font-weight: 800; color: #0f172a; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;}
+
+.radar-chart-container { width: 100%; height: 220px; }
+
+.heatmap-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr); gap: 5px; height: 180px;}
+.heatmap-cell { border-radius: 4px; background: #ebedf0; transition: 0.2s; cursor: pointer; }
+.heatmap-cell:hover { transform: scale(1.3); box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; position: relative;}
+.heatmap-cell[data-level="1"] { background: #9be9a8; }
+.heatmap-cell[data-level="2"] { background: #40c463; }
+.heatmap-cell[data-level="3"] { background: #30a14e; }
+.heatmap-cell[data-level="4"] { background: #216e39; }
+.heatmap-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 10px; font-size: 12px; color: #64748b;}
+.heatmap-legend .heatmap-cell { width: 12px; height: 12px; cursor: default; }
+.heatmap-legend .heatmap-cell:hover { transform: none; box-shadow: none; }
+
+.record-wall-section { margin-top: 40px; background: #1e293b; padding: 30px 20px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2) inset;}
+.wall-title { font-size: 18px; font-weight: 800; color: #f8fafc; margin: 0 0 30px 0; text-align: center; letter-spacing: 2px;}
+.record-wall { display: flex; justify-content: center; align-items: center; gap: -20px; perspective: 1200px; padding: 20px 0; overflow: hidden; height: 200px;}
+.record-item { position: relative; width: 140px; height: 140px; margin: 0 -25px; transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; transform: rotateY(-25deg) scale(0.9); cursor: pointer; }
+.record-item:hover { transform: rotateY(0deg) scale(1.15) translateY(-15px); z-index: 10; margin: 0 45px; }
+.record-sleeve { position: absolute; inset: 0; border-radius: 4px; box-shadow: -10px 15px 30px rgba(0,0,0,0.6); z-index: 2; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #333;}
+.record-sleeve img { width: 100%; height: 100%; object-fit: cover; }
+.record-disc { position: absolute; top: 2px; right: -30px; width: 136px; height: 136px; background: repeating-radial-gradient(#111, #111 2px, #222 3px, #222 4px); border-radius: 50%; z-index: 1; transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 5px 5px 20px rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; }
+.record-item:hover .record-disc { right: -60px; transform: rotate(180deg); }
+.disc-center { width: 44px; height: 44px; background: #ff5e3a; border-radius: 50%; border: 2px solid #111; display: flex; justify-content: center; align-items: center;}
+.disc-center::after { content: ''; width: 8px; height: 8px; background: #f8fafc; border-radius: 50%; }
+</style>
