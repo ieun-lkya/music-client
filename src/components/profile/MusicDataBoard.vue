@@ -85,6 +85,9 @@ const renderRadarChart = async () => {
   radarInstance.setOption(option)
 }
 
+// 💥 核心修复 2：把丢失的热力图响应式变量补回来！！！
+const heatmapData = ref([])
+
 // 🚀 真实引擎 B：拉取真数据映射到 84 天网格中
 const initHeatmap = async () => {
   if (!musicStore.currentUser) return
