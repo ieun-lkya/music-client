@@ -712,9 +712,10 @@ onMounted(async () => {
 .list-like-icon { color: #94a3b8; transition: 0.2s;}
 .list-like-icon.is-liked { color: #ef4444; }
 
+/* 🚀 核心修复 2：把 100vw 彻底废弃，改为 100% 免疫系统滚动条干扰！ */
 :global(body), :global(html), :global(#app) { margin: 0; padding: 0; height: 100%; width: 100%; box-sizing: border-box; }
 *, *::before, *::after { box-sizing: border-box; }
-.main-layout { display: flex; width: 100vw; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.main-layout { display: flex; width: 100%; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
 .top-header { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #f1f5f9; z-index: 5; }
 .ai-input-wrapper { width: 480px; }

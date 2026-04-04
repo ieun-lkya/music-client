@@ -208,13 +208,13 @@ watch(() => musicStore.isPlaying, async (playing) => {
 
 <style scoped>
 /* 样式保留与上一版本一致 */
-.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; z-index: 100; }
+.player-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; z-index: 100; box-sizing: border-box; }
 .empty-player { color: #94a3b8; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
 .progress-slider-wrapper { position: absolute; top: -14px; left: 0; right: 0; z-index: 200; }
 .player-slider :deep(.el-slider__runway) { height: 4px; background: #e4e4e7; margin: 0; }
 .player-slider :deep(.el-slider__bar) { height: 4px; background-color: #0f172a; }
 .player-slider :deep(.el-slider__button) { width: 12px; height: 12px; border: none; background-color: #0f172a; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-.controls-content { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
+.controls-content { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
 .track-info { display: flex; align-items: center; gap: 15px; width: 30%; }
 .mini-cover { width: 56px; height: 56px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); object-fit: cover; transition: 0.3s; cursor: pointer; }
 .mini-cover:hover { transform: scale(1.05); }
