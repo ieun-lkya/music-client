@@ -36,7 +36,7 @@
               <el-input v-model="adminForm.password" type="password" placeholder="请输入管理员密码" prefix-icon="Key" show-password @keyup.enter="handleAdminLogin" />
             </el-form-item>
             <el-form-item>
-              <el-button type="dark" class="main-btn admin-btn" @click="handleAdminLogin" :loading="loading">
+              <el-button type="primary" class="main-btn admin-btn" @click="handleAdminLogin" :loading="loading">
                 进 入 控 制 台
               </el-button>
             </el-form-item>

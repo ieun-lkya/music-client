@@ -19,10 +19,10 @@
       <div class="play-btns">
         <div class="prev-next-btn" @click="$emit('play-prev')"></div>
         <div class="main-play-btn" :class="{'is-playing': musicStore.isPlaying}" @click="togglePlay">
-          <component :is="musicStore.isPlaying ? 'svg' : 'svg'" class="player-icon" @click="togglePlay" width="20" height="20" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <svg class="player-icon" width="20" height="20" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
             <path v-if="!musicStore.isPlaying" d="M214 192a64 64 0 0 0-64 64v512a64 64 0 0 0 64 64 64 64 0 0 0 53-29l360-423a64 64 0 0 0 0-74L267 163a64 64 0 0 0-53-29z" fill="white" />
             <path v-else d="M384 192v640c0 35.2 28.8 64 64 64h64c35.2 0 64-28.8 64-64V192c0-35.2-28.8-64-64-64h-64c-35.2 0-64 28.8-64 64zm256 0v640c0 35.2 28.8 64 64 64h64c35.2 0 64-28.8 64-64V192c0-35.2-28.8-64-64-64h-64c-35.2 0-64 28.8-64 64z" fill="white" />
-          </component>
+          </svg>
         </div>
         <div class="prev-next-btn" @click="$emit('play-next')"></div>
       </div>
