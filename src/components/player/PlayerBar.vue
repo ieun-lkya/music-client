@@ -51,6 +51,9 @@
         </el-popover>
       </div>
     </div>
+    <div class="mini-lyric-container" v-if="musicStore.currentSong && !musicStore.showLyricPanel">
+      <span class="mini-lyric-text" :key="currentMiniLyric"> {{ currentMiniLyric }} </span>
+    </div>
     <div class="empty-player" v-else>请在上方点击歌曲播放</div>
     
     <audio id="echo-audio-player" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" 
@@ -65,7 +68,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useMusicStore } from '../../store/music'
 import { Headset, Refresh, RefreshLeft, Star, StarFilled, Operation } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -78,6 +81,63 @@ const volume = ref(70)
 const playPercent = ref(0)
 const isDragging = ref(false)
 
+// 🚀 迷你歌词悬浮舱状态与引擎
+const miniLyrics = ref([])
+const currentMiniLyricText = ref('🎶 享受纯粹的音乐时刻...')
+
+// 计算属性：提供给模板使用，确保响应式且干净
+const currentMiniLyric = computed(() => currentMiniLyricText.value || '🎶 ...')
+
+const loadMiniLyrics = async (song) => {
+  miniLyrics.value = []
+  currentMiniLyricText.value = '🎶 享受纯粹的音乐时刻...'
+  if (!song || !song.lyricUrl) return
+  try {
+    const res = await fetch(encodeURI(song.lyricUrl), { mode: 'cors' })
+    if (!res.ok) return
+    const text = await res.text()
+    const lines = text.split('\n')
+    const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/
+    const result = []
+    for (let line of lines) {
+      const match = line.match(timeReg)
+      if (match) {
+        const m = parseInt(match[1]); const s = parseInt(match[2]);
+        const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
+        const lrcText = line.replace(/\[.*?\]/g, '').trim();
+        if (lrcText) result.push({ time: m * 60 + s + ms, text: lrcText });
+      }
+    }
+    result.sort((a, b) => a.time - b.time)
+    miniLyrics.value = result
+  } catch (e) {
+    console.warn('Lyrics load failed', e)
+  }
+}
+
+const updateMiniLyric = (currentTime) => {
+  if (miniLyrics.value.length === 0) return
+  let currentText = '🎶 享受纯粹的音乐时刻...'
+  // 简单的线性查找，对于短歌词性能足够；若歌词极长可优化为二分查找
+  for (let i = 0; i < miniLyrics.value.length; i++) {
+    if (currentTime >= miniLyrics.value[i].time - 0.2) { // -0.2s 提前一点显示，体验更顺滑
+      currentText = miniLyrics.value[i].text
+    } else {
+      break
+    }
+  }
+  if (currentMiniLyricText.value !== currentText) {
+    currentMiniLyricText.value = currentText
+  }
+}
+
+// 监听时间更新以同步迷你歌词
+watch(() => musicStore.currentTime, (newTime) => {
+  if (musicStore.currentSong && miniLyrics.value.length > 0) {
+    updateMiniLyric(newTime)
+  }
+})
+
 const togglePlay = () => { if(!musicStore.currentSong) return; musicStore.togglePlay() }
 const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
 const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
@@ -85,6 +145,9 @@ const onSliderSeek = (val) => { const audio = document.getElementById('echo-audi
 const onTimeUpdate = (e) => { 
   musicStore.currentTime = e.target.currentTime; 
   if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0;
+  
+  // 💥 驱动引擎：时间每走一毫秒，歌词探针就去核对一次！
+  updateMiniLyric(musicStore.currentTime);
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
@@ -109,41 +172,6 @@ const formatTime = (seconds) => {
 }
 
 // 🚀 迷你歌词悬浮舱状态与引擎 (已移除)
-
-// 🚀 特性 A：打破次元壁！Media Session 操作系统锁屏控制！
-const setupMediaSession = (song) => {
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.title,
-      artist: song.artist,
-      album: 'EchoScene',
-      artwork: [{ src: song.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', sizes: '512x512', type: 'image/jpeg' }]
-    });
-    navigator.mediaSession.setActionHandler('play', () => musicStore.isPlaying = true);
-    navigator.mediaSession.setActionHandler('pause', () => musicStore.isPlaying = false);
-    navigator.mediaSession.setActionHandler('previoustrack', () => emit('play-prev'));
-    navigator.mediaSession.setActionHandler('nexttrack', () => emit('play-next'));
-  }
-}
-
-// 🚀 特性 A：全局极客热键引擎
-const handleKeyDown = (e) => {
-  // 如果用户正在输入框里打字（比如搜歌、发评论），绝对不能拦截按键！
-  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-  const audio = document.getElementById('echo-audio-player');
-  if (!audio || !musicStore.currentSong) return;
-  
-  switch(e.code) {
-    case 'Space': e.preventDefault(); musicStore.togglePlay(); break;
-    case 'ArrowLeft': audio.currentTime = Math.max(0, audio.currentTime - 5); break;
-    case 'ArrowRight': audio.currentTime = Math.min(musicStore.duration, audio.currentTime + 5); break;
-    case 'ArrowUp': e.preventDefault(); volume.value = Math.min(100, volume.value + 5); onVolumeChange(volume.value); break;
-    case 'ArrowDown': e.preventDefault(); volume.value = Math.max(0, volume.value - 5); onVolumeChange(volume.value); break;
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', handleKeyDown))
-onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
 // 🚀 特性 B：千万级 Web Audio 极客调音台引擎
 const eqLabels = ['32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16K'];
@@ -195,8 +223,10 @@ const setEQ = (type) => {
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
     musicStore.currentTime = 0; playPercent.value = 0
-    setupMediaSession(newSong); // 每次切歌，同步给操作系统！
     
+    // 💥 切歌点火：拉取并解析这首歌的迷你歌词！
+    loadMiniLyrics(newSong); 
+
     await nextTick()
     const audio = document.getElementById('echo-audio-player')
     if (audio) {
@@ -286,4 +316,21 @@ watch(() => musicStore.isPlaying, async (playing) => {
 .eq-band :deep(.el-slider__button) { border-color: #3b82f6; }
 .eq-freq { font-size: 11px; color: #64748b; font-family: monospace; font-weight: bold;}
 
+/* 🚀 迷你歌词悬浮舱的 Apple 级玻璃拟物化样式 */
+.mini-lyric-container {
+  position: absolute; top: -38px; left: 50%; transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.7); backdrop-filter: saturate(180%) blur(20px);
+  padding: 6px 30px; border-radius: 18px 18px 0 0; 
+  font-size: 14px; color: #1e293b; font-weight: 700;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03); white-space: nowrap; max-width: 60%;
+  border: 1px solid #f1f5f9; border-bottom: none; pointer-events: none; 
+  text-align: center; z-index: -1; 
+}
+.mini-lyric-text {
+  display: inline-block; animation: lyric-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes lyric-pop {
+  0% { opacity: 0; transform: translateY(8px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 </style>
