@@ -52,7 +52,7 @@
       </div>
     </div>
     <div class="mini-lyric-container" v-if="musicStore.currentSong && !musicStore.showLyricPanel">
-      <span class="mini-lyric-text" :key="currentMiniLyric"> {{ currentMiniLyric }} </span>
+      <span class="mini-lyric-text"> {{ currentMiniLyric }} </span>
     </div>
     <div class="empty-player" v-else>请在上方点击歌曲播放</div>
     
@@ -83,14 +83,12 @@ const isDragging = ref(false)
 
 // 🚀 迷你歌词悬浮舱状态与引擎
 const miniLyrics = ref([])
-const currentMiniLyricText = ref('🎶 享受纯粹的音乐时刻...')
+const currentMiniLyric = ref('🎶 享受纯粹的音乐时刻...')
 
-// 计算属性：提供给模板使用，确保响应式且干净
-const currentMiniLyric = computed(() => currentMiniLyricText.value || '🎶 ...')
-
+// 🚀 极其智能的双语聚合歌词解析器
 const loadMiniLyrics = async (song) => {
   miniLyrics.value = []
-  currentMiniLyricText.value = '🎶 享受纯粹的音乐时刻...'
+  currentMiniLyric.value = '🎶 享受纯粹的音乐时刻...'
   if (!song || !song.lyricUrl) return
   try {
     const res = await fetch(encodeURI(song.lyricUrl), { mode: 'cors' })
@@ -98,16 +96,31 @@ const loadMiniLyrics = async (song) => {
     const text = await res.text()
     const lines = text.split('\n')
     const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/
-    const result = []
+    
+    // 💥 核心修复：使用 Map 来聚合相同时间戳的双语歌词！
+    const timeMap = new Map()
+    
     for (let line of lines) {
       const match = line.match(timeReg)
       if (match) {
         const m = parseInt(match[1]); const s = parseInt(match[2]);
         const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
+        const time = m * 60 + s + ms;
         const lrcText = line.replace(/\[.*?\]/g, '').trim();
-        if (lrcText) result.push({ time: m * 60 + s + ms, text: lrcText });
+        
+        if (lrcText) {
+          if (timeMap.has(time)) {
+            // 如果同一时间点已经有词了，极其优雅地用 • 拼接到后面！
+            timeMap.set(time, timeMap.get(time) + '  •  ' + lrcText)
+          } else {
+            timeMap.set(time, lrcText)
+          }
+        }
       }
     }
+    
+    // 把 Map 转换为数组并排序
+    const result = Array.from(timeMap.entries()).map(([time, text]) => ({ time, text }))
     result.sort((a, b) => a.time - b.time)
     miniLyrics.value = result
   } catch (e) {
@@ -118,17 +131,14 @@ const loadMiniLyrics = async (song) => {
 const updateMiniLyric = (currentTime) => {
   if (miniLyrics.value.length === 0) return
   let currentText = '🎶 享受纯粹的音乐时刻...'
-  // 简单的线性查找，对于短歌词性能足够；若歌词极长可优化为二分查找
   for (let i = 0; i < miniLyrics.value.length; i++) {
-    if (currentTime >= miniLyrics.value[i].time - 0.2) { // -0.2s 提前一点显示，体验更顺滑
+    if (currentTime >= miniLyrics.value[i].time - 0.2) {
       currentText = miniLyrics.value[i].text
     } else {
       break
     }
   }
-  if (currentMiniLyricText.value !== currentText) {
-    currentMiniLyricText.value = currentText
-  }
+  if (currentMiniLyric.value !== currentText) currentMiniLyric.value = currentText || '🎶 ...'
 }
 
 // 监听时间更新以同步迷你歌词
@@ -322,9 +332,15 @@ watch(() => musicStore.isPlaying, async (playing) => {
   background: rgba(255, 255, 255, 0.7); backdrop-filter: saturate(180%) blur(20px);
   padding: 6px 30px; border-radius: 18px 18px 0 0; 
   font-size: 14px; color: #1e293b; font-weight: 700;
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03); white-space: nowrap; max-width: 60%;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03); 
   border: 1px solid #f1f5f9; border-bottom: none; pointer-events: none; 
   text-align: center; z-index: -1; 
+  
+  /* 💥 核心新增：强行约束最大宽度，超出部分极其优雅地变成省略号 */
+  max-width: 70%; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mini-lyric-text {
   display: inline-block; animation: lyric-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
