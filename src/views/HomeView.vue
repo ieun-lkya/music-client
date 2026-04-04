@@ -274,6 +274,12 @@
         </section>
 
         <section v-else-if="['liked', 'history', 'public_playlist'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_') || musicStore.currentMenu.startsWith('col_playlist_')" class="hero-section fade-in">
+          <div v-if="musicStore.currentMenu === 'public_playlist'" style="margin-bottom: 15px; animation: fadeIn 0.3s ease;">
+            <el-button plain round size="small" @click="switchMenu('square')" style="color: #64748b; border-color: #e2e8f0;">
+              <el-icon style="margin-right: 4px;"><ArrowLeft /></el-icon> 返回云端广场
+            </el-button>
+          </div>
+          
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
               <h2 v-if="musicStore.currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
@@ -378,7 +384,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
