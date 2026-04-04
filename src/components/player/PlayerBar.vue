@@ -26,7 +26,7 @@
         <span class="time-display">{{ formatTime(musicStore.currentTime) }} / {{ formatTime(musicStore.duration) }}</span>
         <el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon>
         
-        <el-popover placement="top" width="380" trigger="click">
+        <el-popover placement="top-end" width="380" trigger="click">
           <template #reference><el-icon :size="18" class="eq-icon"><Operation /></el-icon></template>
           <div class="eq-panel">
             <div style="margin-bottom: 15px; font-weight: 800; color: #0f172a;">🎛️ Echo 极客调音台</div>
@@ -68,6 +68,7 @@
 import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useMusicStore } from '../../store/music'
 import { Headset, Refresh, RefreshLeft, Star, StarFilled, Operation } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
