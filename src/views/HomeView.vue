@@ -712,8 +712,16 @@ onMounted(async () => {
 .list-like-icon { color: #94a3b8; transition: 0.2s;}
 .list-like-icon.is-liked { color: #ef4444; }
 
-/* 🚀 核心修复 2：把 100vw 彻底废弃，改为 100% 免疫系统滚动条干扰！ */
-:global(body), :global(html), :global(#app) { margin: 0; padding: 0; height: 100%; width: 100%; box-sizing: border-box; }
+/* 🚀 终极净化 1：核弹级清除 Vite 默认样式幽灵，绝对禁止屏幕本体出现滚动！ */
+:global(body), :global(html), :global(#app) { 
+  margin: 0 !important; 
+  padding: 0 !important; 
+  height: 100vh !important; 
+  width: 100vw !important; 
+  max-width: 100% !important; /* 💥 强行斩杀 Vite 默认的 1280px 宽度限制 */
+  box-sizing: border-box !important; 
+  overflow: hidden !important; /* 💥 绝对禁止屏幕本体越界 */
+}
 *, *::before, *::after { box-sizing: border-box; }
 .main-layout { display: flex; width: 100%; height: 100vh; background-color: #f8fafc; color: #333; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
@@ -721,7 +729,14 @@ onMounted(async () => {
 .ai-input-wrapper { width: 480px; }
 .scene-search :deep(.el-input__wrapper) { border-radius: 20px; background-color: #f1f5f9; box-shadow: none; padding-left: 15px; }
 .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.scroll-container { flex: 1; overflow-y: auto; padding: 30px 40px 120px; }
+
+/* 🚀 终极净化 2：斩杀 Element Plus 负边距引起的内部横向滚动条！ */
+.scroll-container { 
+  flex: 1; 
+  overflow-y: auto; 
+  overflow-x: hidden; /* 💥 核心杀招：强行剪断被栅格撑出去的那 12.5px！ */
+  padding: 30px 40px 120px; 
+}
 
 .discover-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
 .hero-section h2 { font-size: 36px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -1px;}

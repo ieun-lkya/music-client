@@ -58,7 +58,8 @@
            @loadedmetadata="onLoadedMetadata" 
            @ended="onPlayEnded"
            @play="musicStore.isPlaying = true"
-           @pause="musicStore.isPlaying = false">
+           @pause="musicStore.isPlaying = false"
+           @error="onAudioError">
     </audio>
   </footer>
 </template>
@@ -83,6 +84,19 @@ const onSliderSeek = (val) => { const audio = document.getElementById('echo-audi
 const onTimeUpdate = (e) => { musicStore.currentTime = e.target.currentTime; if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
+  
+// 🚀 核心容错：极其优雅的音源丢失降级处理
+const onAudioError = () => {
+  const audio = document.getElementById('echo-audio-player')
+  // 只有当真的有歌曲链接（排除了初始空状态），并且加载失败时才触发
+  if (audio && audio.getAttribute('src')) {
+    musicStore.isPlaying = false // 强行终止播放状态，让播放按钮切回暂停图标
+    ElMessage.error(`😭 抱歉，这首歌的云端音源迷路了或已被删除！`)
+    
+    // 如果你在放歌单，它甚至还能极其智能地帮你自动跳过坏歌，播下一首！（可选）
+    setTimeout(() => { emit('play-next') }, 2000)
+  }
+}
 
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds)) return "00:00"
