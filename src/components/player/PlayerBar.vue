@@ -25,6 +25,26 @@
       <div class="extra-funcs">
         <span class="time-display">{{ formatTime(musicStore.currentTime) }} / {{ formatTime(musicStore.duration) }}</span>
         <el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon>
+        
+        <el-popover placement="top" width="380" trigger="click">
+          <template #reference><el-icon :size="18" class="eq-icon"><Operation /></el-icon></template>
+          <div class="eq-panel">
+            <div style="margin-bottom: 15px; font-weight: 800; color: #0f172a;">🎛️ Echo 极客调音台</div>
+            <div class="eq-presets">
+              <el-tag size="small" effect="dark" color="#94a3b8" @click="setEQ('flat')" style="cursor:pointer; border:none;">原声 (Flat)</el-tag>
+              <el-tag size="small" effect="dark" color="#ef4444" @click="setEQ('bass')" style="cursor:pointer; border:none;">动次打次 (Bass)</el-tag>
+              <el-tag size="small" effect="dark" color="#3b82f6" @click="setEQ('vocal')" style="cursor:pointer; border:none;">清澈人声 (Vocal)</el-tag>
+              <el-tag size="small" effect="dark" color="#10b981" @click="setEQ('live')" style="cursor:pointer; border:none;">Live 现场</el-tag>
+            </div>
+            <div class="eq-sliders">
+              <div class="eq-band" v-for="(gain, index) in eqGains" :key="index">
+                <el-slider v-model="eqGains[index]" vertical height="120px" :min="-12" :max="12" :step="0.5" @input="updateEQ(index)" :show-tooltip="false" />
+                <span class="eq-freq">{{ eqLabels[index] }}</span>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+
         <el-popover placement="top" width="40" trigger="hover">
           <template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template>
           <el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" />
@@ -44,10 +64,9 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useMusicStore } from '../../store/music'
-import { Headset, Refresh, RefreshLeft, Star, StarFilled } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Headset, Refresh, RefreshLeft, Star, StarFilled, Operation } from '@element-plus/icons-vue'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
@@ -57,28 +76,13 @@ const volume = ref(70)
 const playPercent = ref(0)
 const isDragging = ref(false)
 
-const togglePlay = () => {
-  if(!musicStore.currentSong) return;
-  musicStore.togglePlay()
-}
-
+const togglePlay = () => { if(!musicStore.currentSong) return; musicStore.togglePlay() }
 const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
 const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
-const onSliderSeek = (val) => { 
-  const audio = document.getElementById('echo-audio-player')
-  if (audio) audio.currentTime = (val / 100) * musicStore.duration
-  isDragging.value = false 
-}
-const onTimeUpdate = (e) => {
-  musicStore.currentTime = e.target.currentTime
-  if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
-}
+const onSliderSeek = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.currentTime = (val / 100) * musicStore.duration; isDragging.value = false }
+const onTimeUpdate = (e) => { musicStore.currentTime = e.target.currentTime; if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
-const onPlayEnded = () => { 
-  if (playMode.value === 'single') { 
-    const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() 
-  } else { emit('play-next') } 
-}
+const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
 
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds)) return "00:00"
@@ -86,40 +90,118 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-// 🚀 核心大修复 1：换歌的绝对霸权！
+// 🚀 特性 A：打破次元壁！Media Session 操作系统锁屏控制！
+const setupMediaSession = (song) => {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title,
+      artist: song.artist,
+      album: 'EchoScene',
+      artwork: [{ src: song.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', sizes: '512x512', type: 'image/jpeg' }]
+    });
+    navigator.mediaSession.setActionHandler('play', () => musicStore.isPlaying = true);
+    navigator.mediaSession.setActionHandler('pause', () => musicStore.isPlaying = false);
+    navigator.mediaSession.setActionHandler('previoustrack', () => emit('play-prev'));
+    navigator.mediaSession.setActionHandler('nexttrack', () => emit('play-next'));
+  }
+}
+
+// 🚀 特性 A：全局极客热键引擎
+const handleKeyDown = (e) => {
+  // 如果用户正在输入框里打字（比如搜歌、发评论），绝对不能拦截按键！
+  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  const audio = document.getElementById('echo-audio-player');
+  if (!audio || !musicStore.currentSong) return;
+  
+  switch(e.code) {
+    case 'Space': e.preventDefault(); musicStore.togglePlay(); break;
+    case 'ArrowLeft': audio.currentTime = Math.max(0, audio.currentTime - 5); break;
+    case 'ArrowRight': audio.currentTime = Math.min(musicStore.duration, audio.currentTime + 5); break;
+    case 'ArrowUp': e.preventDefault(); volume.value = Math.min(100, volume.value + 5); onVolumeChange(volume.value); break;
+    case 'ArrowDown': e.preventDefault(); volume.value = Math.max(0, volume.value - 5); onVolumeChange(volume.value); break;
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeyDown))
+onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
+
+// 🚀 特性 B：千万级 Web Audio 极客调音台引擎
+const eqLabels = ['32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16K'];
+const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const eqGains = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+let audioCtx = null;
+let filters = [];
+
+const initAudioEngine = () => {
+  if (audioCtx) return; // 绝对防御：一生只初始化一次
+  const audioEl = document.getElementById('echo-audio-player');
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AudioContext();
+  const source = audioCtx.createMediaElementSource(audioEl);
+
+  let prevNode = source;
+  // 生成 10 个串联的双二阶滤波器 (BiquadFilterNode)
+  eqFreqs.forEach((freq, i) => {
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = i === 0 ? 'lowshelf' : (i === 9 ? 'highshelf' : 'peaking');
+    filter.frequency.value = freq;
+    filter.Q.value = 1;
+    filter.gain.value = eqGains.value[i];
+    filters.push(filter);
+    prevNode.connect(filter);
+    prevNode = filter;
+  });
+
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  prevNode.connect(analyser);
+  analyser.connect(audioCtx.destination); // 最终输出到扬声器
+
+  musicStore.audioAnalyser = analyser; // 把分析器共享给 Vuex，拯救歌词面板！
+}
+
+const updateEQ = (index) => { if(filters[index]) filters[index].gain.value = eqGains.value[index]; }
+const setEQ = (type) => {
+  let target = [0,0,0,0,0,0,0,0,0,0];
+  if(type === 'bass') target = [6, 5, 4, 1, 0, -1, 0, 1, 2, 3]; // 低音增强，中频削弱
+  if(type === 'vocal') target = [-2, -1, 0, 2, 4, 5, 4, 2, 0, -1]; // 中高频人声增强
+  if(type === 'live') target = [4, 3, 1, -1, 0, 2, 4, 5, 4, 3]; // 两头翘，模拟空间感
+  eqGains.value = target;
+  target.forEach((_, i) => updateEQ(i));
+}
+
+// --- 底层核心逻辑修改 ---
+// 🚀 核心大修复：将音频上下文的挂载逻辑，牢牢绑死在每一次切歌的瞬间！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
     musicStore.currentTime = 0; playPercent.value = 0
-    // 等待 Vue 把 src 属性真正挂载到 HTML 标签上
+    setupMediaSession(newSong); // 每次切歌，同步给操作系统！
     await nextTick()
-    
     const audio = document.getElementById('echo-audio-player')
     if (audio) {
       audio.currentTime = 0; audio.volume = volume.value / 100
-      // 💥 不管三七二十一，只要换了歌，强行按头播放！
-      audio.play().then(() => {
-        musicStore.isPlaying = true
-      }).catch(e => { 
-        musicStore.isPlaying = false 
-      })
+      
+      // 💥 致命修复：任何场景下，只要准备播放，必须先强制点火引擎！
+      initAudioEngine();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+      audio.play().then(() => { musicStore.isPlaying = true }).catch(e => { musicStore.isPlaying = false })
     }
   }
 })
 
-// 🚀 核心大修复 2：给播放状态加上"防抢跑时序锁"
 watch(() => musicStore.isPlaying, async (playing) => {
-  // 💥 致命防线：必须等 DOM 渲染完毕，绝不允许在没有 src 的时候瞎播！
   await nextTick() 
-  
   const audio = document.getElementById('echo-audio-player')
-  // 只有当 audio 存在，并且真的有了音频链接时，才允许执行播放/暂停控制！
   if (audio && audio.getAttribute('src')) { 
     if (playing && audio.paused) {
+      // 💥 致命修复：底部的播放/暂停键也加上双保险！
+      initAudioEngine();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      
       audio.play().catch(() => { musicStore.isPlaying = false })
     }
-    else if (!playing && !audio.paused) {
-      audio.pause()
-    }
+    else if (!playing && !audio.paused) { audio.pause() }
   }
 })
 </script>
@@ -159,4 +241,16 @@ watch(() => musicStore.isPlaying, async (playing) => {
 .time-display { font-size: 13px; font-family: monospace; color: #64748b; font-weight: 600; }
 .vol-icon, .mode-icon { cursor: pointer; color: #64748b; transition: 0.2s;}
 .vol-icon:hover, .mode-icon:hover { color: #0f172a; }
+
+/* 🚀 EQ 控制面板极其优雅的样式 */
+.eq-icon { cursor: pointer; color: #64748b; transition: 0.2s;}
+.eq-icon:hover { color: #0f172a; }
+.eq-panel { padding: 5px; }
+.eq-presets { display: flex; gap: 8px; margin-bottom: 25px; justify-content: center; }
+.eq-sliders { display: flex; justify-content: space-between; padding: 0 10px; }
+.eq-band { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.eq-band :deep(.el-slider__runway) { background: #e2e8f0; }
+.eq-band :deep(.el-slider__bar) { background: linear-gradient(to top, #3b82f6, #8b5cf6); }
+.eq-band :deep(.el-slider__button) { border-color: #3b82f6; }
+.eq-freq { font-size: 11px; color: #64748b; font-family: monospace; font-weight: bold;}
 </style>

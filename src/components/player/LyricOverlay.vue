@@ -214,21 +214,17 @@ watch(() => musicStore.showLyricPanel, async (isOpen) => {
 
 // --- 频谱分析引擎 ---
 const spectrumCanvasRef = ref(null)
-let audioCtx = null, analyser = null, animationFrameId = null
+let analyser = null, animationFrameId = null
 
 const initAudioVisualizer = () => {
-  const audioEl = document.getElementById('echo-audio-player')
-  if (!audioEl || audioCtx) return
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext
-    audioCtx = new AudioContext()
-    analyser = audioCtx.createAnalyser()
-    analyser.fftSize = 256 
-    const audioSource = audioCtx.createMediaElementSource(audioEl)
-    audioSource.connect(analyser)
-    analyser.connect(audioCtx.destination)
+  // 💥 终极改造：不再自己创建 AudioContext，直接白嫖 PlayerBar 共享出来的分析器！
+  analyser = musicStore.audioAnalyser
+  if (analyser) {
     drawVisualizer()
-  } catch (e) {}
+  } else {
+    // 如果还没初始化，隔 500ms 智能重试
+    setTimeout(initAudioVisualizer, 500)
+  }
 }
 
 const drawVisualizer = () => {
@@ -250,6 +246,12 @@ const drawVisualizer = () => {
     x += barWidth
   }
 }
+
+// ⚠️ 极其重要：在 onUnmounted 中，把你原来写的 `if (audioCtx) audioCtx.close()` 删掉！因为现在引擎归 PlayerBar 管了！
+onUnmounted(() => {
+  if (scrollTimeout) clearTimeout(scrollTimeout)
+  if (animationFrameId) cancelAnimationFrame(animationFrameId)
+})
 
 // --- 云村热评引擎 ---
 const commentDrawerVisible = ref(false)
@@ -327,7 +329,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (scrollTimeout) clearTimeout(scrollTimeout)
   if (animationFrameId) cancelAnimationFrame(animationFrameId)
-  if (audioCtx) audioCtx.close()
 })
 </script>
 

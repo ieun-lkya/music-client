@@ -19,6 +19,9 @@ const store = reactive({
   // 全局 UI 控制
   showLyricPanel: false,
 
+  // 🚀 新增：极其硬核的底层 Web Audio API 共享节点
+  audioAnalyser: null,
+
   // 🚀 切换播放状态
   togglePlay() {
     this.isPlaying = !this.isPlaying;
