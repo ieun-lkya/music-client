@@ -184,10 +184,41 @@
         </section>
 
         <section v-else-if="musicStore.currentMenu === 'square'" class="hero-section fade-in">
+          
           <div class="discover-header">
             <div>
-              <h2>🌍 云端歌单广场</h2>
-              <p class="theory-note">探索全站音乐达人创建的精选集，寻找灵魂共鸣。</p>
+              <h2>🤖 AI 瞬息频段</h2>
+              <p class="theory-note">大模型基于当前时空【自主创造】的绝版歌单，每一次呼吸都是不同的灵魂碰撞。</p>
+            </div>
+            <el-button type="primary" color="#8b5cf6" round @click="refreshAiPlaylists" :loading="isAiPlaylistsLoading">
+              <el-icon><MagicStick /></el-icon> 重新演算时空
+            </el-button>
+          </div>
+          
+          <el-row :gutter="25" class="bento-grid" v-loading="isAiPlaylistsLoading">
+            <el-empty v-if="dynamicAiPlaylists.length === 0 && !isAiPlaylistsLoading" description="AI 正在宇宙深处捕捉灵感信号..." style="width:100%"/>
+            <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="pl in dynamicAiPlaylists" :key="pl.id">
+              <div class="bento-card" @click="openSquarePlaylist(pl)">
+                <div class="bento-cover-box" style="background: linear-gradient(135deg, #e0e7ff 0%, #bae6fd 100%); display:flex; justify-content:center; align-items:center;">
+                  <img v-if="pl.coverUrl" :src="pl.coverUrl" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;" />
+                  <el-icon v-else :size="48" color="#3b82f6"><MagicStick /></el-icon>
+                  
+                  <div style="position:absolute; top:8px; right:8px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color:#fff; font-size:12px; padding:4px 10px; border-radius:12px; font-weight:800; border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; gap: 4px;">
+                    <el-icon><MagicStick /></el-icon> AI 生成
+                  </div>
+                </div>
+                <div class="bento-info">
+                  <div class="bento-title">{{ pl.name }}</div>
+                  <div class="bento-artist">创建者: @{{ pl.creatorName }}</div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <div class="discover-header">
+            <div>
+              <h2>🌍 达人云端歌单</h2>
+              <p class="theory-note">探索全站音乐达人手工创建的精选集，寻找灵魂共鸣。</p>
             </div>
             <el-button type="primary" plain round @click="switchMenu('square')"><el-icon><Refresh /></el-icon> 刷新广场</el-button>
           </div>
@@ -206,6 +237,7 @@
               </div>
             </el-col>
           </el-row>
+
         </section>
 
         <section v-else-if="musicStore.currentMenu === 'search_results'" class="hero-section fade-in">
@@ -344,7 +376,7 @@ import LyricOverlay from '../components/player/LyricOverlay.vue'
 import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI } from '../api/user'
 
 const router = useRouter()
@@ -359,6 +391,43 @@ const localSearchKeyword = ref('')
 // 🚀 新增：广场数据状态
 const squarePlaylists = ref([])
 const publicPlaylistData = ref({ id: '', name: '', creator: '', songs: [] })
+
+// 🚀 真·AI 歌单引擎！
+const dynamicAiPlaylists = ref([]);
+const isAiPlaylistsLoading = ref(false);
+
+const refreshAiPlaylists = async () => {
+  isAiPlaylistsLoading.value = true;
+  try {
+    // 💥 强行唤醒后端的 LLM 引擎生成 JSON 数据！
+    const res = await generateAiPlaylistsAPI();
+    dynamicAiPlaylists.value = res || [];
+  } catch(e) {
+    ElMessage.error('📡 量子坍缩失败，请重试');
+  } finally {
+    isAiPlaylistsLoading.value = false;
+  }
+}
+
+// 💥 极其硬核的：AI 广场分类雷达状态引擎！
+const aiSquareCategories = ['🚗 兜风公路', '☕ 慵懒午后', '🌃 赛博深夜', '🏃‍♂️ 极限运动', '💔 伤感治愈'];
+const currentAiCategory = ref('☕ 慵懒午后');
+const squareAiSongs = ref([]);
+const isSquareAiLoading = ref(false);
+
+const fetchSquareAiSongs = async (category) => {
+  if (isSquareAiLoading.value) return;
+  currentAiCategory.value = category;
+  isSquareAiLoading.value = true;
+  try {
+    const prompt = `帮我推荐几首极其符合【${category}】场景氛围的流行音乐或纯音乐。`;
+    squareAiSongs.value = await recommendMusicAPI(prompt) || [];
+  } catch(e) {
+    ElMessage.error('📡 AI 雷达频段接收失败');
+  } finally {
+    isSquareAiLoading.value = false;
+  }
+}
 
 const allMusicList = ref([]); const aiMusicList = ref([]); const radioMusicList = ref([]); const sleepMusicList = ref([])
 const isRadioLoading = ref(false); const isSleepLoading = ref(false)
@@ -380,6 +449,10 @@ const rawActivePlayList = computed(() => {
   if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs 
   if (musicStore.currentMenu === 'search_results') return searchMusicList.value // 接管搜索数据
   if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
+  
+  // 💥 致命补充：让底层播放引擎认领 AI 广场上的这些歌！
+  if (musicStore.currentMenu === 'square') return squareAiSongs.value 
+  
   return []
 })
 
@@ -677,39 +750,69 @@ const switchMenu = async (menuName) => {
   else if (menuName.startsWith('col_playlist_')) await loadPlaylistSongs(menuName.split('_')[2]) // 🚀 加载收藏歌单歌曲
   else if (menuName === 'radio') initRadio() 
   else if (menuName === 'sleep') initSleepMode() 
-  // 💥 点击广场，拉取全站歌单！
+  // 💥 点击广场，拉取全站歌单 + 点火 AI 雷达！
   else if (menuName === 'square') {
     const res = await getAllPlaylistsAPI();
     squarePlaylists.value = res || [];
+    // 💥 进广场时，如果 AI 引擎没跑过，直接拉取第一波！
+    if (dynamicAiPlaylists.value.length === 0) refreshAiPlaylists();
   }
 }
 
 // 🚀 新增：点击广场里别人的歌单
 const openSquarePlaylist = async (pl) => {
   musicStore.currentMenu = 'public_playlist';
-  publicPlaylistData.value.id = pl.id; // 🚀 记录关键身份
+  publicPlaylistData.value.id = pl.id; 
   publicPlaylistData.value.name = pl.name;
   publicPlaylistData.value.creator = pl.creatorName;
-  const res = await getPlaylistMusicAPI(pl.id);
-  publicPlaylistData.value.songs = res || [];
+  publicPlaylistData.value.isAi = pl.isAi || false;
+
+  if (pl.isAi) {
+    // 💥 极速秒开！因为 AI 歌单在生成时，后端已经把歌曲全部带过来了！
+    publicPlaylistData.value.songs = pl.songs || [];
+  } else {
+    const res = await getPlaylistMusicAPI(pl.id);
+    publicPlaylistData.value.songs = res || [];
+  }
 }
 
 // 🚀 注入计算属性和点击事件
 const isCurrentPlaylistCollected = computed(() => {
   if (!musicStore.currentUser || !musicStore.collectedPlaylists) return false;
+  if (publicPlaylistData.value.isAi) return false; // AI 歌单永远处于可被“实体化收藏”的状态
   return musicStore.collectedPlaylists.some(p => p.id === publicPlaylistData.value.id)
 })
 
 const collectCurrentPlaylist = async () => {
   if (!musicStore.currentUser) return goToLogin()
-  try {
-    await collectPlaylistAPI(musicStore.currentUser.id, publicPlaylistData.value.id)
-    ElMessage.success('🌟 歌单收藏成功！')
-    await fetchMyPlaylists() // 刷新左侧栏
-  } catch (e) {}
+  
+  if (publicPlaylistData.value.isAi) {
+    // 💥 发动大招：将 AI 的临时量子歌单，真实地写进数据库变成你自己的歌单！
+    try {
+      const newName = `${publicPlaylistData.value.name} (AI精选)`;
+      await createPlaylistAPI(musicStore.currentUser.id, newName);
+      
+      const playlists = await getUserPlaylistsAPI(musicStore.currentUser.id);
+      const newPl = playlists.find(p => p.name === newName);
+      
+      if (newPl && publicPlaylistData.value.songs.length > 0) {
+        for (let song of publicPlaylistData.value.songs) {
+          await addMusicToPlaylistAPI(newPl.id, song.id); // 灌入数据
+        }
+      }
+      ElMessage.success('🌟 虚空固化成功！AI 的绝版灵感已永久保存在您的私人云端！')
+      await fetchMyPlaylists(); 
+    } catch(e) {}
+  } else {
+    // 凡人歌单的常规收藏
+    try {
+      await collectPlaylistAPI(musicStore.currentUser.id, publicPlaylistData.value.id)
+      ElMessage.success('🌟 歌单收藏成功！')
+      await fetchMyPlaylists() 
+    } catch (e) {}
+  }
 }
 
-// 🚀 神级智能取消收藏
 const uncollectCurrentPlaylist = async () => {
   if (!musicStore.currentUser) return goToLogin()
   

@@ -24,6 +24,9 @@ export const getMusicListAPI = () => http.get('/music/list')
 // 🚀 呼叫 AI 场景匹配 (必须是老版本的路径和传参)
 export const recommendMusicAPI = (scene) => http.get('/music/ai/recommend', { params: { scene } })
 
+// 💥💥💥 极其强悍：一键召唤大模型自动分类歌单！
+export const generateAiPlaylistsAPI = () => http.get('/music/ai/generatePlaylists')
+
 // 🚀 云村热评系统接口 (完美适配咱们刚才改过的双保险后端)
 export const getCommentsAPI = (musicId) => http.get('/comment/list', { params: { musicId } })
 export const addCommentAPI = (data) => http.post('/comment/add', data)
