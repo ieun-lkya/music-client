@@ -26,7 +26,7 @@
         <span class="time-display">{{ formatTime(musicStore.currentTime) }} / {{ formatTime(musicStore.duration) }}</span>
         <el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon>
         
-        <el-popover placement="top-end" width="380" trigger="click">
+        <el-popover placement="top-end" :width="430" trigger="click">
           <template #reference><el-icon :size="18" class="eq-icon"><Operation /></el-icon></template>
           <div class="eq-panel">
             <div style="margin-bottom: 15px; font-weight: 800; color: #0f172a;">🎛️ Echo 极客调音台</div>
@@ -260,9 +260,20 @@ watch(() => musicStore.isPlaying, async (playing) => {
 /* 🚀 EQ 控制面板极其优雅的样式 */
 .eq-icon { cursor: pointer; color: #64748b; transition: 0.2s;}
 .eq-icon:hover { color: #0f172a; }
-.eq-panel { padding: 5px; }
+
+/* 🚀 核心修复 2：注入 box-sizing: border-box，强行约束盒子边界！ */
+.eq-panel { 
+  padding: 10px; 
+  box-sizing: border-box; 
+  width: 100%;
+}
+.eq-sliders { 
+  display: flex; 
+  justify-content: space-between; 
+  padding: 0 5px; 
+  box-sizing: border-box;
+}
 .eq-presets { display: flex; gap: 8px; margin-bottom: 25px; justify-content: center; }
-.eq-sliders { display: flex; justify-content: space-between; padding: 0 10px; }
 .eq-band { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .eq-band :deep(.el-slider__runway) { background: #e2e8f0; }
 .eq-band :deep(.el-slider__bar) { background: linear-gradient(to top, #3b82f6, #8b5cf6); }
