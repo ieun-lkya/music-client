@@ -79,7 +79,7 @@
           </div>
 
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 <div class="track-status-box" v-if="!isBatchMode">
@@ -114,7 +114,7 @@
               <div class="radio-queue-panel fade-in">
                 <h3 class="queue-title">即将播放队列</h3>
                 <div class="modern-list-view queue-list">
-                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
                     <span class="modern-title-group">
                       <div class="track-status-box" style="margin-right: 0;">
                         <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -141,7 +141,7 @@
           <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
             <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
             <div class="modern-list-view fade-in dark-list" v-else>
-              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
                 <span class="modern-title-group">
                   <div class="track-status-box" style="margin-right: 0;">
                     <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -225,7 +225,7 @@
           <el-empty v-if="searchMusicList.length === 0" description="在这片星系中，没有找到与此相关的频率..." />
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
                 <div class="track-status-box">
                   <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -255,30 +255,27 @@
               <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
-              <el-button type="primary" round @click="playAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
-                <el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部
-              </el-button>
-              <el-button type="warning" round @click="collectCurrentPlaylist" v-if="musicStore.currentMenu === 'public_playlist' && !isCurrentPlaylistCollected">
-                <el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏该歌单
-              </el-button>
-              <el-button type="info" plain round @click="uncollectCurrentPlaylist" v-if="musicStore.currentMenu === 'public_playlist' && isCurrentPlaylistCollected">
-                取消收藏
-              </el-button>
-              <el-button type="success" plain round @click="collectAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
-                <el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏全部
-              </el-button>
+              <template v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
+                <el-button type="primary" round @click="playAllPublic"><el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部</el-button>
+                <el-button type="warning" round @click="collectCurrentPlaylist" v-if="!isCurrentPlaylistCollected"><el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏该歌单</el-button>
+                <el-button type="info" plain round @click="uncollectCurrentPlaylist" v-if="isCurrentPlaylistCollected">取消收藏</el-button>
+                <el-button type="success" plain round @click="collectAllPublic"><el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏全部单曲</el-button>
+              </template>
+
+              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="musicStore.currentMenu.startsWith('playlist_')">删除该歌单</el-button>
+
+              <el-button type="danger" plain round @click="uncollectCurrentPlaylist" v-if="musicStore.currentMenu.startsWith('col_playlist_')">不再收藏</el-button>
 
               <el-button :type="isBatchMode ? 'danger' : 'primary'" plain round @click="toggleBatchMode" v-if="activePlayList.length > 0">
                 <el-icon style="margin-right:5px;"><Check /></el-icon> {{ isBatchMode ? '退出批量' : '批量操作' }}
               </el-button>
-              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="musicStore.currentMenu.startsWith('playlist_')">删除该歌单</el-button>
             </div>
           </div>
           
           <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 <div class="track-status-box" v-if="!isBatchMode">
@@ -406,6 +403,15 @@ const currentActivePlaylist = computed(() => {
 })
 
 const toggleBatchMode = () => { isBatchMode.value = !isBatchMode.value; selectedMusicIds.value = [] }
+
+// 🚀 神级交互：从任意歌曲右键瞬间进入批量模式，并自动勾选这首歌！
+const enterBatchModeFrom = (item) => {
+  if (isBatchMode.value) return; // 已经在批量模式就不管了
+  isBatchMode.value = true;
+  selectedMusicIds.value = [item.id];
+  ElMessage.success('✨ 已进入批量整理模式，请勾选更多歌曲。');
+}
+
 const toggleSelection = (id) => { const index = selectedMusicIds.value.indexOf(id); if (index > -1) selectedMusicIds.value.splice(index, 1); else selectedMusicIds.value.push(id) }
 
 // 🚀 核心修复 4：完美切歌逻辑！如果是当前歌曲，改为切换播放/暂停！
@@ -703,12 +709,28 @@ const collectCurrentPlaylist = async () => {
   } catch (e) {}
 }
 
+// 🚀 神级智能取消收藏
 const uncollectCurrentPlaylist = async () => {
   if (!musicStore.currentUser) return goToLogin()
+  
+  // 极其敏锐地判断用户是在哪个页面点击的取消收藏
+  let targetId = null;
+  if (musicStore.currentMenu === 'public_playlist') {
+    targetId = publicPlaylistData.value.id;
+  } else if (musicStore.currentMenu.startsWith('col_playlist_')) {
+    targetId = parseInt(musicStore.currentMenu.split('_')[2]);
+  }
+  if (!targetId) return;
+
   try {
-    await uncollectPlaylistAPI(musicStore.currentUser.id, publicPlaylistData.value.id)
-    ElMessage.success('已取消收藏该歌单')
-    await fetchMyPlaylists() // 刷新左侧栏
+    await uncollectPlaylistAPI(musicStore.currentUser.id, targetId)
+    ElMessage.success('已将该歌单移出您的收藏匣')
+    await fetchMyPlaylists() // 刷新左侧栏，让它瞬间消失
+    
+    // 如果用户是在左侧栏看的时候取消的，直接极其无情地把他踢回大厅！
+    if (musicStore.currentMenu.startsWith('col_playlist_')) {
+      musicStore.currentMenu = 'discover'
+    }
   } catch (e) {}
 }
 
@@ -1187,4 +1209,34 @@ onMounted(async () => {
 .avatar-uploader-icon { font-size: 28px; color: #8c939d; }
 .avatar-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; }
 .upload-hint { font-size: 12px; color: #94a3b8; margin-top: 10px; }
-</style>
+
+/* 🚀 极其高贵的：全局吸底玻璃态批量操作舱 */
+.batch-action-bar {
+  position: fixed;
+  bottom: 110px; /* 💥 完美悬浮在底部播放器 (90px) 的正上方 */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85); /* 极客深色玻璃态 */
+  backdrop-filter: saturate(180%) blur(20px);
+  padding: 15px 35px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); /* 深邃的悬浮阴影 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 3000; /* 💥 绝对置顶，无视任何滚动遮挡！ */
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* 🚀 赋予悬浮舱极其丝滑的弹出与消散动画 */
+.slide-up-enter-active, .slide-up-leave-active {
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.slide-up-enter-from, .slide-up-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 80px) scale(0.9); /* 从底部弹出的物理阻尼感 */
+}
