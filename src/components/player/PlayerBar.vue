@@ -72,10 +72,11 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { Play, Pause, ArrowDown, VolumeUp, VolumeMute, Headset, Edit, EditPen } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
-import { Headset, Refresh, RefreshLeft, Star, StarFilled, Operation } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { recordPlayAPI } from '../../api/user'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
@@ -249,6 +250,11 @@ const setEQ = (type) => {
 // 🚀 核心大修复：将音频上下文的挂载逻辑，牢牢绑死在每一次切歌的瞬间！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
+    // 💥 架构师神级埋点：悄悄记录用户的听歌行为流水！
+    if (musicStore.currentUser) {
+      recordPlayAPI(musicStore.currentUser.id, newSong.id).catch(()=>{})
+    }
+    
     musicStore.currentTime = 0; playPercent.value = 0
     
     // 💥 切歌点火：拉取并解析这首歌的迷你歌词！

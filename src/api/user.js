@@ -11,3 +11,7 @@ export const getLikedMusicAPI = (userId) => http.get('/user/likes', { params: { 
 
 // 🚀 更新用户音乐名片
 export const updateUserAPI = (data) => http.post('/user/update', data)
+
+export const getHeatmapAPI = (userId) => request.get(`/analysis/heatmap/${userId}`)
+export const getRadarAPI = (userId) => request.get(`/analysis/radar/${userId}`)
+export const recordPlayAPI = (userId, musicId) => request.post(`/analysis/record?userId=${userId}&musicId=${musicId}`)

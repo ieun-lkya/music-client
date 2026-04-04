@@ -39,24 +39,35 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useMusicStore } from '../../store/music'
+import { getHeatmapAPI, getRadarAPI } from '../../api/user'
 
 const musicStore = useMusicStore()
 
-// 🚀 核心大招 A：音乐 DNA 雷达图引擎
-const radarChartRef = ref(null)
-let radarInstance = null
+// 🚀 真实引擎 A：拉取真数据渲染雷达图
+const renderRadarChart = async () => {
+  if (!radarChartRef.value || !musicStore.currentUser) return
+  
+  let radarData = [10, 10, 10, 10, 10, 10]; // 默认兜底
+  let indicator = [
+    { name: '流行 Pop', max: 100 }, { name: '摇滚 Rock', max: 100 }, { name: '电子 EDM', max: 100 },
+    { name: '民谣 Folk', max: 100 }, { name: '轻音乐', max: 100 }, { name: '说唱 Rap', max: 100 }
+  ];
 
-const renderRadarChart = () => {
-  if (!radarChartRef.value) return
+  try {
+    const res = await getRadarAPI(musicStore.currentUser.id)
+    if (res && res.length > 0) {
+      radarData = res.map(item => item.value)
+      // 动态计算最大值，让图形永远饱满好看
+      const maxVal = Math.max(...radarData) + 2 
+      indicator = res.map(item => ({ name: item.name, max: maxVal }))
+    }
+  } catch(e) {}
+
   if (radarInstance) radarInstance.dispose()
   radarInstance = echarts.init(radarChartRef.value)
   const option = {
     radar: {
-      indicator: [
-        { name: '流行 Pop', max: 100 }, { name: '电子 EDM', max: 100 },
-        { name: '摇滚 Rock', max: 100 }, { name: '民谣 Folk', max: 100 },
-        { name: '说唱 Rap', max: 100 }, { name: '轻音乐', max: 100 }
-      ],
+      indicator: indicator,
       splitArea: { areaStyle: { color: ['rgba(59,130,246, 0.02)', 'rgba(59,130,246, 0.08)'].reverse() } },
       axisLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } },
       splitLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } }
@@ -64,8 +75,7 @@ const renderRadarChart = () => {
     series: [{
       name: '音乐 DNA', type: 'radar',
       data: [{
-        value: [85, 65, 92, 45, 78, 55].map(v => v - ((musicStore.likedMusicList?.length || 0) % 20)), 
-        name: '听歌偏好',
+        value: radarData, name: '真实听歌偏好',
         areaStyle: { color: 'rgba(59,130,246, 0.4)' },
         lineStyle: { color: '#3b82f6', width: 2 },
         itemStyle: { color: '#3b82f6' }
@@ -75,20 +85,36 @@ const renderRadarChart = () => {
   radarInstance.setOption(option)
 }
 
-// 🚀 核心大招 B：GitHub 级热力图引擎
-const heatmapData = ref([])
-const initHeatmap = () => {
+// 🚀 真实引擎 B：拉取真数据映射到 84 天网格中
+const initHeatmap = async () => {
+  if (!musicStore.currentUser) return
   const data = []; const today = new Date()
-  for(let i = 83; i >= 0; i--) {
-    const d = new Date(today); d.setDate(d.getDate() - i)
-    const isSpike = Math.random() > 0.8 
-    const count = isSpike ? Math.floor(Math.random() * 40) + 10 : Math.floor(Math.random() * 5)
-    let level = 0
-    if(count > 0 && count <= 5) level = 1
-    else if(count > 5 && count <= 15) level = 2
-    else if(count > 15 && count <= 30) level = 3
-    else if(count > 30) level = 4
-    data.push({ date: d.toLocaleDateString(), count, level })
+  
+  try {
+    const res = await getHeatmapAPI(musicStore.currentUser.id)
+    // 把后端传回来的 [{date: '2023/10/01', count: 5}] 转成 Map 方便极速查找
+    const realDataMap = {}
+    if (res && res.length > 0) res.forEach(item => { realDataMap[item.date] = item.count })
+
+    for(let i = 83; i >= 0; i--) {
+      const d = new Date(today); d.setDate(d.getDate() - i)
+      const yyyy = d.getFullYear(); 
+      const mm = String(d.getMonth() + 1).padStart(2, '0'); 
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}/${mm}/${dd}` // 严格匹配 SQL 的 DATE_FORMAT
+
+      const count = realDataMap[dateStr] || 0 // 查不到就是今天没听歌，为 0
+      
+      let level = 0
+      if(count > 0 && count <= 2) level = 1
+      else if(count > 2 && count <= 5) level = 2
+      else if(count > 5 && count <= 10) level = 3
+      else if(count > 10) level = 4
+      
+      data.push({ date: dateStr, count, level })
+    }
+  } catch (e) {
+    // 降级处理为空白格子...
   }
   heatmapData.value = data
 }
