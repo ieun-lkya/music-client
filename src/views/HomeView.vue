@@ -196,7 +196,7 @@
             <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="pl in squarePlaylists" :key="pl.id">
               <div class="bento-card" @click="openSquarePlaylist(pl)">
                 <div class="bento-cover-box" style="background: linear-gradient(135deg, #e0e7ff 0%, #bae6fd 100%); display:flex; justify-content:center; align-items:center;">
-                  <img v-if="pl.coverUrl" :src="pl.coverUrl" style="width: 100%; height: 100%; object-fit: cover;" />
+                  <img v-if="pl.coverUrl" :src="pl.coverUrl" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;" />
                   <el-icon v-else :size="48" color="#3b82f6"><DataBoard /></el-icon>
                 </div>
                 <div class="bento-info">
