@@ -55,7 +55,11 @@ import { MagicStick, User, Lock, Monitor, Key } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { loginAPI, registerAPI } from '../api/user'
 
+// 🚀 1. 核心修复：引入我们的全局状态机引擎！
+import { useMusicStore } from '../store/music' 
+
 const router = useRouter()
+const musicStore = useMusicStore() // 🚀 2. 实例化状态机
 // 🚀 极其关键：被你误删的变量全找回来了！
 const activeRole = ref('user') 
 const isRegisterMode = ref(false)
@@ -89,6 +93,9 @@ const handleUserAction = async () => {
     // 🚀 极其关键：存入大厂级别的 JWT 令牌
     localStorage.setItem('echo_token', realData.token)
     localStorage.setItem('echo_user', JSON.stringify(realData.user))
+    
+    // 💥 3. 极其致命的修复：瞬间唤醒内存里的全局状态机！不加这句就会显示未登录！
+    musicStore.currentUser = realData.user
     
     if (!isRegisterMode.value) ElMessage.success(`欢迎回来，${realData.user.username}！`)
 
