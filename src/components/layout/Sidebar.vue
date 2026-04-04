@@ -41,7 +41,12 @@
       💿 {{ pl.name }}
     </div>
 
-    <div class="menu-group-title" v-if="musicStore.currentUser && musicStore.collectedPlaylists.length > 0">🌟 收藏的歌单</div>
+    <div class="menu-group-title" v-if="musicStore.currentUser">🌟 收藏的歌单</div>
+    
+    <div class="nav-sub-item" v-if="musicStore.currentUser && musicStore.collectedPlaylists.length === 0" @click="switchMenu('square')" style="cursor: pointer; opacity: 0.6;">
+      <span style="font-size: 12px; margin-left: 26px;">去广场发现宝藏吧...</span>
+    </div>
+
     <div 
       v-for="pl in musicStore.collectedPlaylists" 
       :key="'col_'+pl.id"

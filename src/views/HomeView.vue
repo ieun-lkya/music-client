@@ -1240,3 +1240,4 @@ onMounted(async () => {
   opacity: 0;
   transform: translate(-50%, 80px) scale(0.9); /* 从底部弹出的物理阻尼感 */
 }
+</style>
