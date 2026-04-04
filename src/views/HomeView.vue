@@ -196,7 +196,8 @@
             <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="pl in squarePlaylists" :key="pl.id">
               <div class="bento-card" @click="openSquarePlaylist(pl)">
                 <div class="bento-cover-box" style="background: linear-gradient(135deg, #e0e7ff 0%, #bae6fd 100%); display:flex; justify-content:center; align-items:center;">
-                  <el-icon :size="48" color="#3b82f6"><DataBoard /></el-icon>
+                  <img v-if="pl.coverUrl" :src="pl.coverUrl" style="width: 100%; height: 100%; object-fit: cover;" />
+                  <el-icon v-else :size="48" color="#3b82f6"><DataBoard /></el-icon>
                 </div>
                 <div class="bento-info">
                   <div class="bento-title"> {{ pl.name }} </div>
@@ -240,7 +241,7 @@
           </div>
         </section>
 
-        <section v-else-if="['liked', 'history', 'public_playlist'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_')" class="hero-section fade-in">
+        <section v-else-if="['liked', 'history', 'public_playlist'].includes(musicStore.currentMenu) || musicStore.currentMenu.startsWith('playlist_') || musicStore.currentMenu.startsWith('col_playlist_')" class="hero-section fade-in">
           <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
             <div>
               <h2 v-if="musicStore.currentMenu === 'liked'">❤️ 我喜欢的音乐</h2>
@@ -256,6 +257,12 @@
             <div style="display:flex; gap:10px;">
               <el-button type="primary" round @click="playAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
                 <el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部
+              </el-button>
+              <el-button type="warning" round @click="collectCurrentPlaylist" v-if="musicStore.currentMenu === 'public_playlist' && !isCurrentPlaylistCollected">
+                <el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏该歌单
+              </el-button>
+              <el-button type="info" plain round @click="uncollectCurrentPlaylist" v-if="musicStore.currentMenu === 'public_playlist' && isCurrentPlaylistCollected">
+                取消收藏
               </el-button>
               <el-button type="success" plain round @click="collectAllPublic" v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
                 <el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏全部
@@ -340,7 +347,7 @@ import LyricOverlay from '../components/player/LyricOverlay.vue'
 import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI } from '../api/user'
 
 const router = useRouter()
@@ -354,7 +361,7 @@ const localSearchKeyword = ref('')
 
 // 🚀 新增：广场数据状态
 const squarePlaylists = ref([])
-const publicPlaylistData = ref({ name: '', creator: '', songs: [] })
+const publicPlaylistData = ref({ id: '', name: '', creator: '', songs: [] })
 
 const allMusicList = ref([]); const aiMusicList = ref([]); const radioMusicList = ref([]); const sleepMusicList = ref([])
 const isRadioLoading = ref(false); const isSleepLoading = ref(false)
@@ -372,6 +379,7 @@ const rawActivePlayList = computed(() => {
   if (musicStore.currentMenu === 'liked') return musicStore.likedMusicList
   if (musicStore.currentMenu === 'history') return musicStore.playHistory
   if (musicStore.currentMenu.startsWith('playlist_')) return currentActivePlaylist.value?.songs || []
+  if (musicStore.currentMenu.startsWith('col_playlist_')) return currentActivePlaylist.value?.songs || [] // 🚀 支持收藏歌单
   if (musicStore.currentMenu === 'public_playlist') return publicPlaylistData.value.songs 
   if (musicStore.currentMenu === 'search_results') return searchMusicList.value // 接管搜索数据
   if (musicStore.currentMenu === 'discover') return discoverMode.value === 'library' ? allMusicList.value : aiMusicList.value
@@ -393,6 +401,7 @@ const activePlayList = computed(() => {
 
 const currentActivePlaylist = computed(() => {
   if (musicStore.currentMenu.startsWith('playlist_')) { return musicStore.customPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[1]) }
+  if (musicStore.currentMenu.startsWith('col_playlist_')) { return musicStore.collectedPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[2]) } // 🚀 支持收藏歌单
   return null
 })
 
@@ -437,7 +446,15 @@ const toggleLike = async (song) => {
   } catch (error) {}
 }
 
-const fetchMyPlaylists = async () => { if (musicStore.currentUser) { try { musicStore.customPlaylists = await getUserPlaylistsAPI(musicStore.currentUser.id) || [] } catch (error) {} } }
+const fetchMyPlaylists = async () => { 
+  if (musicStore.currentUser) { 
+    try { 
+      musicStore.customPlaylists = await getUserPlaylistsAPI(musicStore.currentUser.id) || [] 
+      musicStore.collectedPlaylists = await getCollectedPlaylistsAPI(musicStore.currentUser.id) || [] // 🚀 极速拉取收藏
+    } catch (error) {} 
+  } 
+}
+
 const fetchMyLikes = async () => { if (musicStore.currentUser) { try { musicStore.likedMusicList = await getLikedMusicAPI(musicStore.currentUser.id) || [] } catch (error) {} } }
 
 const createNewPlaylist = async () => {
@@ -496,7 +513,8 @@ const collectAllPublic = async () => {
 const loadPlaylistSongs = async (plId) => {
   try {
     const res = await getPlaylistMusicAPI(plId)
-    const pl = musicStore.customPlaylists.find(p => p.id == plId)
+    let pl = musicStore.customPlaylists.find(p => p.id == plId)
+    if (!pl) pl = musicStore.collectedPlaylists.find(p => p.id == plId) // 🚀 在收藏库里找
     if (pl) pl.songs = res || []
   } catch (error) {}
 }
@@ -650,6 +668,7 @@ const switchMenu = async (menuName) => {
   if (menuName === 'discover') await loadDiscoverData()
   else if (menuName === 'liked') await fetchMyLikes()
   else if (menuName.startsWith('playlist_')) await loadPlaylistSongs(menuName.split('_')[1])
+  else if (menuName.startsWith('col_playlist_')) await loadPlaylistSongs(menuName.split('_')[2]) // 🚀 加载收藏歌单歌曲
   else if (menuName === 'radio') initRadio() 
   else if (menuName === 'sleep') initSleepMode() 
   // 💥 点击广场，拉取全站歌单！
@@ -662,10 +681,35 @@ const switchMenu = async (menuName) => {
 // 🚀 新增：点击广场里别人的歌单
 const openSquarePlaylist = async (pl) => {
   musicStore.currentMenu = 'public_playlist';
+  publicPlaylistData.value.id = pl.id; // 🚀 记录关键身份
   publicPlaylistData.value.name = pl.name;
   publicPlaylistData.value.creator = pl.creatorName;
   const res = await getPlaylistMusicAPI(pl.id);
   publicPlaylistData.value.songs = res || [];
+}
+
+// 🚀 注入计算属性和点击事件
+const isCurrentPlaylistCollected = computed(() => {
+  if (!musicStore.currentUser || !musicStore.collectedPlaylists) return false;
+  return musicStore.collectedPlaylists.some(p => p.id === publicPlaylistData.value.id)
+})
+
+const collectCurrentPlaylist = async () => {
+  if (!musicStore.currentUser) return goToLogin()
+  try {
+    await collectPlaylistAPI(musicStore.currentUser.id, publicPlaylistData.value.id)
+    ElMessage.success('🌟 歌单收藏成功！')
+    await fetchMyPlaylists() // 刷新左侧栏
+  } catch (e) {}
+}
+
+const uncollectCurrentPlaylist = async () => {
+  if (!musicStore.currentUser) return goToLogin()
+  try {
+    await uncollectPlaylistAPI(musicStore.currentUser.id, publicPlaylistData.value.id)
+    ElMessage.success('已取消收藏该歌单')
+    await fetchMyPlaylists() // 刷新左侧栏
+  } catch (e) {}
 }
 
 onMounted(async () => {

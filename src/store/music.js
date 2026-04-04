@@ -15,6 +15,7 @@ const store = reactive({
   // 核心数据列表
   likedMusicList: [],
   customPlaylists: [],
+  collectedPlaylists: [], // 🚀 新增：收藏歌单库
 
   // 全局 UI 控制
   showLyricPanel: false,

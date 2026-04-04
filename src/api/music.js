@@ -47,3 +47,8 @@ export const getAllPlaylistsAPI = () => http.get('/playlist/all')
 
 // 🚀 全局搜索引擎
 export const searchMusicAPI = (keyword) => http.get('/music/search', { params: { keyword } })
+
+// 🚀 歌单收藏功能接口
+export const collectPlaylistAPI = (userId, playlistId) => http.post(`/playlist/collect?userId=${userId}&playlistId=${playlistId}`)
+export const uncollectPlaylistAPI = (userId, playlistId) => http.post(`/playlist/uncollect?userId=${userId}&playlistId=${playlistId}`)
+export const getCollectedPlaylistsAPI = (userId) => http.get(`/playlist/collected/${userId}`)

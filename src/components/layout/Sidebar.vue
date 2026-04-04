@@ -33,12 +33,23 @@
     </div>
     <div 
       v-for="pl in musicStore.customPlaylists" 
-      :key="pl.id"
+      :key="'own_'+pl.id"
       class="nav-sub-item" 
       :class="{ active: musicStore.currentMenu === 'playlist_' + pl.id }" 
       @click="switchMenu('playlist_' + pl.id)"
     >
       💿 {{ pl.name }}
+    </div>
+
+    <div class="menu-group-title" v-if="musicStore.currentUser && musicStore.collectedPlaylists.length > 0">🌟 收藏的歌单</div>
+    <div 
+      v-for="pl in musicStore.collectedPlaylists" 
+      :key="'col_'+pl.id"
+      class="nav-sub-item" 
+      :class="{ active: musicStore.currentMenu === 'col_playlist_' + pl.id }" 
+      @click="switchMenu('col_playlist_' + pl.id)"
+    >
+      🌟 {{ pl.name }}
     </div>
   </aside>
 </template>
