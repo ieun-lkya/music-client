@@ -1,8 +1,5 @@
 <template>
   <footer class="player-bar" :class="{ 'is-active': musicStore.currentSong }">
-    <div class="mini-lyric-container" v-if="musicStore.currentSong && !musicStore.showLyricPanel">
-      <span class="mini-lyric-text" :key="currentMiniLyric"> {{ currentMiniLyric }} </span>
-    </div>
     <div class="progress-slider-wrapper">
       <el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!musicStore.currentSong" />
     </div>
@@ -88,9 +85,6 @@ const onSliderSeek = (val) => { const audio = document.getElementById('echo-audi
 const onTimeUpdate = (e) => { 
   musicStore.currentTime = e.target.currentTime; 
   if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0;
-  
-  // 💥 驱动引擎：时间每走一毫秒，歌词探针就去核对一次！
-  updateMiniLyric(musicStore.currentTime);
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
@@ -114,6 +108,8 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
+// 🚀 迷你歌词悬浮舱状态与引擎 (已移除)
+
 // 🚀 特性 A：打破次元壁！Media Session 操作系统锁屏控制！
 const setupMediaSession = (song) => {
   if ('mediaSession' in navigator) {
@@ -127,52 +123,6 @@ const setupMediaSession = (song) => {
     navigator.mediaSession.setActionHandler('pause', () => musicStore.isPlaying = false);
     navigator.mediaSession.setActionHandler('previoustrack', () => emit('play-prev'));
     navigator.mediaSession.setActionHandler('nexttrack', () => emit('play-next'));
-  }
-}
-
-// 🚀 迷你歌词悬浮舱状态与引擎
-const miniLyrics = ref([])
-const currentMiniLyric = ref('🎶 享受纯粹的音乐时刻...')
-
-// 极其轻量的独立拉取器（不干扰全屏歌词）
-const loadMiniLyrics = async (song) => {
-  miniLyrics.value = []
-  currentMiniLyric.value = '🎶 享受纯粹的音乐时刻...'
-  if (!song || !song.lyricUrl) return
-  try {
-    const res = await fetch(encodeURI(song.lyricUrl), { mode: 'cors' })
-    if (!res.ok) return
-    const text = await res.text()
-    const lines = text.split('\n')
-    const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/
-    const result = []
-    for (let line of lines) {
-      const match = line.match(timeReg)
-      if (match) {
-        const m = parseInt(match[1]); const s = parseInt(match[2]);
-        const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
-        const lrcText = line.replace(/\[.*?\]/g, '').trim();
-        // 过滤掉空行，保证迷你悬浮舱不会空置
-        if (lrcText) result.push({ time: m * 60 + s + ms, text: lrcText });
-      }
-    }
-    result.sort((a, b) => a.time - b.time)
-    miniLyrics.value = result
-  } catch (e) {}
-}
-
-const updateMiniLyric = (currentTime) => {
-  if (miniLyrics.value.length === 0) return
-  let currentText = '🎶 享受纯粹的音乐时刻...'
-  for (let i = 0; i < miniLyrics.value.length; i++) {
-    if (currentTime >= miniLyrics.value[i].time - 0.2) {
-      currentText = miniLyrics.value[i].text
-    } else {
-      break
-    }
-  }
-  if (currentMiniLyric.value !== currentText) {
-    currentMiniLyric.value = currentText || '🎶 ...'
   }
 }
 
@@ -247,9 +197,6 @@ watch(() => musicStore.currentSong, async (newSong) => {
     musicStore.currentTime = 0; playPercent.value = 0
     setupMediaSession(newSong); // 每次切歌，同步给操作系统！
     
-    // 💥 切歌点火：拉取并解析这首歌的迷你歌词！
-    loadMiniLyrics(newSong); 
-
     await nextTick()
     const audio = document.getElementById('echo-audio-player')
     if (audio) {
@@ -339,37 +286,4 @@ watch(() => musicStore.isPlaying, async (playing) => {
 .eq-band :deep(.el-slider__button) { border-color: #3b82f6; }
 .eq-freq { font-size: 11px; color: #64748b; font-family: monospace; font-weight: bold;}
 
-/* 🚀 迷你歌词悬浮舱的 Apple 级玻璃拟物化样式 */
-.mini-lyric-container {
-  position: absolute;
-  top: -38px; /* 精准从主控制栏上方探出头来 */
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: saturate(180%) blur(20px);
-  padding: 6px 30px;
-  border-radius: 18px 18px 0 0; /* 只有上面有圆角，像长在控制栏上一样 */
-  font-size: 14px;
-  color: #1e293b;
-  font-weight: 700;
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03);
-  white-space: nowrap;
-  max-width: 60%;
-  border: 1px solid #f1f5f9;
-  border-bottom: none;
-  pointer-events: none; /* 绝对防误触：让鼠标点击穿透下去 */
-  text-align: center;
-  z-index: -1; /* 藏在边框下层，极其自然 */
-}
-
-/* 💥 极其丝滑的果味 Q 弹入场动画 */
-.mini-lyric-text {
-  display: inline-block;
-  animation: lyric-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes lyric-pop {
-  0% { opacity: 0; transform: translateY(8px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
 </style>
