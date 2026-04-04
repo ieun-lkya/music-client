@@ -7,7 +7,7 @@
       </div>
 
       <div class="dashboard-card">
-        <h3 class="card-title">🔥 沉浸频率 (近 12 周)</h3>
+        <h3 class="card-title">🔥 沉浸频率 (近 4 周)</h3>
         <div class="heatmap-grid">
           <el-tooltip v-for="(day, index) in heatmapData" :key="index" :content="`${day.date}: 听了 ${day.count} 首`" placement="top">
             <div class="heatmap-cell" :data-level="day.level"></div>
@@ -29,6 +29,11 @@
         <div class="record-item" v-for="(song, index) in topRecords" :key="index">
           <div class="record-sleeve"><img :src="song.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" /></div>
           <div class="record-disc"><div class="disc-center"></div></div>
+          
+          <div class="record-info">
+            <div class="record-title">{{ song.title || '未知频段' }}</div>
+            <div class="record-artist">{{ song.artist || '神秘音乐人' }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -47,7 +52,7 @@ const musicStore = useMusicStore()
 const radarChartRef = ref(null)
 let radarInstance = null
 
-// 🚀 真实引擎 A：拉取真数据渲染雷达图
+// 🚀 真实引擎 A：拉取真数据并「智能分词聚合」渲染雷达图
 const renderRadarChart = async () => {
   if (!radarChartRef.value || !musicStore.currentUser) return
   
@@ -60,10 +65,34 @@ const renderRadarChart = async () => {
   try {
     const res = await getRadarAPI(musicStore.currentUser.id)
     if (res && res.length > 0) {
-      radarData = res.map(item => item.value)
-      // 动态计算最大值，让图形永远饱满好看
+      // 💥 核心黑魔法：接管后端脏数据，进行前端分词与聚合统计！
+      const tagMap = {}
+      res.forEach(item => {
+        if (item.name) {
+          // 强行按 中英文逗号、斜杠、顿号 进行切割拆分！
+          const tags = item.name.split(/[,，/|、]+/).map(t => t.trim()).filter(t => t !== '')
+          tags.forEach(t => {
+            tagMap[t] = (tagMap[t] || 0) + item.value // 词频累加
+          })
+        }
+      })
+
+      // 将 Map 转换为数组，按听歌频次从高到低排序，死死截取前 6 个！
+      const sortedTags = Object.entries(tagMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6)
+
+      // 🛡️ 兜底装甲：如果用户听的歌标签种类不足 6 种，拿默认标签强行补齐 6 个角！
+      const defaultNames = ['流行', '摇滚', '电子', '民谣', '纯音乐', '说唱']
+      while (sortedTags.length < 6) {
+        const nextDefault = defaultNames.find(d => !sortedTags.some(s => s.name === d)) || ('未知频段' + sortedTags.length)
+        sortedTags.push({ name: nextDefault, value: 0 })
+      }
+
+      radarData = sortedTags.map(item => item.value)
       const maxVal = Math.max(...radarData) + 2 
-      indicator = res.map(item => ({ name: item.name, max: maxVal }))
+      indicator = sortedTags.map(item => ({ name: item.name, max: maxVal }))
     }
   } catch(e) {}
 
@@ -72,6 +101,18 @@ const renderRadarChart = async () => {
   const option = {
     radar: {
       indicator: indicator,
+      radius: '60%', // 强行收缩图形半径，绝不让文字溢出
+      center: ['50%', '55%'], // 中心点下沉
+      axisName: {
+        color: '#64748b',
+        fontSize: 12,
+        fontWeight: 'bold',
+        formatter: function (value) {
+          // 极致排版：如果单个独立标签依然过长，强行截断显示省略号
+          if (value.length > 8) return value.substring(0, 8) + '...'
+          return value;
+        }
+      },
       splitArea: { areaStyle: { color: ['rgba(59,130,246, 0.02)', 'rgba(59,130,246, 0.08)'].reverse() } },
       axisLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } },
       splitLine: { lineStyle: { color: 'rgba(59,130,246, 0.2)' } }
@@ -82,7 +123,8 @@ const renderRadarChart = async () => {
         value: radarData, name: '真实听歌偏好',
         areaStyle: { color: 'rgba(59,130,246, 0.4)' },
         lineStyle: { color: '#3b82f6', width: 2 },
-        itemStyle: { color: '#3b82f6' }
+        itemStyle: { color: '#3b82f6' },
+        symbolSize: 6
       }]
     }]
   }
@@ -92,7 +134,7 @@ const renderRadarChart = async () => {
 // 💥 核心修复 2：把丢失的热力图响应式变量补回来！！！
 const heatmapData = ref([])
 
-// 🚀 真实引擎 B：拉取真数据映射到 84 天网格中
+// 🚀 真实引擎 B：拉取真数据映射到 28 天网格中
 const initHeatmap = async () => {
   if (!musicStore.currentUser) return
   const data = []; const today = new Date()
@@ -103,7 +145,8 @@ const initHeatmap = async () => {
     const realDataMap = {}
     if (res && res.length > 0) res.forEach(item => { realDataMap[item.date] = item.count })
 
-    for(let i = 83; i >= 0; i--) {
+    // 💥 核心修改：循环 28 次 (从 27 到 0)
+    for(let i = 27; i >= 0; i--) {
       const d = new Date(today); d.setDate(d.getDate() - i)
       const yyyy = d.getFullYear(); 
       const mm = String(d.getMonth() + 1).padStart(2, '0'); 
@@ -158,7 +201,17 @@ onUnmounted(() => {
 
 .radar-chart-container { width: 100%; height: 220px; }
 
-.heatmap-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr); gap: 5px; height: 180px;}
+/* 💥 核心修改：变成 4列 x 7行 的完美正方形矩阵并居中 */
+.heatmap-grid { 
+  display: grid; 
+  grid-template-columns: repeat(4, 22px); 
+  grid-template-rows: repeat(7, 22px); 
+  gap: 6px; 
+  justify-content: center; 
+  align-content: center;
+  height: 180px;
+}
+
 .heatmap-cell { border-radius: 4px; background: #ebedf0; transition: 0.2s; cursor: pointer; }
 .heatmap-cell:hover { transform: scale(1.3); box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; position: relative;}
 .heatmap-cell[data-level="1"] { background: #9be9a8; }
@@ -171,7 +224,7 @@ onUnmounted(() => {
 
 .record-wall-section { margin-top: 40px; background: #1e293b; padding: 30px 20px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.2) inset;}
 .wall-title { font-size: 18px; font-weight: 800; color: #f8fafc; margin: 0 0 30px 0; text-align: center; letter-spacing: 2px;}
-.record-wall { display: flex; justify-content: center; align-items: center; gap: -20px; perspective: 1200px; padding: 20px 0; overflow: hidden; height: 200px;}
+.record-wall { display: flex; justify-content: center; align-items: center; gap: -20px; perspective: 1200px; padding: 20px 0; overflow: hidden; height: 260px;} /* 💥 高度加到 260px */
 .record-item { position: relative; width: 140px; height: 140px; margin: 0 -25px; transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; transform: rotateY(-25deg) scale(0.9); cursor: pointer; }
 .record-item:hover { transform: rotateY(0deg) scale(1.15) translateY(-15px); z-index: 10; margin: 0 45px; }
 .record-sleeve { position: absolute; inset: 0; border-radius: 4px; box-shadow: -10px 15px 30px rgba(0,0,0,0.6); z-index: 2; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #333;}
@@ -180,4 +233,43 @@ onUnmounted(() => {
 .record-item:hover .record-disc { right: -60px; transform: rotate(180deg); }
 .disc-center { width: 44px; height: 44px; background: #ff5e3a; border-radius: 50%; border: 2px solid #111; display: flex; justify-content: center; align-items: center;}
 .disc-center::after { content: ''; width: 8px; height: 8px; background: #f8fafc; border-radius: 50%; }
+
+/* 🚀 黑胶歌曲信息悬浮态 */
+.record-info {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  width: 160%;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none; /* 防止遮挡鼠标 hover */
+}
+
+/* 鼠标放上去时，文字跟着唱片一起丝滑浮现并下坠一点 */
+.record-item:hover .record-info {
+  opacity: 1;
+  bottom: -55px;
+}
+
+.record-title {
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.record-artist {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
