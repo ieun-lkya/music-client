@@ -78,7 +78,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { Play, Pause, ArrowDown, VolumeUp, VolumeMute, Headset, Edit, EditPen, StarFilled, Star, Refresh, RefreshLeft, Operation } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, ArrowDown, VolumeUp, VolumeMute, Headset, Edit, EditPen, StarFilled, Star, Refresh, RefreshLeft, Operation } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'
