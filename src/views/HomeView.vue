@@ -281,10 +281,21 @@
               <h2 v-else-if="musicStore.currentMenu === 'public_playlist'">🌍 {{ publicPlaylistData.name }} </h2>
               <h2 v-else>💿 {{ currentActivePlaylist?.name }} </h2>
 
-              <p class="theory-note" v-if="musicStore.currentMenu === 'public_playlist'">By @ {{ publicPlaylistData.creator }} · 共 {{ publicPlaylistData.songs.length }} 首歌曲</p>
+              <div v-if="musicStore.currentMenu === 'public_playlist' && publicPlaylistData.isAi" class="ai-insight-panel">
+                <div class="insight-header">
+                  <el-icon color="#8b5cf6"><MagicStick /></el-icon>
+                  <span>AI 创作随笔</span>
+                </div>
+                <p class="insight-basis">{{ publicPlaylistData.basis }}</p>
+                <div class="insight-tags">
+                  <span v-for="tag in publicPlaylistData.tags.split(/[,，/ ]+/)" :key="tag" class="tag-capsule">{{ tag }}</span>
+                </div>
+              </div>
+
+              <p class="theory-note" v-if="musicStore.currentMenu === 'public_playlist' && !publicPlaylistData.isAi">By @ {{ publicPlaylistData.creator }} · 共 {{ publicPlaylistData.songs.length }} 首歌曲</p>
               <p class="theory-note" v-else-if="musicStore.currentMenu === 'liked'">专属红心云端歌单。</p>
               <p class="theory-note" v-else-if="musicStore.currentMenu === 'history'">最近畅听的 50 首歌曲。</p>
-              <p class="theory-note" v-else>共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
+              <p class="theory-note" v-else-if="!publicPlaylistData.isAi">共 {{ currentActivePlaylist?.songs?.length || 0 }} 首云端歌曲</p>
             </div>
             <div style="display:flex; gap:10px;">
               <template v-if="musicStore.currentMenu === 'public_playlist' && activePlayList.length > 0">
@@ -367,7 +378,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -390,7 +401,7 @@ const localSearchKeyword = ref('')
 
 // 🚀 新增：广场数据状态
 const squarePlaylists = ref([])
-const publicPlaylistData = ref({ id: '', name: '', creator: '', songs: [] })
+const publicPlaylistData = ref({ id: '', name: '', creator: '', description: '', basis: '', tags: '', songs: [], isAi: false })
 
 // 🚀 真·AI 歌单引擎！
 const dynamicAiPlaylists = ref([]);
@@ -766,6 +777,10 @@ const openSquarePlaylist = async (pl) => {
   publicPlaylistData.value.name = pl.name;
   publicPlaylistData.value.creator = pl.creatorName;
   publicPlaylistData.value.isAi = pl.isAi || false;
+  // 💥 注入大模型的灵魂解析
+  publicPlaylistData.value.description = pl.description || '';
+  publicPlaylistData.value.basis = pl.basis || ''; 
+  publicPlaylistData.value.tags = pl.tags || '';
 
   if (pl.isAi) {
     // 💥 极速秒开！因为 AI 歌单在生成时，后端已经把歌曲全部带过来了！
@@ -1343,4 +1358,18 @@ onMounted(async () => {
   opacity: 0;
   transform: translate(-50%, 80px) scale(0.9); /* 从底部弹出的物理阻尼感 */
 }
+
+.ai-insight-panel {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-left: 4px solid #8b5cf6;
+  padding: 15px 20px;
+  border-radius: 4px 12px 12px 4px;
+  margin: 15px 0 25px 0;
+  max-width: 800px;
+}
+.insight-header { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #1e293b; margin-bottom: 8px; font-size: 14px; }
+.insight-basis { color: #64748b; font-size: 14px; line-height: 1.7; margin: 0 0 12px 0; font-style: italic; }
+.insight-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag-capsule { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
 </style>
+
