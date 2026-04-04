@@ -52,7 +52,11 @@
       </div>
     </div>
     <div class="mini-lyric-container" v-if="musicStore.currentSong && !musicStore.showLyricPanel">
-      <span class="mini-lyric-text"> {{ currentMiniLyric }} </span>
+      <div class="mini-lyric-wrapper" :key="currentMiniLyric">
+        <div v-for="(line, index) in currentMiniLyric.split('\n')" :key="index" :class="index === 0 ? 'lyric-primary' : 'lyric-secondary'">
+          {{ line }}
+        </div>
+      </div>
     </div>
     <div class="empty-player" v-else>请在上方点击歌曲播放</div>
     
@@ -110,8 +114,21 @@ const loadMiniLyrics = async (song) => {
         
         if (lrcText) {
           if (timeMap.has(time)) {
-            // 如果同一时间点已经有词了，极其优雅地用 • 拼接到后面！
-            timeMap.set(time, timeMap.get(time) + '  •  ' + lrcText)
+            let existingText = timeMap.get(time)
+            
+            // 💥 核心黑魔法：智能语种探测雷达！
+            const hasChinese = (text) => /[\u4e00-\u9fa5]/.test(text)
+            
+            if (hasChinese(existingText) && !hasChinese(lrcText)) {
+              // 现有的是中文翻译，新来的是外文原词 -> 强行把原词顶到前面！
+              timeMap.set(time, lrcText + '\n' + existingText)
+            } else if (!hasChinese(existingText) && hasChinese(lrcText)) {
+              // 现有的是原词，新来的是中文翻译 -> 乖乖把翻译排到后面！
+              timeMap.set(time, existingText + '\n' + lrcText)
+            } else {
+              // 兜底（如果是纯中文歌，或者两句都有中文）：按文件原始顺序
+              timeMap.set(time, existingText + '\n' + lrcText)
+            }
           } else {
             timeMap.set(time, lrcText)
           }
@@ -326,25 +343,38 @@ watch(() => musicStore.isPlaying, async (playing) => {
 .eq-band :deep(.el-slider__button) { border-color: #3b82f6; }
 .eq-freq { font-size: 11px; color: #64748b; font-family: monospace; font-weight: bold;}
 
-/* 🚀 迷你歌词悬浮舱的 Apple 级玻璃拟物化样式 */
+/* 🚀 迷你歌词悬浮舱的 Apple 级玻璃拟物化样式 (双语分行版) */
 .mini-lyric-container {
-  position: absolute; top: -38px; left: 50%; transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.7); backdrop-filter: saturate(180%) blur(20px);
-  padding: 6px 30px; border-radius: 18px 18px 0 0; 
-  font-size: 14px; color: #1e293b; font-weight: 700;
+  position: absolute; 
+  /* 💥 极其关键：废弃 top，改用 bottom: 100%！让它不论几行都只能自动"向上生长"，绝对不压到底部栏！ */
+  bottom: 100%; 
+  left: 50%; transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.75); backdrop-filter: saturate(180%) blur(20px);
+  padding: 8px 30px; border-radius: 16px 16px 0 0; 
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03); 
   border: 1px solid #f1f5f9; border-bottom: none; pointer-events: none; 
   text-align: center; z-index: -1; 
-  
-  /* 💥 核心新增：强行约束最大宽度，超出部分极其优雅地变成省略号 */
-  max-width: 70%; 
-  overflow: hidden; 
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 60%;
 }
-.mini-lyric-text {
-  display: inline-block; animation: lyric-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+.mini-lyric-wrapper {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; /* 两行歌词的呼吸间距 */
+  animation: lyric-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* 原文：大字号、加粗、深色 */
+.lyric-primary {
+  font-size: 14px; color: #1e293b; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
+/* 翻译：小字号、常规、次级灰色，极其高级！ */
+.lyric-secondary {
+  font-size: 12px; color: #64748b; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
 @keyframes lyric-pop {
   0% { opacity: 0; transform: translateY(8px) scale(0.95); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
