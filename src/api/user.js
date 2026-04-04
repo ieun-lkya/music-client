@@ -8,3 +8,6 @@ export const loginAPI = (data) => http.post('/user/login', data)
 export const likeMusicAPI = (userId, musicId) => http.post('/user/like', null, { params: { userId, musicId } })
 export const unlikeMusicAPI = (userId, musicId) => http.post('/user/unlike', null, { params: { userId, musicId } })
 export const getLikedMusicAPI = (userId) => http.get('/user/likes', { params: { userId } })
+
+// 🚀 更新用户音乐名片
+export const updateUserAPI = (data) => http.post('/user/update', data)

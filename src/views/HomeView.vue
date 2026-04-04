@@ -57,7 +57,7 @@
           </div>
 
           <div v-if="discoverMode === 'ai'">
-            <el-empty v-if="aiMusicList.length === 0" description="在顶部输入场景，召唤 AI 为你匹配吧！" :image-size="200" />
+            <el-empty v-if="aiMusicList.length === 0" description="在顶部输入场景，召唤 AI 为您匹配吧！" :image-size="200" />
             <el-row :gutter="25" class="bento-grid" v-else>
               <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="item in aiMusicList" :key="item.id">
                 <div class="bento-card" @click="handleItemClick(item)">
@@ -161,13 +161,14 @@
         <section v-else-if="musicStore.currentMenu === 'profile'" class="hero-section fade-in">
           <div class="profile-container">
             <div class="profile-header">
-              <div class="avatar-wrapper">
+              <div class="avatar-wrapper" @click="openProfileEditor">
                 <el-avatar :size="100" :src="musicStore.currentUser?.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
                 <div class="avatar-edit"><el-icon><Edit /></el-icon></div>
               </div>
               <div class="profile-info">
-                <h2>{{ musicStore.currentUser?.username || '未命名架构师' }}</h2>
-                <p>EchoScene 尊贵会员 ｜ 听歌品味：<el-tag size="small" type="success">极度硬核</el-tag></p>
+                <h2>{{ musicStore.currentUser?.username || '神秘听众' }}<el-button type="primary" link @click="openProfileEditor"><el-icon><EditPen /></el-icon> 编辑名片</el-button></h2>
+                <p>🎵 {{ musicStore.currentUser?.signature || '用音乐记录生活，寻找灵魂共鸣...' }}</p>
+                <p style="margin-top: 5px; font-size: 13px;">EchoScene 尊贵用户 ｜ 听歌品味：<el-tag size="small" type="success" effect="dark">极致硬核</el-tag></p>
               </div>
             </div>
             <el-row :gutter="20" class="stats-row">
@@ -288,6 +289,28 @@
       <LyricOverlay />
     </main>
 
+    <el-dialog v-model="profileDialogVisible" title="定制音乐名片" width="400px" top="25vh" append-to-body class="glass-dialog">
+      <div class="profile-editor-box">
+        <div class="upload-area">
+          <el-upload class="avatar-uploader" :show-file-list="false" :http-request="customUploadAvatar">
+            <img v-if="editProfileForm.avatar" :src="editProfileForm.avatar" class="avatar-preview" />
+            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+            <div class="upload-hint">点击更换音乐头像</div>
+          </el-upload>
+        </div>
+        <el-input v-model="editProfileForm.username" placeholder="你的专属音乐昵称" maxlength="15" size="large" style="margin-bottom: 15px;">
+          <template #prefix><el-icon><User /></el-icon></template>
+        </el-input>
+        <el-input v-model="editProfileForm.signature" type="textarea" :rows="3" placeholder="写下你的个性签名，让懂你的人在此停留..." maxlength="50" show-word-limit />
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="profileDialogVisible = false" round>取消</el-button>
+          <el-button type="primary" @click="submitProfileUpdate" :loading="isProfileUpdating" round>保存名片</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="playlistDialogVisible" title="操作云端歌单" width="400px" top="30vh" append-to-body>
       <div v-if="selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
       <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20"><template #append><el-button type="primary" @click="createNewPlaylist">创建并加入</el-button></template></el-input>
@@ -304,7 +327,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, DataBoard } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -312,8 +335,8 @@ import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI } from '../api/user'
+import { getMusicListAPI, recommendMusicAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI } from '../api/music'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -565,6 +588,54 @@ const playNext = () => {
   if (index !== -1) musicStore.selectSong(activePlayList.value[(index + 1) % activePlayList.value.length])
 }
 
+// 🚀 名片编辑状态与逻辑
+const profileDialogVisible = ref(false)
+const isProfileUpdating = ref(false)
+const editProfileForm = ref({ id: null, username: '', avatar: '', signature: '' })
+
+// 打开编辑器，回显当前数据
+const openProfileEditor = () => {
+  if (!musicStore.currentUser) return ElMessage.warning('请先登录！')
+  editProfileForm.value = { 
+    id: musicStore.currentUser.id, 
+    username: musicStore.currentUser.username, 
+    avatar: musicStore.currentUser.avatar || '',
+    signature: musicStore.currentUser.signature || ''
+  }
+  profileDialogVisible.value = true
+}
+
+// 极其暴力的直连阿里云 OSS 头像上传！
+const customUploadAvatar = async (options) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', options.file)
+    // 复用咱们写好的阿里云神级上传接口！
+    const res = await uploadFileAPI(formData)
+    editProfileForm.value.avatar = res // 回显最新 OSS 图片链接
+    ElMessage.success('头像直传云端成功！')
+  } catch (error) {
+    ElMessage.error('头像上传失败，请检查网络！')
+  }
+}
+
+// 提交保存最新名片
+const submitProfileUpdate = async () => {
+  if (!editProfileForm.value.username.trim()) return ElMessage.warning('昵称不能为空哦~')
+  isProfileUpdating.value = true
+  try {
+    const res = await updateUserAPI(editProfileForm.value)
+    // 💥 极其关键：瞬间同步本地状态引擎，页面无缝变身！
+    musicStore.currentUser = res
+    localStorage.setItem('echo_user', JSON.stringify(res))
+    ElMessage.success('🎉 音乐名片定制成功！你的品味已被整个宇宙铭记！')
+    profileDialogVisible.value = false
+  } catch (error) {
+  } finally {
+    isProfileUpdating.value = false
+  }
+}
+
 // 🚀 修改 switchMenu，接管 square 逻辑
 const switchMenu = async (menuName) => {
   musicStore.currentMenu = menuName; isBatchMode.value = false ; localSearchKeyword.value = '' 
@@ -678,11 +749,20 @@ onMounted(async () => {
 .profile-header { display: flex; align-items: center; gap: 35px; margin-bottom: 60px; }
 .avatar-wrapper { position: relative; cursor: pointer; }
 .avatar-edit { position: absolute; bottom: 0; right: 0; background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #fff; transition: 0.3s; box-shadow: 0 4px 10px rgba(59,130,246,0.3);}
-.profile-info h2 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; color: #0f172a; letter-spacing: -1px;}
+.profile-info h2 { display: flex; align-items: center; gap: 15px; }
 .profile-info p { margin: 0; color: #64748b; display: flex; align-items: center; gap: 10px; font-weight: 500;}
 .stats-row { text-align: center; }
 .stat-card { padding: 35px 20px; background: #f8fafc; border-radius: 24px; transition: 0.4s; border: 1px solid transparent;}
 .stat-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.04); border-color: #e2e8f0; background: #fff;}
 .stat-num { font-size: 42px; font-weight: 900; color: #3b82f6; margin-bottom: 12px; font-family: monospace;}
 .stat-label { font-size: 15px; color: #64748b; font-weight: 700; }
+/* 🚀 极其优雅的个人资料编辑器 CSS */
+.profile-info h2 { display: flex; align-items: center; gap: 15px; }
+.profile-editor-box { display: flex; flex-direction: column; align-items: center; padding: 10px 20px; }
+.upload-area { margin-bottom: 25px; text-align: center; }
+.avatar-uploader .el-upload { border: 2px dashed #d9d9d9; border-radius: 50%; cursor: pointer; position: relative; overflow: hidden; transition: 0.3s; width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; background: #f8fafc;}
+.avatar-uploader .el-upload:hover { border-color: #3b82f6; }
+.avatar-uploader-icon { font-size: 28px; color: #8c939d; }
+.avatar-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; }
+.upload-hint { font-size: 12px; color: #94a3b8; margin-top: 10px; }
 </style>
