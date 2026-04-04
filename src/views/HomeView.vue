@@ -610,10 +610,13 @@ const customUploadAvatar = async (options) => {
   try {
     const formData = new FormData()
     formData.append('file', options.file)
+    // 💥 架构级指令：强行把这个文件押送到阿里云的 "avatars/" 专属隔离区！
+    formData.append('folder', 'avatars/') 
+    
     // 复用咱们写好的阿里云神级上传接口！
     const res = await uploadFileAPI(formData)
     editProfileForm.value.avatar = res // 回显最新 OSS 图片链接
-    ElMessage.success('头像直传云端成功！')
+    ElMessage.success('头像直传云端专属仓库成功！')
   } catch (error) {
     ElMessage.error('头像上传失败，请检查网络！')
   }
