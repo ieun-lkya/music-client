@@ -2,24 +2,11 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  // 🚀 极其致命的一步：补上 resolve.alias 别名配置！让 Vite 认识 '@'！
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    }
-  },
-  server: {
-    port: 5173,
-    open: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080', 
-        changeOrigin: true,
-        // 🚀 在发给后端前，自动把路径里的 /api 抹掉
-        rewrite: (path) => path.replace(/^\/api/, '')
-      }
-    }
+  // 💥 核心修复：注入 Vue 3.4+ 要求的全局编译宏，彻底镇压控制台黄字警告！
+  define: {
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false'
   }
 })

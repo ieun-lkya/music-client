@@ -1,4 +1,4 @@
-import http from '@/utils/request'
+import http from '../utils/request'
 
 // 纯本地解析
 export const parseOnlyAPI = (formData) => http.post('/admin/parse', formData, { headers: { 'Content-Type': 'multipart/form-data' } })

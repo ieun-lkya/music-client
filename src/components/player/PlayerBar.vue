@@ -51,7 +51,7 @@
         </el-popover>
 
         <el-popover placement="top" width="40" trigger="hover">
-          <template #reference><el-icon :size="20" class="vol-icon"><component :is="volume > 0 ? VolumeUp : Mute" @click="toggleMute" /></el-icon></template>
+          <template #reference><el-icon :size="20" class="vol-icon"><component :is="volume > 0 ? Headset : Mute" @click="toggleMute" /></el-icon></template>
           <el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" />
         </el-popover>
       </div>
@@ -78,7 +78,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { VideoPlay, VideoPause, ArrowDown, VolumeUp, Mute, Headset, Edit, EditPen, StarFilled, Star, Refresh, RefreshLeft, Operation } from '@element-plus/icons-vue'
+import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'

@@ -43,6 +43,10 @@ import { getHeatmapAPI, getRadarAPI } from '../../api/user'
 
 const musicStore = useMusicStore()
 
+// 💥 核心修复：被我弄丢的这两个"阵眼"变量，必须补回来！
+const radarChartRef = ref(null)
+let radarInstance = null
+
 // 🚀 真实引擎 A：拉取真数据渲染雷达图
 const renderRadarChart = async () => {
   if (!radarChartRef.value || !musicStore.currentUser) return
