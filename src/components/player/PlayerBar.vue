@@ -51,7 +51,7 @@
         </el-popover>
 
         <el-popover placement="top" width="40" trigger="hover">
-          <template #reference><el-icon :size="20" class="vol-icon"><Headset /></el-icon></template>
+          <template #reference><el-icon :size="20" class="vol-icon"><component :is="volume > 0 ? VolumeUp : Mute" @click="toggleMute" /></el-icon></template>
           <el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" />
         </el-popover>
       </div>
@@ -78,7 +78,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { VideoPlay, VideoPause, ArrowDown, VolumeUp, VolumeMute, Headset, Edit, EditPen, StarFilled, Star, Refresh, RefreshLeft, Operation } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, ArrowDown, VolumeUp, Mute, Headset, Edit, EditPen, StarFilled, Star, Refresh, RefreshLeft, Operation } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'
@@ -183,6 +183,19 @@ const onTimeUpdate = (e) => {
   updateMiniLyric(musicStore.currentTime);
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
+
+// 🚀 切换静音功能
+const toggleMute = () => {
+  if (volume.value > 0) {
+    localStorage.setItem('preMuteVolume', volume.value); // 存储当前音量
+    volume.value = 0; // 设置为静音
+  } else {
+    const preMuteVolume = localStorage.getItem('preMuteVolume');
+    volume.value = preMuteVolume ? parseInt(preMuteVolume) : 70; // 恢复之前的音量，默认70
+  }
+  onVolumeChange(volume.value);
+}
+
 const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
   
 // 🚀 核心容错：极其优雅的音源丢失降级处理
