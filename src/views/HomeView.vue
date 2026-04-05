@@ -692,8 +692,7 @@ const executeGlobalSearch = async () => {
 }
 
 // 🚀 推荐音乐核心状态
-const radioMusicList = ref([])
-const isRadioLoading = ref(false)
+// const isRadioLoading = ref(false)
 
 // 🚀 发动推荐音乐脉冲！
 const executeRadio = async (dynamicPrompt = '', force = false) => {
