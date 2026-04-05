@@ -512,7 +512,8 @@ const handleItemClick = (item) => {
     if (musicStore.currentSong && musicStore.currentSong.id === item.id) {
       musicStore.togglePlay() 
     } else {
-      musicStore.selectSong(item) 
+      // 💥 关键修复：把当前屏幕上的播放列表传给引擎！
+      musicStore.selectSong(item, activePlayList.value) 
     }
   }
 }
@@ -581,8 +582,8 @@ const deletePlaylist = (pId) => {
 // 🚀 新增：一键播放公共歌单的全部歌曲
 const playAllPublic = () => {
   if (publicPlaylistData.value.songs.length === 0) return;
-  // 直接播放该歌单的第一首歌，后续的"下一首"会自动在 activePlayList 里循环！
-  musicStore.selectSong(publicPlaylistData.value.songs[0]);
+  // 💥 加上第二个参数：publicPlaylistData.value.songs
+  musicStore.selectSong(publicPlaylistData.value.songs[0], publicPlaylistData.value.songs);
   ElMessage.success('▶️ 正在播放歌单...');
 }
 
@@ -639,7 +640,7 @@ const initRadio = async (force = false) => {
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
     radioMusicList.value = data || []
-    if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0])
+    if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0], radioMusicList.value)
   } catch (error) { 
     ElMessage.error('电台生成失败，请检查网络') 
   } finally { 
@@ -690,10 +691,28 @@ const executeGlobalSearch = async () => {
   }
 }
 
+// 🚀 推荐音乐核心状态
+const radioMusicList = ref([])
+const isRadioLoading = ref(false)
+
+// 🚀 发动推荐音乐脉冲！
+const executeRadio = async (dynamicPrompt = '', force = false) => {
+  isRadioLoading.value = true
+  try {
+    const data = await recommendMusicAPI(dynamicPrompt)
+    radioMusicList.value = data || []
+    // 💥 加上第二个参数：radioMusicList.value
+    if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0], radioMusicList.value)
+  } catch (error) { 
+    console.error('获取推荐音乐失败:', error)
+  }
+}
+
 // 播放搜索出来的全部
 const playAllSearch = () => {
   if (searchMusicList.value.length > 0) {
-    musicStore.selectSong(searchMusicList.value[0])
+    // 💥 加上第二个参数：searchMusicList.value
+    musicStore.selectSong(searchMusicList.value[0], searchMusicList.value)
     ElMessage.success('▶️ 正在为您播放检索结果...')
   }
 }
