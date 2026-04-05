@@ -84,10 +84,12 @@
   <!-- 💥 把 Audio Player 放到最后 -->
   <audio 
     id="echo-audio-player" 
-    :src="musicStore.currentSong?.audioUrl"
-    @timeupdate="updateTime"
+    :src="musicStore.currentSong?.audioUrl ? `${musicStore.currentSong.audioUrl}${musicStore.currentSong.audioUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : ''"
+    crossorigin="anonymous"
+    @timeupdate="onTimeUpdate"
+    @loadedmetadata="onLoadedMetadata"
     @ended="handleAudioEnded"
-    @canplay="onCanPlay"
+    @error="onAudioError"
     ref="audioRef"
   ></audio>
 </template>
