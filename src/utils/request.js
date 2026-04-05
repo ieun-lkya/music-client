@@ -13,7 +13,7 @@ request.interceptors.request.use(
     const token = localStorage.getItem('echo_token')
     // 💥 致命防线：坚决拦截 "undefined" 和 "null" 字符串进入后端的 JWT 解析器！
     if (token && token !== 'undefined' && token !== 'null') {
-      config.headers['Authorization'] = token
+      config.headers['Authorization'] = 'Bearer ' + token
     }
     return config
   },
@@ -24,12 +24,15 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   response => {
     const res = response.data
+    // 拦截业务逻辑错误
     if (res.code && res.code !== 200 && res.code !== 1) {
       ElMessage.error(res.msg || '服务器异常')
       return Promise.reject(new Error(res.msg || 'Error'))
     }
-    // 💥 终极修复：把外层壳原封不动地还给组件！绝不越俎代庖！
-    return res 
+    
+    // 🚀 极其致命的修复：必须把外层的 Result 壳剥掉！
+    // 确保组件拿到的是纯正的数组或对象，这样 .some(), .filter() 等数组方法才能正常工作！
+    return res.data !== undefined ? res.data : res
   },
   error => {
     if (error.response) {

@@ -25,10 +25,7 @@
       <div class="extra-funcs">
         <span class="time-display">{{ formatTime(musicStore.currentTime) }} / {{ formatTime(musicStore.duration) }}</span>
         <el-icon :size="18" class="mode-icon" @click="togglePlayMode">
-          <component :is="musicStore.playMode === 'loop' ? RefreshLeft : (musicStore.playMode === 'random' ? Connection : Refresh)" 
-                     @click="switchPlayMode" 
-                     class="mode-icon" 
-                     :class="{ 'mode-icon-active': ['list','random','loop'].includes(musicStore.playMode) }" />
+          <component :is="musicStore.playMode === 'loop' ? RefreshLeft : (musicStore.playMode === 'random' ? Connection : Refresh)" />
         </el-icon>
         
         <el-popover placement="top-end" :width="430" trigger="click">
