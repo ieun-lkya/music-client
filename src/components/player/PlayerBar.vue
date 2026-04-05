@@ -89,6 +89,7 @@
     @timeupdate="onTimeUpdate"
     @loadedmetadata="onLoadedMetadata"
     @ended="handleAudioEnded"
+    @play="onAudioPlay"
     @error="onAudioError"
     ref="audioRef"
   ></audio>
@@ -239,6 +240,28 @@ const onTimeUpdate = (e) => {
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 
+// 1. 🚀 新增：原生的播放起飞事件
+const onAudioPlay = () => {
+  musicStore.isPlaying = true;
+  try {
+    initAudioEngine(); // 只有真正出声了，才点火极客调音台！
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {
+    console.warn('调音台挂载跳过:', e);
+  }
+}
+
+// 2. 🚀 替换：修改原来的音频错误拦截，帮你排查是不是阿里云的锅
+const onAudioError = () => {
+  const audio = document.getElementById('echo-audio-player')
+  if (audio && audio.getAttribute('src')) {
+    musicStore.isPlaying = false
+    // 💥 如果报错，极其大可能是阿里云 OSS 的跨域拦截！
+    ElMessage.error(`😭 音源加载失败！请检查：1. 链接是否有效 2. 阿里云 OSS 是否配置了跨域(CORS)！`)
+    setTimeout(() => { emit('play-next') }, 2000) // 自动跳过坏链
+  }
+}
+
 // 🚀 切换静音功能
 const toggleMute = () => {
   if (volume.value > 0) {
@@ -332,30 +355,16 @@ const setEQ = (type) => {
 }
 
 // --- 底层核心逻辑修改 ---
-// 🚀 核心大修复：将音频上下文的挂载逻辑，牢牢绑死在每一次切歌的瞬间！
+// 3. 🚀 替换：精简 currentSong 的监听器，消灭两次 play() 导致的死锁冲突！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
-    // 💥 架构师神级埋点：悄悄记录用户的听歌行为流水！
     if (musicStore.currentUser) {
       recordPlayAPI(musicStore.currentUser.id, newSong.id).catch(()=>{})
     }
-    
     musicStore.currentTime = 0; playPercent.value = 0
-    
-    // 💥 切歌点火：拉取并解析这首歌的迷你歌词！
-    loadMiniLyrics(newSong); 
-
-    await nextTick()
-    const audio = document.getElementById('echo-audio-player')
-    if (audio) {
-      audio.currentTime = 0; audio.volume = volume.value / 100
-      
-      // 💥 致命修复：任何场景下，只要准备播放，必须先强制点火引擎！
-      initAudioEngine();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
-      audio.play().then(() => { musicStore.isPlaying = true }).catch(e => { musicStore.isPlaying = false })
-    }
+    loadMiniLyrics(newSong);
+    // 💥 这里面原本手动调用的 audio.play() 以及 initAudioEngine 统统删掉！
+    // 只要 src 变了，HTML5 的 autoplay 会自动播放，并触发上面的 onAudioPlay！
   }
 })
 

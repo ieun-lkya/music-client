@@ -29,7 +29,6 @@ const store = reactive({
   // 💥 升级版选歌逻辑：支持传入整个歌单作为队列
   selectSong(song, queue = []) {
     this.currentSong = song;
-    this.isPlaying = true;
     
     // 如果传入了新的队列，就覆盖当前队列；如果没有且队列为空，就把这首歌塞进去
     if (queue.length > 0) {
