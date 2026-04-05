@@ -96,16 +96,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay, Connection, Expand, Close } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
 
-const playMode = ref('list')
 const volume = ref(70)
 const playPercent = ref(0)
 const isDragging = ref(false)
@@ -119,7 +118,6 @@ const playQueueItem = (item) => {
 
 const removeFromQueue = (index) => {
   const removed = musicStore.playQueue.splice(index, 1)[0]
-  // 💥 容错处理：如果删掉的正好是正在播的歌，自动切下一首！
   if (musicStore.currentSong?.id === removed.id) {
     if (musicStore.playQueue.length > 0) {
        const nextIndex = index >= musicStore.playQueue.length ? 0 : index
@@ -146,7 +144,6 @@ const clearQueue = () => {
 const miniLyrics = ref([])
 const currentMiniLyric = ref('🎶 享受纯粹的音乐时刻...')
 
-// 🚀 极其智能的双语聚合歌词解析器
 const loadMiniLyrics = async (song) => {
   miniLyrics.value = []
   currentMiniLyric.value = '🎶 享受纯粹的音乐时刻...'
@@ -158,9 +155,7 @@ const loadMiniLyrics = async (song) => {
     const lines = text.split('\n')
     const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/
     
-    // 💥 核心修复：使用 Map 来聚合相同时间戳的双语歌词！
     const timeMap = new Map()
-    
     for (let line of lines) {
       const match = line.match(timeReg)
       if (match) {
@@ -168,22 +163,15 @@ const loadMiniLyrics = async (song) => {
         const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
         const time = m * 60 + s + ms;
         const lrcText = line.replace(/\[.*?\]/g, '').trim();
-        
         if (lrcText) {
           if (timeMap.has(time)) {
             let existingText = timeMap.get(time)
-            
-            // 💥 核心黑魔法：智能语种探测雷达！
             const hasChinese = (text) => /[\u4e00-\u9fa5]/.test(text)
-            
             if (hasChinese(existingText) && !hasChinese(lrcText)) {
-              // 现有的是中文翻译，新来的是外文原词 -> 强行把原词顶到前面！
               timeMap.set(time, lrcText + '\n' + existingText)
             } else if (!hasChinese(existingText) && hasChinese(lrcText)) {
-              // 现有的是原词，新来的是中文翻译 -> 乖乖把翻译排到后面！
               timeMap.set(time, existingText + '\n' + lrcText)
             } else {
-              // 兜底（如果是纯中文歌，或者两句都有中文）：按文件原始顺序
               timeMap.set(time, existingText + '\n' + lrcText)
             }
           } else {
@@ -192,8 +180,6 @@ const loadMiniLyrics = async (song) => {
         }
       }
     }
-    
-    // 把 Map 转换为数组并排序
     const result = Array.from(timeMap.entries()).map(([time, text]) => ({ time, text }))
     result.sort((a, b) => a.time - b.time)
     miniLyrics.value = result
@@ -215,22 +201,21 @@ const updateMiniLyric = (currentTime) => {
   if (currentMiniLyric.value !== currentText) currentMiniLyric.value = currentText || '🎶 ...'
 }
 
-// 监听时间更新以同步迷你歌词
 watch(() => musicStore.currentTime, (newTime) => {
-  if (musicStore.currentSong && miniLyrics.value.length > 0) {
-    updateMiniLyric(newTime)
-  }
+  if (musicStore.currentSong && miniLyrics.value.length > 0) updateMiniLyric(newTime)
 })
 
+// 💥 极简控制：直接指挥音频原件
 const togglePlay = () => { 
   const audio = document.getElementById('echo-audio-player');
   if (!audio || !musicStore.currentSong) return;
   if (audio.paused) {
-    audio.play();
+    audio.play().catch(()=>{});
   } else {
     audio.pause();
   }
 }
+
 const togglePlayMode = () => { 
   const modes = ['list', 'random', 'loop'];
   const currentIndex = modes.indexOf(musicStore.playMode);
@@ -242,70 +227,51 @@ const onSliderSeek = (val) => { const audio = document.getElementById('echo-audi
 const onTimeUpdate = (e) => { 
   musicStore.currentTime = e.target.currentTime; 
   if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0;
-  
-  // 💥 驱动引擎：时间每走一毫秒，歌词探针就去核对一次！
   updateMiniLyric(musicStore.currentTime);
 }
 const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
 
-// 1. 🚀 新增：原生的播放起飞事件
-const onAudioPlay = () => {
-  musicStore.isPlaying = true;
-  try {
-    initAudioEngine(); // 只有真正出声了，才点火极客调音台！
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) {
-    console.warn('调音台挂载跳过:', e);
-  }
-}
-
-// 2. 🚀 替换：修改原来的音频错误拦截，帮你排查是不是阿里云的锅
-const onAudioError = () => {
-  const audio = document.getElementById('echo-audio-player')
-  if (audio && audio.getAttribute('src')) {
-    musicStore.isPlaying = false
-    // 💥 如果报错，极其大可能是阿里云 OSS 的跨域拦截！
-    ElMessage.error(`😭 音源加载失败！请检查：1. 链接是否有效 2. 阿里云 OSS 是否配置了跨域(CORS)！`)
-    setTimeout(() => { emit('play-next') }, 2000) // 自动跳过坏链
-  }
-}
-
-// 🚀 切换静音功能
 const toggleMute = () => {
   if (volume.value > 0) {
-    localStorage.setItem('preMuteVolume', volume.value); // 存储当前音量
-    volume.value = 0; // 设置为静音
+    localStorage.setItem('preMuteVolume', volume.value); 
+    volume.value = 0; 
   } else {
     const preMuteVolume = localStorage.getItem('preMuteVolume');
-    volume.value = preMuteVolume ? parseInt(preMuteVolume) : 70; // 恢复之前的音量，默认70
+    volume.value = preMuteVolume ? parseInt(preMuteVolume) : 70; 
   }
   onVolumeChange(volume.value);
 }
 
 const handleAudioEnded = () => {
   if (musicStore.playMode === 'loop') {
-    // 单曲循环：进度归零，重新播放
     const audio = document.getElementById('echo-audio-player');
     if(audio) {
       audio.currentTime = 0;
-      audio.play();
+      audio.play().catch(()=>{});
     }
   } else {
-    // 列表/随机：触发下一首引擎！
     musicStore.playNext();
   }
 }
 
-// 🚀 核心容错：极其优雅的音源丢失降级处理
+// 🚀 原生的播放起飞事件
+const onAudioPlay = () => {
+  musicStore.isPlaying = true;
+  try {
+    initAudioEngine(); 
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {
+    console.warn('调音台挂载跳过:', e);
+  }
+}
+
+// 🚀 核心容错：极其优雅的音源丢失降级处理 (消灭了所有重复，只留这一个！)
 const onAudioError = () => {
   const audio = document.getElementById('echo-audio-player')
-  // 只有当真的有歌曲链接（排除了初始空状态），并且加载失败时才触发
   if (audio && audio.getAttribute('src')) {
-    musicStore.isPlaying = false // 强行终止播放状态，让播放按钮切回暂停图标
-    ElMessage.error(`😭 抱歉，这首歌的云端音源迷路了或已被删除！`)
-    
-    // 如果你在放歌单，它甚至还能极其智能地帮你自动跳过坏歌，播下一首！（可选）
-    setTimeout(() => { emit('play-next') }, 2000)
+    musicStore.isPlaying = false
+    ElMessage.error(`😭 音源加载失败！可能是云端文件被删或网络限制。`)
+    setTimeout(() => { musicStore.playNext() }, 2000)
   }
 }
 
@@ -315,9 +281,7 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-// 🚀 迷你歌词悬浮舱状态与引擎 (已移除)
-
-// 🚀 特性 B：千万级 Web Audio 极客调音台引擎
+// 🚀 千万级 Web Audio 极客调音台引擎
 const eqLabels = ['32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16K'];
 const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 const eqGains = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -325,14 +289,13 @@ let audioCtx = null;
 let filters = [];
 
 const initAudioEngine = () => {
-  if (audioCtx) return; // 绝对防御：一生只初始化一次
+  if (audioCtx) return; 
   const audioEl = document.getElementById('echo-audio-player');
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   audioCtx = new AudioContext();
   const source = audioCtx.createMediaElementSource(audioEl);
 
   let prevNode = source;
-  // 生成 10 个串联的双二阶滤波器 (BiquadFilterNode)
   eqFreqs.forEach((freq, i) => {
     const filter = audioCtx.createBiquadFilter();
     filter.type = i === 0 ? 'lowshelf' : (i === 9 ? 'highshelf' : 'peaking');
@@ -347,23 +310,22 @@ const initAudioEngine = () => {
   const analyser = audioCtx.createAnalyser();
   analyser.fftSize = 256;
   prevNode.connect(analyser);
-  analyser.connect(audioCtx.destination); // 最终输出到扬声器
+  analyser.connect(audioCtx.destination); 
 
-  musicStore.audioAnalyser = analyser; // 把分析器共享给 Vuex，拯救歌词面板！
+  musicStore.audioAnalyser = analyser; 
 }
 
 const updateEQ = (index) => { if(filters[index]) filters[index].gain.value = eqGains.value[index]; }
 const setEQ = (type) => {
   let target = [0,0,0,0,0,0,0,0,0,0];
-  if(type === 'bass') target = [6, 5, 4, 1, 0, -1, 0, 1, 2, 3]; // 低音增强，中频削弱
-  if(type === 'vocal') target = [-2, -1, 0, 2, 4, 5, 4, 2, 0, -1]; // 中高频人声增强
-  if(type === 'live') target = [4, 3, 1, -1, 0, 2, 4, 5, 4, 3]; // 两头翘，模拟空间感
+  if(type === 'bass') target = [6, 5, 4, 1, 0, -1, 0, 1, 2, 3]; 
+  if(type === 'vocal') target = [-2, -1, 0, 2, 4, 5, 4, 2, 0, -1]; 
+  if(type === 'live') target = [4, 3, 1, -1, 0, 2, 4, 5, 4, 3]; 
   eqGains.value = target;
   target.forEach((_, i) => updateEQ(i));
 }
 
-// --- 底层核心逻辑修改 ---
-// 💥 唯一的切歌引擎：只监听歌曲变化，干掉 isPlaying 的监听器防止死锁！
+// 💥 唯一的切歌引擎：只监听歌曲变化，消灭重复监听造成的死锁冲突！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
     if (musicStore.currentUser) {
@@ -373,19 +335,17 @@ watch(() => musicStore.currentSong, async (newSong) => {
     playPercent.value = 0;
     loadMiniLyrics(newSong);
     
-    await nextTick(); // 等待 audio 标签更新 src
+    await nextTick(); 
     const audio = document.getElementById('echo-audio-player');
     if (audio) {
       audio.volume = volume.value / 100;
-      // 💥 强制点火
       audio.play().catch(e => {
         console.warn('浏览器自动播放拦截:', e);
-        musicStore.isPlaying = false; // 被拦截就乖乖暂停，等用户手动点
+        musicStore.isPlaying = false; 
       });
     }
   }
 })
-
 </script>
 
 <style scoped>
