@@ -17,14 +17,16 @@
       </div>
       
       <div class="play-btns">
-        <div class="prev-next-btn" @click="$emit('play-prev')"></div>
+        <div class="prev-next-btn" @click="musicStore.playPrev()"></div>
         <div class="main-play-btn" :class="{'is-playing': musicStore.isPlaying}" @click="togglePlay"></div>
-        <div class="prev-next-btn" @click="$emit('play-next')"></div>
+        <div class="prev-next-btn" @click="musicStore.playNext()"></div>
       </div>
 
       <div class="extra-funcs">
         <span class="time-display">{{ formatTime(musicStore.currentTime) }} / {{ formatTime(musicStore.duration) }}</span>
-        <el-icon :size="18" class="mode-icon" @click="togglePlayMode"><component :is="playMode === 'list' ? Refresh : RefreshLeft" /></el-icon>
+        <el-icon :size="18" class="mode-icon" @click="togglePlayMode">
+          <component :is="musicStore.playMode === 'loop' ? RefreshLeft : (musicStore.playMode === 'random' ? Shuffle : Refresh)" />
+        </el-icon>
         
         <el-popover placement="top-end" :width="430" trigger="click">
           <template #reference><el-icon :size="18" class="eq-icon"><Operation /></el-icon></template>
@@ -63,7 +65,7 @@
     <audio id="echo-audio-player" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" 
            @timeupdate="onTimeUpdate" 
            @loadedmetadata="onLoadedMetadata" 
-           @ended="onPlayEnded"
+           @ended="handleAudioEnded"
            @play="musicStore.isPlaying = true"
            @pause="musicStore.isPlaying = false"
            @error="onAudioError">
@@ -73,7 +75,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay } from '@element-plus/icons-vue'
+import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay, Shuffle } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'
@@ -167,7 +169,12 @@ watch(() => musicStore.currentTime, (newTime) => {
 })
 
 const togglePlay = () => { if(!musicStore.currentSong) return; musicStore.togglePlay() }
-const togglePlayMode = () => { playMode.value = playMode.value === 'list' ? 'single' : 'list' }
+const togglePlayMode = () => { 
+  const modes = ['list', 'random', 'loop'];
+  const currentIndex = modes.indexOf(musicStore.playMode);
+  musicStore.playMode = modes[(currentIndex + 1) % modes.length];
+}
+
 const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
 const onSliderSeek = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.currentTime = (val / 100) * musicStore.duration; isDragging.value = false }
 const onTimeUpdate = (e) => { 
@@ -191,8 +198,20 @@ const toggleMute = () => {
   onVolumeChange(volume.value);
 }
 
-const onPlayEnded = () => { if (playMode.value === 'single') { const audio = document.getElementById('echo-audio-player'); audio.currentTime = 0; audio.play() } else { emit('play-next') } }
-  
+const handleAudioEnded = () => {
+  if (musicStore.playMode === 'loop') {
+    // 单曲循环：进度归零，重新播放
+    const audio = document.getElementById('echo-audio-player');
+    if(audio) {
+      audio.currentTime = 0;
+      audio.play();
+    }
+  } else {
+    // 列表/随机：触发下一首引擎！
+    musicStore.playNext();
+  }
+}
+
 // 🚀 核心容错：极其优雅的音源丢失降级处理
 const onAudioError = () => {
   const audio = document.getElementById('echo-audio-player')

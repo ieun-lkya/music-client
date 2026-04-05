@@ -12,30 +12,36 @@ const store = reactive({
   duration: 0,
   playHistory: JSON.parse(localStorage.getItem('echo_play_history')) || [],
   
-  // 核心数据列表
+  // 💥 新增：播放队列与播放模式
+  playQueue: [], // 当前播放列表
+  playMode: 'list', // 模式：'list'(列表循环) | 'random'(随机播放) | 'loop'(单曲循环)
+
   likedMusicList: [],
   customPlaylists: [],
-  collectedPlaylists: [], // 🚀 新增：收藏歌单库
-
-  // 全局 UI 控制
+  collectedPlaylists: [],
   showLyricPanel: false,
-
-  // 🚀 新增：极其硬核的底层 Web Audio API 共享节点
   audioAnalyser: null,
 
-  // 🚀 切换播放状态
   togglePlay() {
     this.isPlaying = !this.isPlaying;
   },
   
-  // 🚀 选歌逻辑
-  selectSong(song) {
+  // 💥 升级版选歌逻辑：支持传入整个歌单作为队列
+  selectSong(song, queue = []) {
     this.currentSong = song;
     this.isPlaying = true;
     
-    // 🚀 发射播放脉冲，引爆热歌榜！
+    // 如果传入了新的队列，就覆盖当前队列；如果没有且队列为空，就把这首歌塞进去
+    if (queue.length > 0) {
+      this.playQueue = queue;
+    } else if (this.playQueue.length === 0) {
+      this.playQueue = [song];
+    }
+    
+    // 发射播放脉冲
     import('../api/music').then(api => api.addPlayCountAPI(song.id).catch(()=>{}));
     
+    // 写入历史记录
     const index = this.playHistory.findIndex(item => item.id === song.id);
     if (index !== -1) this.playHistory.splice(index, 1);
     this.playHistory.unshift(song);
@@ -43,7 +49,39 @@ const store = reactive({
     localStorage.setItem('echo_play_history', JSON.stringify(this.playHistory));
   },
 
-  // 🚀 快捷判断是否红心
+  // 💥 新增：下一首引擎
+  playNext() {
+    if (this.playQueue.length === 0) return;
+    if (this.playQueue.length === 1) { this.currentTime = 0; return; } // 只有一首就重播
+    
+    if (this.playMode === 'random') {
+      let randomIndex = Math.floor(Math.random() * this.playQueue.length);
+      // 防止随机到同一首
+      while (this.playQueue[randomIndex].id === this.currentSong.id) {
+        randomIndex = Math.floor(Math.random() * this.playQueue.length);
+      }
+      this.selectSong(this.playQueue[randomIndex]);
+      return;
+    }
+    // 列表循环
+    const currentIndex = this.playQueue.findIndex(s => s.id === this.currentSong?.id);
+    const nextIndex = (currentIndex + 1) % this.playQueue.length;
+    this.selectSong(this.playQueue[nextIndex]);
+  },
+  
+  // 💥 新增：上一首引擎
+  playPrev() {
+    if (this.playQueue.length === 0) return;
+    if (this.playMode === 'random') {
+      this.playNext(); // 随机模式上一首也按随机算
+      return;
+    }
+    // 列表循环
+    const currentIndex = this.playQueue.findIndex(s => s.id === this.currentSong?.id);
+    const prevIndex = (currentIndex - 1 + this.playQueue.length) % this.playQueue.length;
+    this.selectSong(this.playQueue[prevIndex]);
+  },
+
   isLiked(musicId) {
     return this.likedMusicList.some(item => item.id === musicId)
   }

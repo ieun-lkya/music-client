@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import router from '../router'
 
 const request = axios.create({
   // 🚀 核心改造：抛弃代理，全军出击！直接用真枪实弹的后端真实地址！
@@ -7,48 +8,40 @@ const request = axios.create({
   timeout: 60000
 })
 
-// 🚀 核心补丁 1：请求拦截器（出门自动往 Header 里塞 Token）
-request.interceptors.request.use(config => {
-  // 🚀 极其霸道的终极杀招：发现任何带 /api 前缀的请求，直接把它强行抹掉！
-  if (config.url && config.url.startsWith('/api')) {
-    config.url = config.url.replace(/^\/api/, '')
-  }
+// 请求拦截器（保留你原来挂载 Token 的逻辑即可）
+http.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('echo_token')
+    if (token) {
+      config.headers['Authorization'] = token
+    }
+    return config
+  },
+  error => Promise.reject(error)
+)
 
-  const token = localStorage.getItem('echo_token')
-  if (token) {
-    config.headers['Authorization'] = 'Bearer ' + token
-  }
-  return config
-})
-
-// 🚀 核心补丁 2：响应拦截器（抓捕后端返回的 401 越权错误）
-request.interceptors.response.use(
+// 💥 响应拦截器：401 全局绞杀阵列
+http.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code === 200) return res.data 
-    else {
-      ElMessage.error(res.msg || '服务异常')
+    if (res.code && res.code !== 200 && res.code !== 1) {
+      ElMessage.error(res.msg || '服务器异常')
       return Promise.reject(new Error(res.msg || 'Error'))
     }
+    return res.data || res
   },
   error => {
-    console.error('网络请求异常:', error)
-    // 🎯 如果后端发现你没 Token 或者 Token 假冒的，直接把你踢回登录页！
-    if (error.response && error.response.status === 401) {
-      ElMessage.error('登录已失效或越权访问，请重新登录！')
-      localStorage.removeItem('echo_token')
-      localStorage.removeItem('echo_user')
-      
-      // 🚀 极其关键：自动识别你的路由模式，确保绝对能跳进登录页！
-      setTimeout(() => { 
-          if (window.location.hash) {
-              window.location.href = '/#/login' // 兼容 Hash 模式
-          } else {
-              window.location.href = '/login'   // 兼容 History 模式
-          }
-      }, 1000)
+    if (error.response) {
+      if (error.response.status === 401) {
+        ElMessage.error('登录状态已失效，请重新登录！');
+        localStorage.removeItem('echo_user');
+        localStorage.removeItem('echo_token'); 
+        router.push('/login');
+      } else {
+        ElMessage.error(error.response.data?.msg || '网络繁忙，请稍后再试');
+      }
     } else {
-      ElMessage.error('网络连接失败，请按 F12 查看报错')
+      ElMessage.error('服务器失联了，请检查网络！');
     }
     return Promise.reject(error)
   }
