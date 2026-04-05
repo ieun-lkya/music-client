@@ -3,16 +3,16 @@ import { ElMessage } from 'element-plus'
 import router from '../router'
 
 const request = axios.create({
-  // 🚀 核心改造：抛弃代理，全军出击！直接用真枪实弹的后端真实地址！
   baseURL: 'http://localhost:8080', 
   timeout: 60000
 })
 
-// 请求拦截器（保留你原来挂载 Token 的逻辑即可）
-http.interceptors.request.use(
+// 🚀 请求拦截器
+request.interceptors.request.use(
   config => {
     const token = localStorage.getItem('echo_token')
-    if (token) {
+    // 💥 致命防线：坚决拦截 "undefined" 和 "null" 字符串进入后端的 JWT 解析器！
+    if (token && token !== 'undefined' && token !== 'null') {
       config.headers['Authorization'] = token
     }
     return config
@@ -20,15 +20,16 @@ http.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// 💥 响应拦截器：401 全局绞杀阵列
-http.interceptors.response.use(
+// 💥 响应拦截器
+request.interceptors.response.use(
   response => {
     const res = response.data
     if (res.code && res.code !== 200 && res.code !== 1) {
       ElMessage.error(res.msg || '服务器异常')
       return Promise.reject(new Error(res.msg || 'Error'))
     }
-    return res.data || res
+    // 💥 终极修复：把外层壳原封不动地还给组件！绝不越俎代庖！
+    return res 
   },
   error => {
     if (error.response) {
