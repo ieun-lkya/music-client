@@ -51,31 +51,50 @@
           <template #reference><el-icon :size="20" class="vol-icon"><component :is="volume > 0 ? Headset : Mute" @click="toggleMute" /></el-icon></template>
           <el-slider v-model="volume" vertical height="80px" @input="onVolumeChange" />
         </el-popover>
+        
+        <el-icon :size="18" class="queue-icon" @click="queueDrawerVisible = true"><Expand /></el-icon>
       </div>
     </div>
-    <div class="mini-lyric-container" v-if="musicStore.currentSong && !musicStore.showLyricPanel">
-      <div class="mini-lyric-wrapper" :key="currentMiniLyric">
-        <div v-for="(line, index) in currentMiniLyric.split('\n')" :key="index" :class="index === 0 ? 'lyric-primary' : 'lyric-secondary'">
-          {{ line }}
+  </footer>
+
+  <el-drawer v-model="queueDrawerVisible" :with-header="false" size="380px" append-to-body class="queue-drawer">
+    <div class="queue-drawer-content">
+      <div class="q-header">
+        <h3>当前播放队列 <span class="q-count">({{ musicStore.playQueue?.length || 0 }})</span></h3>
+        <el-button type="info" link @click="clearQueue">清空列表</el-button>
+      </div>
+      <div class="q-list">
+        <div v-if="!musicStore.playQueue || musicStore.playQueue.length === 0" class="q-empty">
+          队列空空如也，快去大厅添加音乐吧~
+        </div>
+        <div v-for="(item, index) in musicStore.playQueue" :key="index"
+             class="q-item" :class="{'is-active': musicStore.currentSong?.id === item.id}"
+             @click="playQueueItem(item)">
+          <div class="q-item-info">
+            <el-icon v-if="musicStore.currentSong?.id === item.id" class="q-playing-icon"><VideoPlay /></el-icon>
+            <span class="q-title">{{ item.title }}</span>
+            <span class="q-artist">- {{ item.artist }}</span>
+          </div>
+          <el-icon class="q-del" @click.stop="removeFromQueue(index)"><Close /></el-icon>
         </div>
       </div>
     </div>
-    <div class="empty-player" v-else>请在上方点击歌曲播放</div>
-    
-    <audio id="echo-audio-player" :src="musicStore.currentSong?.audioUrl" crossorigin="anonymous" 
-           @timeupdate="onTimeUpdate" 
-           @loadedmetadata="onLoadedMetadata" 
-           @ended="handleAudioEnded"
-           @play="musicStore.isPlaying = true"
-           @pause="musicStore.isPlaying = false"
-           @error="onAudioError">
-    </audio>
-  </footer>
+  </el-drawer>
+
+  <!-- 💥 把 Audio Player 放到最后 -->
+  <audio 
+    id="echo-audio-player" 
+    :src="musicStore.currentSong?.audioUrl"
+    @timeupdate="updateTime"
+    @ended="handleAudioEnded"
+    @canplay="onCanPlay"
+    ref="audioRef"
+  ></audio>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay, Connection } from '@element-plus/icons-vue'
+import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay, Connection, Expand, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMusicStore } from '../../store/music'
 import { recordPlayAPI } from '../../api/user'
@@ -87,6 +106,38 @@ const playMode = ref('list')
 const volume = ref(70)
 const playPercent = ref(0)
 const isDragging = ref(false)
+
+// 🚀 播放队列抽屉状态与引擎
+const queueDrawerVisible = ref(false)
+
+const playQueueItem = (item) => {
+  musicStore.selectSong(item, musicStore.playQueue)
+}
+
+const removeFromQueue = (index) => {
+  const removed = musicStore.playQueue.splice(index, 1)[0]
+  // 💥 容错处理：如果删掉的正好是正在播的歌，自动切下一首！
+  if (musicStore.currentSong?.id === removed.id) {
+    if (musicStore.playQueue.length > 0) {
+       const nextIndex = index >= musicStore.playQueue.length ? 0 : index
+       musicStore.selectSong(musicStore.playQueue[nextIndex], musicStore.playQueue)
+    } else {
+       musicStore.currentSong = null
+       musicStore.isPlaying = false
+       const audio = document.getElementById('echo-audio-player')
+       if(audio) audio.pause()
+    }
+  }
+}
+
+const clearQueue = () => {
+  musicStore.playQueue = []
+  musicStore.currentSong = null
+  musicStore.isPlaying = false
+  queueDrawerVisible.value = false
+  const audio = document.getElementById('echo-audio-player')
+  if(audio) audio.pause()
+}
 
 // 🚀 迷你歌词悬浮舱状态与引擎
 const miniLyrics = ref([])
@@ -417,4 +468,30 @@ watch(() => musicStore.isPlaying, async (playing) => {
   0% { opacity: 0; transform: translateY(8px) scale(0.95); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* 🚀 播放列表图标与抽屉玻璃态样式 */
+.queue-icon { cursor: pointer; color: #64748b; transition: 0.2s; margin-left: 10px; }
+.queue-icon:hover { color: #0f172a; transform: scale(1.1); }
+
+:deep(.queue-drawer) { background: rgba(255,255,255,0.85) !important; backdrop-filter: saturate(180%) blur(25px) !important; }
+.queue-drawer-content { display: flex; flex-direction: column; height: 100%; padding: 20px 25px; box-sizing: border-box;}
+.q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 15px; }
+.q-header h3 { margin: 0; font-size: 18px; color: #0f172a; font-weight: 800; display: flex; align-items: baseline; gap: 8px;}
+.q-count { font-size: 13px; color: #64748b; font-weight: 600; }
+.q-list { flex: 1; overflow-y: auto; padding-right: 5px; }
+.q-list::-webkit-scrollbar { width: 6px; }
+.q-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.q-empty { text-align: center; color: #94a3b8; margin-top: 50px; font-size: 14px; font-weight: bold; }
+.q-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 15px; border-radius: 12px; cursor: pointer; transition: 0.2s; margin-bottom: 8px; border: 1px solid transparent; }
+.q-item:hover { background: #f8fafc; border-color: #e2e8f0; }
+.q-item.is-active { background: linear-gradient(135deg, #eff6ff, #e0e7ff); border-color: #bfdbfe; }
+.q-item-info { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.q-playing-icon { color: #3b82f6; animation: pulse 1.5s infinite; }
+.q-title { font-size: 14px; color: #1e293b; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.q-artist { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; font-weight: 500;}
+.q-item.is-active .q-title { color: #3b82f6; }
+.q-del { color: #94a3b8; font-size: 16px; opacity: 0; transition: 0.2s; }
+.q-item:hover .q-del { opacity: 1; }
+.q-del:hover { color: #ef4444; transform: scale(1.2); }
+@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 </style>
