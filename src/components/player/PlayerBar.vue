@@ -84,12 +84,12 @@
   <!-- 💥 把 Audio Player 放到最后 -->
   <audio 
     id="echo-audio-player" 
-    :src="musicStore.currentSong?.audioUrl ? `${musicStore.currentSong.audioUrl}${musicStore.currentSong.audioUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : ''"
-    crossorigin="anonymous"
+    :src="musicStore.currentSong?.audioUrl"
     @timeupdate="onTimeUpdate"
     @loadedmetadata="onLoadedMetadata"
     @ended="handleAudioEnded"
     @play="onAudioPlay"
+    @pause="musicStore.isPlaying = false"
     @error="onAudioError"
     ref="audioRef"
   ></audio>
@@ -222,7 +222,15 @@ watch(() => musicStore.currentTime, (newTime) => {
   }
 })
 
-const togglePlay = () => { if(!musicStore.currentSong) return; musicStore.togglePlay() }
+const togglePlay = () => { 
+  const audio = document.getElementById('echo-audio-player');
+  if (!audio || !musicStore.currentSong) return;
+  if (audio.paused) {
+    audio.play();
+  } else {
+    audio.pause();
+  }
+}
 const togglePlayMode = () => { 
   const modes = ['list', 'random', 'loop'];
   const currentIndex = modes.indexOf(musicStore.playMode);
@@ -355,33 +363,29 @@ const setEQ = (type) => {
 }
 
 // --- 底层核心逻辑修改 ---
-// 3. 🚀 替换：精简 currentSong 的监听器，消灭两次 play() 导致的死锁冲突！
+// 💥 唯一的切歌引擎：只监听歌曲变化，干掉 isPlaying 的监听器防止死锁！
 watch(() => musicStore.currentSong, async (newSong) => {
   if (newSong) {
     if (musicStore.currentUser) {
       recordPlayAPI(musicStore.currentUser.id, newSong.id).catch(()=>{})
     }
-    musicStore.currentTime = 0; playPercent.value = 0
+    musicStore.currentTime = 0; 
+    playPercent.value = 0;
     loadMiniLyrics(newSong);
-    // 💥 这里面原本手动调用的 audio.play() 以及 initAudioEngine 统统删掉！
-    // 只要 src 变了，HTML5 的 autoplay 会自动播放，并触发上面的 onAudioPlay！
+    
+    await nextTick(); // 等待 audio 标签更新 src
+    const audio = document.getElementById('echo-audio-player');
+    if (audio) {
+      audio.volume = volume.value / 100;
+      // 💥 强制点火
+      audio.play().catch(e => {
+        console.warn('浏览器自动播放拦截:', e);
+        musicStore.isPlaying = false; // 被拦截就乖乖暂停，等用户手动点
+      });
+    }
   }
 })
 
-watch(() => musicStore.isPlaying, async (playing) => {
-  await nextTick() 
-  const audio = document.getElementById('echo-audio-player')
-  if (audio && audio.getAttribute('src')) { 
-    if (playing && audio.paused) {
-      // 💥 致命修复：底部的播放/暂停键也加上双保险！
-      initAudioEngine();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      
-      audio.play().catch(() => { musicStore.isPlaying = false })
-    }
-    else if (!playing && !audio.paused) { audio.pause() }
-  }
-})
 </script>
 
 <style scoped>
