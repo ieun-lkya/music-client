@@ -15,13 +15,13 @@
           </el-input>
         </div>
         
-        <div class="header-bell" @click="openMessageCenter" style="cursor: pointer; display: flex; align-items: center; margin: 0 20px;">
-          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-            <el-icon :size="22" class="hover-bell" color="#475569"><Bell /></el-icon>
-          </el-badge>
-        </div>
-        
         <div class="header-actions" v-if="musicStore.currentUser" style="display: flex; align-items: center; gap: 12px;">
+          <div class="header-bell" @click="openMessageCenter" style="cursor: pointer; display: flex; align-items: center;">
+            <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+              <el-icon :size="22" class="hover-bell" color="#475569"><Bell /></el-icon>
+            </el-badge>
+          </div>
+          
           <div class="user-profile" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
             <el-avatar :size="36" :src="musicStore.currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
             <span class="user-name">{{ musicStore.currentUser.nickname || musicStore.currentUser.username }}</span>

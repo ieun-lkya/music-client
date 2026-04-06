@@ -26,3 +26,4 @@ export const followUserAPI = (followerId, followingId) => http.post('/user/follo
 export const unfollowUserAPI = (followerId, followingId) => http.post('/user/unfollow', null, { params: { followerId, followingId } })
 export const sendMessageAPI = (data) => http.post('/user/chat/send', data)
 export const getChatHistoryAPI = (userId1, userId2) => http.get('/user/chat/history', { params: { userId1, userId2 } })
+export const getRecentContactsAPI = (userId) => http.get('/user/chat/contacts', { params: { userId } })
