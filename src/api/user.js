@@ -31,3 +31,6 @@ export const getRecentContactsAPI = (userId) => http.get('/user/chat/contacts', 
 // 🚀 消息中心网络请求
 export const getUnreadCountAPI = (userId) => http.get('/user/chat/unread', { params: { userId } })
 export const markAsReadAPI = (senderId, receiverId) => http.post('/user/chat/read', null, { params: { senderId, receiverId } })
+
+// 🚀 获取互关好友列表
+export const getFriendsAPI = (userId) => http.get('/user/friends', { params: { userId } })

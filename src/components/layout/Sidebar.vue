@@ -22,6 +22,13 @@
       </div>
     </nav>
 
+    <div class="menu-group">
+      <h3 class="menu-label">我的</h3>
+      <div class="menu-item" :class="{ active: musicStore.currentMenu === 'friends' }" @click="switchMenu('friends')">
+        <el-icon><UserFilled /></el-icon> <span>我的好友</span>
+      </div>
+    </div>
+
     <div class="nav-group">我的音乐</div>
     <div class="nav-sub-item" :class="{ active: musicStore.currentMenu === 'liked' }" @click="switchMenu('liked')">❤️ 我喜欢的</div>
     <div class="nav-sub-item" :class="{ active: musicStore.currentMenu === 'sleep' }" @click="switchMenu('sleep')">🌙 助眠系列</div>
@@ -60,7 +67,7 @@
 </template>
 
 <script setup>
-import { Compass, Mic, User, MagicStick, Plus, DataBoard } from '@element-plus/icons-vue'
+import { Compass, Mic, User, MagicStick, Plus, DataBoard, UserFilled } from '@element-plus/icons-vue'
 import { useMusicStore } from '../../store/music'
 
 const musicStore = useMusicStore()
@@ -80,6 +87,11 @@ const switchMenu = (menuName) => {
 .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 45px; padding-left: 10px; }
 .logo-text { font-size: 22px; font-weight: 800; color: #18181b; letter-spacing: -0.5px; }
 .badge { font-size: 10px; background: #18181b; color: #fff; padding: 2px 6px; border-radius: 4px; vertical-align: super; }
+.menu-group { margin: 35px 0 12px 10px; }
+.menu-label { font-size: 12px; color: #a1a1aa; font-weight: 700; margin: 0 0 12px 0; letter-spacing: 1px; }
+.menu-item { padding: 10px 15px; border-radius: 8px; cursor: pointer; color: #52525b; margin-bottom: 2px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; transition: all 0.2s ease; }
+.menu-item:hover { color: #18181b; background-color: #e4e4e7; }
+.menu-item.active { background-color: #d4d4d8; color: #18181b; font-weight: 700; }
 .nav-group { font-size: 12px; color: #a1a1aa; font-weight: 700; margin: 35px 0 12px 10px; letter-spacing: 1px; }
 .nav-item { padding: 10px 15px; border-radius: 8px; cursor: pointer; color: #52525b; margin-bottom: 2px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; transition: all 0.2s ease; }
 .nav-item:hover { color: #18181b; background-color: #e4e4e7; }

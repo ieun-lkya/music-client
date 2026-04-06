@@ -451,6 +451,37 @@
           </el-row>
         </section>
 
+        <section v-else-if="musicStore.currentMenu === 'friends'" class="hero-section fade-in">
+          <div class="discover-header">
+            <div>
+              <h2>🤝 我的极客老友</h2>
+              <p class="theory-note">只有互相关注的灵魂，才会在这里相遇。</p>
+            </div>
+            <el-button type="primary" plain round @click="loadFriends">
+              <el-icon><Refresh /></el-icon> 刷新列表
+            </el-button>
+          </div>
+
+          <el-empty v-if="friendsList.length === 0 && !isFriendsLoading" description="暂无互关好友，快去搜索用户互撩一下吧！" />
+          
+          <el-row :gutter="20" v-loading="isFriendsLoading">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="friend in friendsList" :key="friend.id" style="margin-bottom: 20px;">
+              <div class="user-card" style="position: relative;">
+                <el-avatar :size="60" :src="friend.avatar" class="u-avatar" @click="viewOtherProfile(friend)" />
+                <div class="u-info" @click="viewOtherProfile(friend)">
+                  <div class="u-name">{{ friend.nickname || friend.username }}</div>
+                  <div class="u-sign">{{ friend.signature || 'Ta 很懒，什么都没写' }}</div>
+                </div>
+                <div style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%);">
+                  <el-button circle type="primary" plain @click.stop="openChat(friend)">
+                    <el-icon><ChatDotRound /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </section>
+
       </div>
       
       <LyricOverlay />
@@ -567,7 +598,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard, Bell, Lock } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard, Bell, Lock, UserFilled, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -577,7 +608,7 @@ import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI, getMusicByArtistAPI, getArtistBioAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI } from '../api/user'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI, getFriendsAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -986,6 +1017,10 @@ const switchMenu = async (menuName) => {
     // 💥 进广场时，如果 AI 引擎没跑过，直接拉取第一波！
     if (dynamicAiPlaylists.value.length === 0) refreshAiPlaylists();
   }
+  // 💥 点击好友，拉取互关好友列表
+  else if (menuName === 'friends') {
+    await loadFriends()
+  }
 }
 
 // 🚀 新增：点击广场里别人的歌单
@@ -1265,6 +1300,22 @@ const openFriendProfile = async () => {
     // 拉取好友公开创建的歌单
     friendPlaylists.value = await getUserPlaylistsAPI(targetUser.value.id) || []
   } catch(e) {}
+}
+
+// 🚀 好友系统核心
+const friendsList = ref([])
+const isFriendsLoading = ref(false)
+
+const loadFriends = async () => {
+  if (!musicStore.currentUser) return
+  isFriendsLoading.value = true
+  try {
+    friendsList.value = await getFriendsAPI(musicStore.currentUser.id) || []
+  } catch(e) {
+    ElMessage.error('好友雷达故障，请稍后重试')
+  } finally {
+    isFriendsLoading.value = false
+  }
 }
 
 // 引擎点火：只要页面加载，就每 5 秒查一次新消息！
