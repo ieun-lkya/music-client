@@ -27,3 +27,7 @@ export const unfollowUserAPI = (followerId, followingId) => http.post('/user/unf
 export const sendMessageAPI = (data) => http.post('/user/chat/send', data)
 export const getChatHistoryAPI = (userId1, userId2) => http.get('/user/chat/history', { params: { userId1, userId2 } })
 export const getRecentContactsAPI = (userId) => http.get('/user/chat/contacts', { params: { userId } })
+
+// 🚀 消息中心网络请求
+export const getUnreadCountAPI = (userId) => http.get('/user/chat/unread', { params: { userId } })
+export const markAsReadAPI = (senderId, receiverId) => http.post('/user/chat/read', null, { params: { senderId, receiverId } })

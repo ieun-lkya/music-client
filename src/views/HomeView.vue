@@ -437,10 +437,15 @@
       <div style="display: flex; flex-direction: column; height: 100%;">
         <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 15px;">
           <div v-for="msg in chatHistory" :key="msg.id" :style="{ display: 'flex', gap: '10px', marginBottom: '15px', flexDirection: msg.senderId === musicStore.currentUser.id ? 'row-reverse' : 'row' }">
-            <el-avatar :size="35" :src="msg.senderId === musicStore.currentUser.id ? musicStore.currentUser.avatar : chatTarget.avatar" />
-            <div :style="{ padding: '10px 15px', borderRadius: '15px', maxWidth: '70%', wordBreak: 'break-all', fontSize: '14px', background: msg.senderId === musicStore.currentUser.id ? '#3b82f6' : '#fff', color: msg.senderId === musicStore.currentUser.id ? '#fff' : '#1e293b', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }">
-              {{ msg.content }}
+            <el-avatar :size="35" :src="msg.senderId === musicStore.currentUser.id ? musicStore.currentUser.avatar : chatTarget.avatar" style="flex-shrink: 0;" />
+            
+            <div :style="{ display: 'flex', flexDirection: 'column', alignItems: msg.senderId === musicStore.currentUser.id ? 'flex-end' : 'flex-start', maxWidth: '70%' }">
+              <div :style="{ padding: '10px 15px', borderRadius: '15px', wordBreak: 'break-all', fontSize: '14px', background: msg.senderId === musicStore.currentUser.id ? '#3b82f6' : '#fff', color: msg.senderId === musicStore.currentUser.id ? '#fff' : '#1e293b', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }">
+                {{ msg.content }}
+              </div>
+              <span style="font-size: 11px; color: #94a3b8; margin-top: 4px; padding: 0 4px;">{{ formatChatTime(msg.createTime) }}</span>
             </div>
+            
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -453,12 +458,18 @@
     <el-drawer v-model="msgCenterVisible" title="📬 消息中心" size="320px">
       <el-empty v-if="recentContacts.length === 0" description="还没有人找你聊天哦~" />
       <div v-else class="contact-list">
-        <div v-for="contact in recentContacts" :key="contact.id" class="contact-item" @click="openChatFromCenter(contact)">
-          <el-avatar :src="contact.avatar" :size="45" style="border: 2px solid #eff6ff;" />
-          <div class="c-info">
-            <div class="c-name">{{ contact.nickname || contact.username }}</div>
-            <div class="c-sign">{{ contact.signature || '点击查看消息' }}</div>
+        
+        <div v-for="item in recentContacts" :key="item.contact.id" class="contact-item" @click="openChatFromCenter(item.contact)">
+          <el-avatar :src="item.contact.avatar" :size="45" style="border: 2px solid #eff6ff; flex-shrink: 0;" />
+          
+          <div class="c-info" style="flex: 1; min-width: 0; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <div class="c-name" style="flex: 1; margin-right: 10px;">{{ item.contact.nickname || item.contact.username }}</div>
+              <div style="font-size: 11px; color: #94a3b8; flex-shrink: 0;">{{ formatChatTime(item.lastTime) }}</div>
+            </div>
+            <div class="c-sign">{{ item.lastMessage || '暂无消息...' }}</div>
           </div>
+          
         </div>
       </div>
     </el-drawer>
@@ -466,7 +477,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard, Bell } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -478,7 +489,7 @@ import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI } from '../api/user'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -1022,14 +1033,20 @@ const openChat = (user) => {
   loadChatHistory()
 }
 
+// 核心修复：拉取聊天记录并智能滚动
 const loadChatHistory = async () => {
   try {
     const res = await getChatHistoryAPI(musicStore.currentUser.id, chatTarget.value.id)
+    // 💥 判定是否有新消息：如果数量变多了，才允许往下滚，否则不要打断用户阅读
+    const isNewMessage = chatHistory.value.length !== (res || []).length
     chatHistory.value = res || []
-    setTimeout(() => {
-      const box = document.getElementById('chatBox')
-      if (box) box.scrollTop = box.scrollHeight
-    }, 100)
+    
+    if (isNewMessage) {
+      setTimeout(() => {
+        const box = document.getElementById('chatBox')
+        if (box) box.scrollTop = box.scrollHeight
+      }, 100)
+    }
   } catch(e) {}
 }
 
@@ -1049,17 +1066,43 @@ const sendChat = async () => {
   }
 }
 
-// 🚀 消息中心核心状态
+// 🚀 聊天时间智能格式化引擎
+const formatChatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  const hh = date.getHours().toString().padStart(2, '0')
+  const mm = date.getMinutes().toString().padStart(2, '0')
+  
+  // 💥 只有不是今天发的消息，才带上月 - 日
+  if (isToday) {
+    return `${hh}:${mm}`
+  } else {
+    return `${date.getMonth() + 1}-${date.getDate()} ${hh}:${mm}`
+  }
+}
+
+// 🚀 消息中心核心状态与心跳引擎
 const msgCenterVisible = ref(false)
 const unreadCount = ref(0)
 const recentContacts = ref([])
+let msgPollingTimer = null
 
-// 打开消息中心 (已彻底解封并接通底层 API)
+// 悄悄去后端查有没有新消息 (心脏起搏器)
+const fetchUnreadCount = async () => {
+  if (!musicStore.currentUser) return
+  try {
+    const res = await getUnreadCountAPI(musicStore.currentUser.id)
+    unreadCount.value = res || 0
+  } catch(e) {}
+}
+
+// 打开消息中心 (拉取联系人)
 const openMessageCenter = async () => {
   if (!musicStore.currentUser) return
   msgCenterVisible.value = true
   try {
-    // 💥 撕掉注释，真实拉取和这个用户聊过天的所有联系人！
     const res = await getRecentContactsAPI(musicStore.currentUser.id)
     recentContacts.value = res || []
   } catch(e) {
@@ -1067,13 +1110,33 @@ const openMessageCenter = async () => {
   }
 }
 
-// 从消息中心打开聊天
-const openChatFromCenter = (contact) => {
+// 从联系人列表打开聊天 (并消除红点)
+const openChatFromCenter = async (contact) => {
   chatTarget.value = contact
   msgCenterVisible.value = false
   chatDrawerVisible.value = true
+  await markAsReadAPI(contact.id, musicStore.currentUser.id) // 告诉后端我看了
+  fetchUnreadCount() // 瞬间熄灭红点！
   loadChatHistory()
 }
+
+// 引擎点火：只要页面加载，就每 5 秒查一次新消息！
+onMounted(() => {
+  fetchUnreadCount()
+  msgPollingTimer = setInterval(() => {
+    fetchUnreadCount() // 查红点
+    
+    // 💥 实时同步引擎：如果当前聊天框是打开状态，自动拉取最新聊天记录！
+    if (chatDrawerVisible.value && chatTarget.value) {
+      loadChatHistory()
+      markAsReadAPI(chatTarget.value.id, musicStore.currentUser.id) // 看了就立刻消除红点
+    }
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (msgPollingTimer) clearInterval(msgPollingTimer)
+})
 </script>
 
 <style scoped>
