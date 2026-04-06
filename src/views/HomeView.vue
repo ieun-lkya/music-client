@@ -15,10 +15,18 @@
           </el-input>
         </div>
         
-        <div class="user-profile" v-if="musicStore.currentUser">
-          <el-avatar :size="36" :src="musicStore.currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
-          <span class="user-name">{{ musicStore.currentUser.username }}</span>
-          <el-button type="danger" link style="margin-left: 10px;" @click="handleLogout">退出</el-button>
+        <div class="header-bell" @click="openMessageCenter" style="cursor: pointer; display: flex; align-items: center; margin: 0 20px;">
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+            <el-icon :size="22" class="hover-bell" color="#475569"><Bell /></el-icon>
+          </el-badge>
+        </div>
+        
+        <div class="header-actions" v-if="musicStore.currentUser" style="display: flex; align-items: center; gap: 12px;">
+          <div class="user-profile" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+            <el-avatar :size="36" :src="musicStore.currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+            <span class="user-name">{{ musicStore.currentUser.nickname || musicStore.currentUser.username }}</span>
+            <el-button type="danger" link style="margin-left: 5px;" @click="handleLogout">退出</el-button>
+          </div>
         </div>
         <div class="user-profile" v-else @click="goToLogin">
           <el-avatar :size="36" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
@@ -442,14 +450,6 @@
       </div>
     </el-drawer>
 
-    <div class="msg-fab" @click="openMessageCenter" v-if="musicStore.currentUser">
-      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-        <div class="fab-btn">
-          <el-icon :size="22"><Bell /></el-icon>
-        </div>
-      </el-badge>
-    </div>
-
     <el-drawer v-model="msgCenterVisible" title="📬 消息中心" size="320px">
       <el-empty v-if="recentContacts.length === 0" description="还没有人找你聊天哦~" />
       <div v-else class="contact-list">
@@ -478,7 +478,7 @@ import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI } from '../api/user'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -1054,14 +1054,17 @@ const msgCenterVisible = ref(false)
 const unreadCount = ref(0)
 const recentContacts = ref([])
 
-// 打开消息中心
+// 打开消息中心 (已彻底解封并接通底层 API)
 const openMessageCenter = async () => {
   if (!musicStore.currentUser) return
   msgCenterVisible.value = true
-  // TODO: 加载最近联系人列表
-  // const res = await getRecentContactsAPI(musicStore.currentUser.id)
-  // recentContacts.value = res || []
-  // unreadCount.value = res?.reduce((sum, c) => sum + (c.unreadCount || 0), 0) || 0
+  try {
+    // 💥 撕掉注释，真实拉取和这个用户聊过天的所有联系人！
+    const res = await getRecentContactsAPI(musicStore.currentUser.id)
+    recentContacts.value = res || []
+  } catch(e) {
+    ElMessage.error('网络拥堵，联系人拉取失败')
+  }
 }
 
 // 从消息中心打开聊天
@@ -1631,9 +1634,8 @@ const openChatFromCenter = (contact) => {
 }
 
 /* 🚀 消息铃铛与列表样式 */
-.msg-fab { position: fixed; right: 30px; bottom: 120px; z-index: 999; cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.msg-fab:hover { transform: translateY(-5px) scale(1.05); }
-.fab-btn { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(59,130,246,0.3); }
+.hover-bell { transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.hover-bell:hover { color: #3b82f6 !important; transform: scale(1.15) rotate(10deg); }
 
 .contact-item { display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; cursor: pointer; transition: 0.2s; margin-bottom: 10px; border: 1px solid transparent; }
 .contact-item:hover { background: #f8fafc; border-color: #e2e8f0; }
