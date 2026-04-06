@@ -4,6 +4,14 @@
       <el-slider v-model="playPercent" :show-tooltip="false" @input="isDragging = true" @change="onSliderSeek" class="player-slider" :disabled="!musicStore.currentSong" />
     </div>
     
+    <div class="mini-lyric-container" v-if="musicStore.currentSong && currentMiniLyric && !musicStore.showLyricPanel">
+      <div class="mini-lyric-wrapper" :key="currentMiniLyric">
+        <span v-for="(line, idx) in currentMiniLyric.split('\n')" :key="idx" :class="idx === 0 ? 'lyric-primary' : 'lyric-secondary'">
+          {{ line }}
+        </span>
+      </div>
+    </div>
+    
     <div class="controls-content" v-if="musicStore.currentSong">
       <div class="track-info">
         <img :src="musicStore.currentSong.coverUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="mini-cover" crossorigin="anonymous" @click="musicStore.showLyricPanel = true" />
@@ -85,6 +93,7 @@
   <audio 
     id="echo-audio-player" 
     :src="musicStore.currentSong?.audioUrl"
+    crossorigin="anonymous"
     @timeupdate="onTimeUpdate"
     @loadedmetadata="onLoadedMetadata"
     @ended="handleAudioEnded"
@@ -241,6 +250,7 @@ watch(() => musicStore.currentTime, (t) => {
 const formatTime = (s) => isNaN(s) ? "00:00" : `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`
 
 // 🚀 Web Audio 调音台引擎
+const eqLabels = ['32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
 let audioCtx = null; let filters = []
 const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 const eqGains = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
