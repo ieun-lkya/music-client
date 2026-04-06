@@ -99,7 +99,7 @@
                 <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+              <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
             </div>
           </div>
         </section>
@@ -133,7 +133,7 @@
                       <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
                     </span>
                     <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-                    <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+                    <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
                   </div>
                 </div>
               </div>
@@ -160,7 +160,7 @@
                   <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
                 </span>
                 <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-                <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+                <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
               </div>
             </div>
           </div>
@@ -283,7 +283,7 @@
                   <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
                 </span>
                 <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-                <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+                <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
               </div>
             </div>
           </div>
@@ -370,9 +370,67 @@
                 <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+              <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
             </div>
           </div>
+        </section>
+
+        <section v-else-if="musicStore.currentMenu === 'artist_profile'" class="hero-section fade-in">
+          <div class="discover-header" style="align-items: center;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+              <el-avatar :size="80" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); font-size: 28px; font-weight: 900; color: #fff;">
+                {{ currentArtistName.charAt(0) }}
+              </el-avatar>
+              <div>
+                <h2 style="margin: 0 0 5px 0;">{{ currentArtistName }}</h2>
+                <p class="theory-note">入驻音乐人 ｜ 共 {{ artistSongs.length }} 首发行的单曲</p>
+              </div>
+            </div>
+            <el-button plain round @click="switchMenu('discover')"><el-icon><ArrowLeft /></el-icon> 返回</el-button>
+          </div>
+          <div class="modern-list-view fade-in">
+            <div class="modern-list-item" v-for="(item, index) in artistSongs" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+              <span class="modern-title-group">
+                <div class="track-status-box" v-if="!isBatchMode">
+                  <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                  <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                </div>
+                <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
+              </span>
+              <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
+            </div>
+          </div>
+        </section>
+
+        <section v-else-if="musicStore.currentMenu === 'friend_profile'" class="hero-section fade-in">
+          <div class="profile-header" style="background: #fff; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+            <div class="avatar-wrapper" style="cursor: default;">
+              <el-avatar :size="90" :src="targetUser?.avatar" />
+            </div>
+            <div class="profile-info">
+              <h2 style="margin: 0 0 10px;">{{ targetUser?.nickname || targetUser?.username }} 的音乐宇宙</h2>
+              <p style="margin: 0; color: #64748b;">{{ targetUser?.signature || 'Ta很神秘，什么都没写...' }}</p>
+              <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <el-tag type="success" effect="plain" round>你们是互相关注的好友</el-tag>
+                <el-button size="small" round @click="openChat(targetUser)">发私信</el-button>
+              </div>
+            </div>
+          </div>
+          
+          <h3 style="margin: 30px 0 15px; color: #0f172a;">Ta 创建的云端歌单</h3>
+          <el-empty v-if="friendPlaylists.length === 0" description="Ta 还没有创建过歌单哦~" />
+          <el-row :gutter="25" class="bento-grid" v-else>
+            <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="pl in friendPlaylists" :key="pl.id">
+              <div class="bento-card" @click="openSquarePlaylist(pl)">
+                <div class="bento-cover-box" style="background: linear-gradient(135deg, #e0e7ff 0%, #bae6fd 100%); display:flex; justify-content:center; align-items:center;">
+                  <img v-if="pl.coverUrl" :src="pl.coverUrl" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;" />
+                  <el-icon v-else :size="48" color="#3b82f6"><DataBoard /></el-icon>
+                </div>
+                <div class="bento-info"><div class="bento-title">{{ pl.name }}</div></div>
+              </div>
+            </el-col>
+          </el-row>
         </section>
 
       </div>
@@ -423,12 +481,17 @@
         <p style="color: #64748b; font-size: 13px; margin: 0 0 25px;">{{ targetUser.signature || '这个人很酷，什么也没留下...' }}</p>
         
         <div style="display: flex; justify-content: center; gap: 15px;" v-if="targetUser.id !== musicStore.currentUser?.id">
-          <el-button :type="isFollowingTarget ? 'default' : 'primary'" round @click="toggleFollow" style="width: 110px;">
+          <el-button :type="isFollowingTarget ? 'default' : 'primary'" round @click="toggleFollow" style="width: 100px;">
             {{ isFollowingTarget ? '已关注' : '+ 关注' }}
           </el-button>
-          <el-button round @click="openChat(targetUser)" style="width: 110px;">
-            发私信 <span v-if="isMutual" style="margin-left: 4px; color:#67c23a; font-size:12px;">(好友)</span>
+          <el-button round @click="openChat(targetUser)" style="width: 100px;">发私信</el-button>
+          
+          <el-button v-if="isMutual" type="success" plain round @click="openFriendProfile" style="width: 100px;">
+            进入主页
           </el-button>
+          <el-tooltip v-else content="互相关注后，即可解锁Ta的私密主页" placement="top">
+            <el-button disabled round style="width: 100px;"><el-icon><Lock /></el-icon> 主页锁定</el-button>
+          </el-tooltip>
         </div>
       </div>
     </el-dialog>
@@ -495,7 +558,7 @@ import LyricOverlay from '../components/player/LyricOverlay.vue'
 import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI, getMusicByArtistAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI } from '../api/user'
 
 const router = useRouter()
@@ -569,6 +632,9 @@ const rawActivePlayList = computed(() => {
   
   // 💥 致命补充：让底层播放引擎认领 AI 广场上的这些歌！
   if (musicStore.currentMenu === 'square') return squareAiSongs.value 
+  
+  // 🚀 让播放器认领歌手主页的歌曲！
+  if (musicStore.currentMenu === 'artist_profile') return artistSongs.value 
   
   return []
 })
@@ -1137,6 +1203,30 @@ const openMessageCenter = async () => {
   } catch(e) {
     ElMessage.error('网络拥堵，联系人拉取失败')
   }
+}
+
+// 🚀 歌手主页引擎
+const currentArtistName = ref('')
+const artistSongs = ref([])
+
+const openArtistProfile = async (artistName) => {
+  musicStore.currentMenu = 'artist_profile'
+  currentArtistName.value = artistName
+  try {
+    artistSongs.value = await getMusicByArtistAPI(artistName) || []
+  } catch(e) {}
+}
+
+// 🚀 好友私密主页引擎
+const friendPlaylists = ref([])
+
+const openFriendProfile = async () => {
+  otherProfileVisible.value = false // 关掉小弹窗
+  musicStore.currentMenu = 'friend_profile'
+  try {
+    // 拉取好友公开创建的歌单
+    friendPlaylists.value = await getUserPlaylistsAPI(targetUser.value.id) || []
+  } catch(e) {}
 }
 
 // 引擎点火：只要页面加载，就每 5 秒查一次新消息！
@@ -1728,5 +1818,9 @@ onUnmounted(() => {
 /* 🚀 返回键悬浮特效 */
 .hover-bg { transition: 0.2s; }
 .hover-bg:hover { background-color: #eff6ff; transform: scale(1.1); }
+
+/* 歌手名字悬浮交互 */
+.hover-artist { cursor: pointer; transition: 0.2s; }
+.hover-artist:hover { color: #3b82f6 !important; text-decoration: underline; text-underline-offset: 4px; }
 </style>
 

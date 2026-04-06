@@ -55,3 +55,6 @@ export const searchMusicAPI = (keyword) => http.get('/music/search', { params: {
 export const collectPlaylistAPI = (userId, playlistId) => http.post(`/playlist/collect?userId=${userId}&playlistId=${playlistId}`)
 export const uncollectPlaylistAPI = (userId, playlistId) => http.post(`/playlist/uncollect?userId=${userId}&playlistId=${playlistId}`)
 export const getCollectedPlaylistsAPI = (userId) => http.get(`/playlist/collected/${userId}`)
+
+// 🚀 获取歌手主页数据
+export const getMusicByArtistAPI = (artist) => http.get('/music/artist', { params: { name: artist } })
