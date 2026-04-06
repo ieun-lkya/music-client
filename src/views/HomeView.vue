@@ -166,7 +166,10 @@
                 <div class="avatar-edit"><el-icon><Edit /></el-icon></div>
               </div>
               <div class="profile-info">
-                <h2>{{ musicStore.currentUser?.username || '神秘听众' }}<el-button type="primary" link @click="openProfileEditor"><el-icon><EditPen /></el-icon> 编辑名片</el-button></h2>
+                <h2>{{ musicStore.currentUser?.nickname || musicStore.currentUser?.username }}</h2>
+                <p class="u-account" style="color: #64748b; font-size: 14px; margin-top: -5px; margin-bottom: 10px;">
+                  账号 ID: {{ musicStore.currentUser?.username }}
+                </p>
                 <p>{{ musicStore.currentUser?.signature || '用音乐记录生活，寻找灵魂共鸣...' }}</p>
                 <p style="margin-top: 5px; font-size: 13px;">EchoScene 尊贵用户 ｜ 听歌品味：<el-tag size="small" type="success" effect="dark">极致硬核</el-tag></p>
               </div>
@@ -284,7 +287,10 @@
                 <div class="user-card" @click="$message.info('正在时空穿梭，前往 Ta 的个人主页...')">
                   <el-avatar :size="60" :src="user.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="u-avatar" />
                   <div class="u-info">
-                    <div class="u-name">{{ user.username }}</div>
+                    <div class="u-name">
+                      {{ user.nickname || user.username }}
+                      <span style="font-size:12px; color:#94a3b8; font-weight:normal; margin-left:5px;">(@{{ user.username }})</span>
+                    </div>
                     <div class="u-sign">{{ user.signature || '这个人很酷，什么也没留下...' }}</div>
                   </div>
                 </div>
@@ -378,6 +384,9 @@
         <el-input v-model="editProfileForm.username" placeholder="你的专属音乐昵称" maxlength="15" size="large" style="margin-bottom: 15px;">
           <template #prefix><el-icon><User /></el-icon></template>
         </el-input>
+        <el-input v-model="editProfileForm.nickname" placeholder="取一个响亮的网名吧..." maxlength="20" size="large" style="margin-bottom: 15px;">
+          <template #prefix><el-icon><Postcard /></el-icon></template>
+        </el-input>
         <el-input v-model="editProfileForm.signature" type="textarea" :rows="3" placeholder="写下你的个性签名，让懂你的人在此停留..." maxlength="50" show-word-limit />
       </div>
       <template #footer>
@@ -404,7 +413,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -472,10 +481,8 @@ const isRadioLoading = ref(false); const isSleepLoading = ref(false)
 const isBatchMode = ref(false); const selectedMusicIds = ref([])
 const playlistDialogVisible = ref(false); const newPlaylistName = ref('')
 
-const searchPlaceholder = computed(() => {
-  if (musicStore.currentMenu === 'discover') return '极速检索全站曲库...'
-  return '极速检索歌名/歌手...'
-})
+// 🚀 废弃乱七八糟的提示切换，统一全站搜索占位符
+const searchPlaceholder = computed(() => '输入歌名、歌手或用户昵称进行全站搜索...')
 
 // 🚀 终极修正 1：必须先声明 rawActivePlayList！
 const rawActivePlayList = computed(() => {
@@ -494,16 +501,9 @@ const rawActivePlayList = computed(() => {
 })
 
 // 🚀 终极修正 2：然后再声明 activePlayList（因为它依赖了上面的 rawActivePlayList.value）
+// 🚀 听大哥的！彻底废除边打字边过滤的逻辑，全权交给"全站搜索"，保持列表稳如磐石
 const activePlayList = computed(() => {
-  const list = rawActivePlayList.value
-  // 如果是 AI 面板、或者是全局搜索面板，绝对不要执行本地的 keyword 过滤，原样展示！
-  if ((musicStore.currentMenu === 'discover' && discoverMode.value === 'ai') || musicStore.currentMenu === 'search_results') {
-    return list 
-  }
-  // 其他普通的本地页面依然保留轻量级的本地过滤
-  if (!localSearchKeyword.value) return list
-  const kw = localSearchKeyword.value.toLowerCase().trim()
-  return list.filter(song => (song.title && song.title.toLowerCase().includes(kw)) || (song.artist && song.artist.toLowerCase().includes(kw)))
+  return rawActivePlayList.value
 })
 
 const currentActivePlaylist = computed(() => {
@@ -701,9 +701,8 @@ const executeGlobalSearch = async () => {
   }
   isGlobalSearching.value = true
   lastSearchKeyword.value = localSearchKeyword.value.trim()
-  musicStore.currentMenu = 'search_results' 
-  searchTab.value = 'music' // 默认优先显示音乐
-
+  musicStore.currentMenu = 'search_results'
+  
   try {
     // 💥 并发请求：同时向后端索要"歌曲"和"用户"数据！
     const [musicRes, userRes] = await Promise.all([
@@ -712,6 +711,15 @@ const executeGlobalSearch = async () => {
     ])
     searchMusicList.value = musicRes || []
     searchUserList.value = userRes || []
+
+    // 💥 核心智能化 UX 升级：
+    // 如果没搜到歌，但是搜到了人，自动帮你把选项卡切到"用户"界面！
+    if (searchMusicList.value.length === 0 && searchUserList.value.length > 0) {
+      searchTab.value = 'user'
+    } else {
+      searchTab.value = 'music'
+    }
+    
   } catch (error) {
     ElMessage.error('全站检索网络异常！')
   } finally {
@@ -756,7 +764,7 @@ const playNext = () => {
 // 🚀 名片编辑状态与逻辑
 const profileDialogVisible = ref(false)
 const isProfileUpdating = ref(false)
-const editProfileForm = ref({ id: null, username: '', avatar: '', signature: '' })
+const editProfileForm = ref({ id: null, username: '', nickname: '', avatar: '', signature: '' }) // 💥 加上 nickname 占位
 
 // 打开编辑器，回显当前数据
 const openProfileEditor = () => {
@@ -764,6 +772,7 @@ const openProfileEditor = () => {
   editProfileForm.value = { 
     id: musicStore.currentUser.id, 
     username: musicStore.currentUser.username, 
+    nickname: musicStore.currentUser.nickname || '', // 💥 关键点：把网名从仓库取出回显到表单
     avatar: musicStore.currentUser.avatar || '',
     signature: musicStore.currentUser.signature || ''
   }
