@@ -1223,31 +1223,36 @@ const openMessageCenter = async () => {
   }
 }
 
-// 🚀 歌手主页引擎 (AI 并发增强版)
+// 🚀 歌手主页引擎 (极致渐进式渲染版)
 const currentArtistName = ref('')
 const artistSongs = ref([])
 const artistBio = ref('')
 const isArtistBioLoading = ref(false)
 
-const openArtistProfile = async (artistName) => {
+const openArtistProfile = (artistName) => {
   musicStore.currentMenu = 'artist_profile'
   currentArtistName.value = artistName
+  
+  // 状态初始化
   artistSongs.value = []
-  artistBio.value = ''
-  isArtistBioLoading.value = true // 开启骨架屏动画
+  artistBio.value = 'AI 正在跨越光年解析 Ta 的音乐宇宙...'
+  isArtistBioLoading.value = true
 
-  try {
-    // 💥 顶级并发性能：同时向数据库索要歌曲，向大模型索要传记！
-    const [songs, bioRes] = await Promise.all([
-      getMusicByArtistAPI(artistName).catch(() => []),
-      getArtistBioAPI(artistName).catch(() => '')
-    ])
-    artistSongs.value = songs || []
-    artistBio.value = bioRes || '这位音乐人很神秘，AI 暂时无法解析 Ta 的星轨...'
-  } catch(e) {
-  } finally {
+  // 💥 异步通道 1：极速拉取数据库歌曲！
+  // (去掉了 await，让它获取到数据后瞬间渲染列表，绝不阻塞后续代码)
+  getMusicByArtistAPI(artistName).then(res => {
+    artistSongs.value = res || []
+  }).catch(() => {})
+
+  // 💥 异步通道 2：大模型慢慢生成传记
+  // (它自己转它的菊花，生成完毕后独立替换文字并关掉 Loading)
+  getArtistBioAPI(artistName).then(res => {
+    artistBio.value = res || '这位音乐人太神秘，AI 暂时无法解析 Ta 的星轨...'
+  }).catch(() => {
+    artistBio.value = 'AI 引擎遇到时空乱流，信号接收失败...'
+  }).finally(() => {
     isArtistBioLoading.value = false
-  }
+  })
 }
 
 // 🚀 好友私密主页引擎

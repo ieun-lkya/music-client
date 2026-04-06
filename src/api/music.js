@@ -59,5 +59,5 @@ export const getCollectedPlaylistsAPI = (userId) => http.get(`/playlist/collecte
 // 🚀 获取歌手主页数据
 export const getMusicByArtistAPI = (artist) => http.get('/music/artist', { params: { name: artist } })
 
-// 🚀 获取 AI 歌手传记
-export const getArtistBioAPI = (artist) => http.get('/music/artist/bio', { params: { artist } })
+// 🚀 获取 AI 歌手传记 (接通真正的 AI 路由)
+export const getArtistBioAPI = (artist) => http.get('/music/ai/artist/bio', { params: { artist } })
