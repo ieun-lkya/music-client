@@ -433,25 +433,26 @@
       </div>
     </el-dialog>
 
-    <el-drawer v-model="chatDrawerVisible" :show-close="false" size="400px">
+    <el-drawer v-model="chatDrawerVisible" size="400px">
       <template #header>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <el-icon :size="20" style="cursor: pointer; color: #64748b;" @click="backToMessageCenter"><ArrowLeft /></el-icon>
-          <span style="font-size: 16px; font-weight: 600; color: #0f172a;">与 {{ chatTarget?.nickname || chatTarget?.username }} 聊天中</span>
+        <div style="display: flex; align-items: center; color: #0f172a; font-weight: 800; font-size: 16px;">
+          <el-icon style="cursor: pointer; margin-right: 12px; font-size: 20px; color: #3b82f6; padding: 4px; border-radius: 50%;" class="hover-bg" @click="backToMsgCenter">
+            <ArrowLeft />
+          </el-icon>
+          与 {{ chatTarget?.nickname || chatTarget?.username }} 聊天中
         </div>
       </template>
+
       <div style="display: flex; flex-direction: column; height: 100%;">
         <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 15px;">
           <div v-for="msg in chatHistory" :key="msg.id" :style="{ display: 'flex', gap: '10px', marginBottom: '15px', flexDirection: msg.senderId === musicStore.currentUser.id ? 'row-reverse' : 'row' }">
             <el-avatar :size="35" :src="msg.senderId === musicStore.currentUser.id ? musicStore.currentUser.avatar : chatTarget.avatar" style="flex-shrink: 0;" />
-            
             <div :style="{ display: 'flex', flexDirection: 'column', alignItems: msg.senderId === musicStore.currentUser.id ? 'flex-end' : 'flex-start', maxWidth: '70%' }">
               <div :style="{ padding: '10px 15px', borderRadius: '15px', wordBreak: 'break-all', fontSize: '14px', background: msg.senderId === musicStore.currentUser.id ? '#3b82f6' : '#fff', color: msg.senderId === musicStore.currentUser.id ? '#fff' : '#1e293b', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }">
                 {{ msg.content }}
               </div>
               <span style="font-size: 11px; color: #94a3b8; margin-top: 4px; padding: 0 4px;">{{ formatChatTime(msg.createTime) }}</span>
             </div>
-            
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -1104,18 +1105,6 @@ const fetchUnreadCount = async () => {
   } catch(e) {}
 }
 
-// 打开消息中心 (拉取联系人)
-const openMessageCenter = async () => {
-  if (!musicStore.currentUser) return
-  msgCenterVisible.value = true
-  try {
-    const res = await getRecentContactsAPI(musicStore.currentUser.id)
-    recentContacts.value = res || []
-  } catch(e) {
-    ElMessage.error('网络拥堵，联系人拉取失败')
-  }
-}
-
 // 从联系人列表打开聊天 (并消除红点)
 const openChatFromCenter = async (contact) => {
   chatTarget.value = contact
@@ -1126,11 +1115,28 @@ const openChatFromCenter = async (contact) => {
   loadChatHistory()
 }
 
-// 返回消息中心
-const backToMessageCenter = () => {
+// 🚀 从聊天室返回消息列表 (完美解决遮罩层卡死 Bug)
+const backToMsgCenter = () => {
   chatDrawerVisible.value = false
+  
+  // 💥 致命细节：必须延迟 200ms 等聊天抽屉的动画完全关掉后，再打开列表抽屉！
+  // 否则 Vue 的遮罩层组件会直接互相卡死！
+  setTimeout(() => {
+    openMessageCenter()
+  }, 200)
+}
+
+// 🚀 解封消息中心，拉取带最新消息的联系人
+const openMessageCenter = async () => {
+  if (!musicStore.currentUser) return
   msgCenterVisible.value = true
-  chatTarget.value = null
+  try {
+    // 💥 把你代码里这几行 // TODO 的注释撕掉！
+    const res = await getRecentContactsAPI(musicStore.currentUser.id)
+    recentContacts.value = res || []
+  } catch(e) {
+    ElMessage.error('网络拥堵，联系人拉取失败')
+  }
 }
 
 // 引擎点火：只要页面加载，就每 5 秒查一次新消息！
@@ -1718,5 +1724,9 @@ onUnmounted(() => {
 .c-info { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 .c-name { font-size: 15px; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-sign { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 🚀 返回键悬浮特效 */
+.hover-bg { transition: 0.2s; }
+.hover-bg:hover { background-color: #eff6ff; transform: scale(1.1); }
 </style>
 
