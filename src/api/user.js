@@ -16,3 +16,6 @@ export const updateUserAPI = (data) => http.post('/user/update', data)
 export const getHeatmapAPI = (userId) => http.get(`/analysis/heatmap/${userId}`)
 export const getRadarAPI = (userId) => http.get(`/analysis/radar/${userId}`)
 export const recordPlayAPI = (userId, musicId) => http.post(`/analysis/record?userId=${userId}&musicId=${musicId}`)
+
+// 🚀 社交系统：模糊搜索用户
+export const searchUsersAPI = (keyword) => http.get('/user/search', { params: { keyword } })

@@ -244,32 +244,52 @@
           <div class="discover-header">
             <div>
               <h2>🔍 探索全网</h2>
-              <p class="theory-note">关于「{{ lastSearchKeyword }}」的检索结果，共发现 {{ searchMusicList.length }} 首灵魂共鸣。</p>
+              <p class="theory-note">关于「{{ lastSearchKeyword }}」的检索结果</p>
             </div>
-            <div style="display:flex; gap:10px;">
-              <el-button type="primary" round @click="playAllSearch" v-if="searchMusicList.length > 0">
+            <div style="display:flex; gap:10px; align-items: center;">
+              <div class="ios-segment-control" style="margin-right: 20px;">
+                <div class="segment-btn" :class="{ active: searchTab === 'music' }" @click="searchTab = 'music'">单曲 ({{ searchMusicList.length }})</div>
+                <div class="segment-btn" :class="{ active: searchTab === 'user' }" @click="searchTab = 'user'">用户 ({{ searchUserList.length }})</div>
+              </div>
+              <el-button type="primary" round @click="playAllSearch" v-if="searchTab === 'music' && searchMusicList.length > 0">
                 <el-icon style="margin-right: 5px;"><VideoPlay /></el-icon> 播放全部
               </el-button>
               <el-button plain round @click="switchMenu('discover')">返回大厅</el-button>
             </div>
           </div>
-          
-          <el-empty v-if="searchMusicList.length === 0" description="在这片星系中，没有找到与此相关的频率..." />
-          
-          <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
-              <span class="modern-title-group">
-                <div class="track-status-box">
-                  <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                  <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
-                  <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
-                  <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
-                </div>
-                <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
-              </span>
-              <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-              <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+
+          <div v-show="searchTab === 'music'">
+            <el-empty v-if="searchMusicList.length === 0" description="在这片星系中，没有找到与此相关的频率..." />
+            <div class="modern-list-view fade-in" v-else>
+              <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+                <span class="modern-title-group">
+                  <div class="track-status-box">
+                    <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                    <el-icon class="track-play" v-show="musicStore.currentSong?.id !== item.id"><VideoPlay /></el-icon>
+                    <el-icon class="track-playing-icon" v-show="musicStore.currentSong?.id === item.id && musicStore.isPlaying"><VideoPause /></el-icon>
+                    <el-icon class="track-paused-icon" v-show="musicStore.currentSong?.id === item.id && !musicStore.isPlaying"><VideoPlay /></el-icon>
+                  </div>
+                  <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
+                </span>
+                <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
+                <span class="col-artist"><span class="modern-artist">{{ item.artist }}</span></span>
+              </div>
             </div>
+          </div>
+
+          <div v-show="searchTab === 'user'" class="fade-in">
+            <el-empty v-if="searchUserList.length === 0" description="未找到匹配的音乐达人..." />
+            <el-row :gutter="20" v-else>
+              <el-col :xs="24" :sm="12" :md="8" :lg="8" v-for="user in searchUserList" :key="user.id" style="margin-bottom: 20px;">
+                <div class="user-card" @click="$message.info('正在时空穿梭，前往 Ta 的个人主页...')">
+                  <el-avatar :size="60" :src="user.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="u-avatar" />
+                  <div class="u-info">
+                    <div class="u-name">{{ user.username }}</div>
+                    <div class="u-sign">{{ user.signature || '这个人很酷，什么也没留下...' }}</div>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
           </div>
         </section>
 
@@ -394,7 +414,7 @@ import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI } from '../api/user'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -668,10 +688,12 @@ const handleSearch = async () => {
 
 // 🚀 全局搜索核心状态
 const searchMusicList = ref([])
+const searchUserList = ref([]) // 新增：搜索到的用户列表
+const searchTab = ref('music') // 新增：搜索结果的 Tab（'music' 或 'user'）
 const isGlobalSearching = ref(false)
 const lastSearchKeyword = ref('') // 记录最后一次搜索的词，防止用户改输入框导致标题乱跳
 
-// 🚀 发动全站搜索脉冲！
+// 🚀 发动全站多维搜索脉冲！
 const executeGlobalSearch = async () => {
   if (!localSearchKeyword.value.trim()) {
     ElMessage.warning('请输入搜索内容！')
@@ -679,11 +701,17 @@ const executeGlobalSearch = async () => {
   }
   isGlobalSearching.value = true
   lastSearchKeyword.value = localSearchKeyword.value.trim()
-  musicStore.currentMenu = 'search_results' // 强行切到搜索结果面板
-  
+  musicStore.currentMenu = 'search_results' 
+  searchTab.value = 'music' // 默认优先显示音乐
+
   try {
-    const res = await searchMusicAPI(lastSearchKeyword.value)
-    searchMusicList.value = res || []
+    // 💥 并发请求：同时向后端索要"歌曲"和"用户"数据！
+    const [musicRes, userRes] = await Promise.all([
+      searchMusicAPI(lastSearchKeyword.value).catch(() => []),
+      searchUsersAPI(lastSearchKeyword.value).catch(() => [])
+    ])
+    searchMusicList.value = musicRes || []
+    searchUserList.value = userRes || []
   } catch (error) {
     ElMessage.error('全站检索网络异常！')
   } finally {
@@ -1395,5 +1423,48 @@ onMounted(async () => {
 .insight-basis { color: #64748b; font-size: 14px; line-height: 1.7; margin: 0 0 12px 0; font-style: italic; }
 .insight-tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .tag-capsule { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+
+/* 🚀 用户搜索名片样式 */
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.user-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.08);
+  border-color: #bfdbfe;
+}
+.u-avatar {
+  border: 2px solid #eff6ff;
+  flex-shrink: 0;
+}
+.u-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 4px;
+}
+.u-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.u-sign {
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
 
