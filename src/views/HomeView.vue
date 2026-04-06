@@ -433,7 +433,13 @@
       </div>
     </el-dialog>
 
-    <el-drawer v-model="chatDrawerVisible" :title="`与 ${chatTarget?.nickname || chatTarget?.username} 聊天中`" size="400px">
+    <el-drawer v-model="chatDrawerVisible" :show-close="false" size="400px">
+      <template #header>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <el-icon :size="20" style="cursor: pointer; color: #64748b;" @click="backToMessageCenter"><ArrowLeft /></el-icon>
+          <span style="font-size: 16px; font-weight: 600; color: #0f172a;">与 {{ chatTarget?.nickname || chatTarget?.username }} 聊天中</span>
+        </div>
+      </template>
       <div style="display: flex; flex-direction: column; height: 100%;">
         <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 15px;">
           <div v-for="msg in chatHistory" :key="msg.id" :style="{ display: 'flex', gap: '10px', marginBottom: '15px', flexDirection: msg.senderId === musicStore.currentUser.id ? 'row-reverse' : 'row' }">
@@ -1118,6 +1124,13 @@ const openChatFromCenter = async (contact) => {
   await markAsReadAPI(contact.id, musicStore.currentUser.id) // 告诉后端我看了
   fetchUnreadCount() // 瞬间熄灭红点！
   loadChatHistory()
+}
+
+// 返回消息中心
+const backToMessageCenter = () => {
+  chatDrawerVisible.value = false
+  msgCenterVisible.value = true
+  chatTarget.value = null
 }
 
 // 引擎点火：只要页面加载，就每 5 秒查一次新消息！
