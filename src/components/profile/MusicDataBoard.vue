@@ -58,8 +58,8 @@ const renderRadarChart = async () => {
   
   let radarData = [10, 10, 10, 10, 10, 10]; // 默认兜底
   let indicator = [
-    { name: '流行 Pop', max: 100 }, { name: '摇滚 Rock', max: 100 }, { name: '电子 EDM', max: 100 },
-    { name: '民谣 Folk', max: 100 }, { name: '轻音乐', max: 100 }, { name: '说唱 Rap', max: 100 }
+    { name: '流行 Pop' }, { name: '摇滚 Rock' }, { name: '电子 EDM' },
+    { name: '民谣 Folk' }, { name: '轻音乐' }, { name: '说唱 Rap' }
   ];
 
   try {
@@ -91,8 +91,8 @@ const renderRadarChart = async () => {
       }
 
       radarData = sortedTags.map(item => item.value)
-      const maxVal = Math.max(...radarData) + 2 
-      indicator = sortedTags.map(item => ({ name: item.name, max: maxVal }))
+      // 💥 极致解耦：把 max 计算交给 ECharts 引擎动态处理，前端只负责提供数据！
+      indicator = sortedTags.map(item => ({ name: item.name }))
     }
   } catch(e) {}
 
