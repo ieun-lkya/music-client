@@ -284,7 +284,7 @@
             <el-empty v-if="searchUserList.length === 0" description="未找到匹配的音乐达人..." />
             <el-row :gutter="20" v-else>
               <el-col :xs="24" :sm="12" :md="8" :lg="8" v-for="user in searchUserList" :key="user.id" style="margin-bottom: 20px;">
-                <div class="user-card" @click="$message.info('正在时空穿梭，前往 Ta 的个人主页...')">
+                <div class="user-card" @click="viewOtherProfile(user)">
                   <el-avatar :size="60" :src="user.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" class="u-avatar" />
                   <div class="u-info">
                     <div class="u-name">
@@ -407,13 +407,68 @@
     </el-dialog>
 
     <PlayerBar @play-prev="playPrev" @play-next="playNext" @toggle-like="toggleLike" />
+
+    <el-dialog v-model="otherProfileVisible" width="380px" style="border-radius: 20px; text-align: center;">
+      <div v-if="targetUser" style="padding: 10px 0 20px;">
+        <el-avatar :size="90" :src="targetUser.avatar" style="border: 3px solid #eff6ff;" />
+        <h3 style="margin: 15px 0 5px; font-size: 20px; color: #0f172a;">{{ targetUser.nickname || targetUser.username }}</h3>
+        <p style="color: #64748b; font-size: 13px; margin: 0 0 25px;">{{ targetUser.signature || '这个人很酷，什么也没留下...' }}</p>
+        
+        <div style="display: flex; justify-content: center; gap: 15px;" v-if="targetUser.id !== musicStore.currentUser?.id">
+          <el-button :type="isFollowingTarget ? 'default' : 'primary'" round @click="toggleFollow" style="width: 110px;">
+            {{ isFollowingTarget ? '已关注' : '+ 关注' }}
+          </el-button>
+          <el-button round @click="openChat(targetUser)" style="width: 110px;">
+            发私信 <span v-if="isMutual" style="margin-left: 4px; color:#67c23a; font-size:12px;">(好友)</span>
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
+
+    <el-drawer v-model="chatDrawerVisible" :title="`与 ${chatTarget?.nickname || chatTarget?.username} 聊天中`" size="400px">
+      <div style="display: flex; flex-direction: column; height: 100%;">
+        <div id="chatBox" style="flex: 1; overflow-y: auto; padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 15px;">
+          <div v-for="msg in chatHistory" :key="msg.id" :style="{ display: 'flex', gap: '10px', marginBottom: '15px', flexDirection: msg.senderId === musicStore.currentUser.id ? 'row-reverse' : 'row' }">
+            <el-avatar :size="35" :src="msg.senderId === musicStore.currentUser.id ? musicStore.currentUser.avatar : chatTarget.avatar" />
+            <div :style="{ padding: '10px 15px', borderRadius: '15px', maxWidth: '70%', wordBreak: 'break-all', fontSize: '14px', background: msg.senderId === musicStore.currentUser.id ? '#3b82f6' : '#fff', color: msg.senderId === musicStore.currentUser.id ? '#fff' : '#1e293b', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }">
+              {{ msg.content }}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <el-input v-model="chatInput" placeholder="发条友善的消息吧..." @keyup.enter="sendChat" />
+          <el-button type="primary" @click="sendChat">发送</el-button>
+        </div>
+      </div>
+    </el-drawer>
+
+    <div class="msg-fab" @click="openMessageCenter" v-if="musicStore.currentUser">
+      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+        <div class="fab-btn">
+          <el-icon :size="22"><Bell /></el-icon>
+        </div>
+      </el-badge>
+    </div>
+
+    <el-drawer v-model="msgCenterVisible" title="📬 消息中心" size="320px">
+      <el-empty v-if="recentContacts.length === 0" description="还没有人找你聊天哦~" />
+      <div v-else class="contact-list">
+        <div v-for="contact in recentContacts" :key="contact.id" class="contact-item" @click="openChatFromCenter(contact)">
+          <el-avatar :src="contact.avatar" :size="45" style="border: 2px solid #eff6ff;" />
+          <div class="c-info">
+            <div class="c-name">{{ contact.nickname || contact.username }}</div>
+            <div class="c-sign">{{ contact.signature || '点击查看消息' }}</div>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard, Bell } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -423,7 +478,7 @@ import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI } from '../api/user'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI } from '../api/user'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -917,6 +972,105 @@ onMounted(async () => {
   await loadDiscoverData()
   if (musicStore.currentUser) { await fetchMyLikes(); await fetchMyPlaylists() }
 })
+
+// 🚀 社交引擎核心状态
+const otherProfileVisible = ref(false)
+const targetUser = ref(null)
+const isFollowingTarget = ref(false)
+const isMutual = ref(false)
+
+const chatDrawerVisible = ref(false)
+const chatTarget = ref(null)
+const chatHistory = ref([])
+const chatInput = ref('')
+
+// 查看他人主页
+const viewOtherProfile = async (user) => {
+  if (!musicStore.currentUser) return ElMessage.warning('请先登录才能探索星球！')
+  try {
+    const res = await getUserProfileAPI(user.id, musicStore.currentUser.id)
+    targetUser.value = res.user
+    isFollowingTarget.value = res.isFollowing
+    isMutual.value = res.isMutual
+    otherProfileVisible.value = true
+  } catch(e) {}
+}
+
+// 关注 / 取消关注
+const toggleFollow = async () => {
+  try {
+    if (isFollowingTarget.value) {
+      await unfollowUserAPI(musicStore.currentUser.id, targetUser.value.id)
+      isFollowingTarget.value = false
+      ElMessage.success('已取消关注')
+    } else {
+      await followUserAPI(musicStore.currentUser.id, targetUser.value.id)
+      isFollowingTarget.value = true
+      ElMessage.success('关注成功！')
+    }
+    // 刷新互关状态
+    const res = await getUserProfileAPI(targetUser.value.id, musicStore.currentUser.id)
+    isMutual.value = res.isMutual
+  } catch(e) {}
+}
+
+// 唤起聊天室
+const openChat = (user) => {
+  chatTarget.value = user
+  otherProfileVisible.value = false
+  chatDrawerVisible.value = true
+  loadChatHistory()
+}
+
+const loadChatHistory = async () => {
+  try {
+    const res = await getChatHistoryAPI(musicStore.currentUser.id, chatTarget.value.id)
+    chatHistory.value = res || []
+    setTimeout(() => {
+      const box = document.getElementById('chatBox')
+      if (box) box.scrollTop = box.scrollHeight
+    }, 100)
+  } catch(e) {}
+}
+
+// 发射私信
+const sendChat = async () => {
+  if (!chatInput.value.trim()) return
+  try {
+    await sendMessageAPI({
+      senderId: musicStore.currentUser.id,
+      receiverId: chatTarget.value.id,
+      content: chatInput.value.trim()
+    })
+    chatInput.value = ''
+    loadChatHistory() // 刷新消息流
+  } catch(e) {
+    // 拦截器会自动抛出"只能发一条"的红字警告！
+  }
+}
+
+// 🚀 消息中心核心状态
+const msgCenterVisible = ref(false)
+const unreadCount = ref(0)
+const recentContacts = ref([])
+
+// 打开消息中心
+const openMessageCenter = async () => {
+  if (!musicStore.currentUser) return
+  msgCenterVisible.value = true
+  // TODO: 加载最近联系人列表
+  // const res = await getRecentContactsAPI(musicStore.currentUser.id)
+  // recentContacts.value = res || []
+  // unreadCount.value = res?.reduce((sum, c) => sum + (c.unreadCount || 0), 0) || 0
+}
+
+// 从消息中心打开聊天
+const openChatFromCenter = (contact) => {
+  chatTarget.value = contact
+  msgCenterVisible.value = false
+  chatDrawerVisible.value = true
+  loadChatHistory()
+}
 </script>
 
 <style scoped>
@@ -1475,5 +1629,16 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 🚀 消息铃铛与列表样式 */
+.msg-fab { position: fixed; right: 30px; bottom: 120px; z-index: 999; cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.msg-fab:hover { transform: translateY(-5px) scale(1.05); }
+.fab-btn { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(59,130,246,0.3); }
+
+.contact-item { display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; cursor: pointer; transition: 0.2s; margin-bottom: 10px; border: 1px solid transparent; }
+.contact-item:hover { background: #f8fafc; border-color: #e2e8f0; }
+.c-info { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.c-name { font-size: 15px; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-sign { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 

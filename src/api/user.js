@@ -19,3 +19,10 @@ export const recordPlayAPI = (userId, musicId) => http.post(`/analysis/record?us
 
 // 🚀 社交系统：模糊搜索用户
 export const searchUsersAPI = (keyword) => http.get('/user/search', { params: { keyword } })
+
+// 🚀 社交系统网络请求
+export const getUserProfileAPI = (id, currentUserId) => http.get(`/user/profile/${id}`, { params: { currentUserId } })
+export const followUserAPI = (followerId, followingId) => http.post('/user/follow', null, { params: { followerId, followingId } })
+export const unfollowUserAPI = (followerId, followingId) => http.post('/user/unfollow', null, { params: { followerId, followingId } })
+export const sendMessageAPI = (data) => http.post('/user/chat/send', data)
+export const getChatHistoryAPI = (userId1, userId2) => http.get('/user/chat/history', { params: { userId1, userId2 } })
