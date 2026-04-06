@@ -99,7 +99,14 @@
                 <span class="modern-title" :class="{'active-text': musicStore.currentSong?.id === item.id}">{{ item.title }}</span>
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
-              <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
+              <span class="col-artist">
+                <span class="modern-artist">
+                  <template v-for="(art, idx) in item.artist.split('/')" :key="idx">
+                    <span class="hover-artist" @click.stop="openArtistProfile(art.trim())">{{ art.trim() }}</span>
+                    <span v-if="idx < item.artist.split('/').length - 1" style="color: #94a3b8; margin: 0 4px; cursor: default;" @click.stop>/</span>
+                  </template>
+                </span>
+              </span>
             </div>
           </div>
         </section>
@@ -376,18 +383,29 @@
         </section>
 
         <section v-else-if="musicStore.currentMenu === 'artist_profile'" class="hero-section fade-in">
-          <div class="discover-header" style="align-items: center;">
-            <div style="display: flex; align-items: center; gap: 20px;">
-              <el-avatar :size="80" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); font-size: 28px; font-weight: 900; color: #fff;">
-                {{ currentArtistName.charAt(0) }}
-              </el-avatar>
-              <div>
-                <h2 style="margin: 0 0 5px 0;">{{ currentArtistName }}</h2>
-                <p class="theory-note">入驻音乐人 ｜ 共 {{ artistSongs.length }} 首发行的单曲</p>
+          <div class="discover-header" style="align-items: flex-start; flex-direction: column; gap: 20px;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 20px;">
+                <el-avatar :size="80" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); font-size: 28px; font-weight: 900; color: #fff;">
+                  {{ currentArtistName.charAt(0) }}
+                </el-avatar>
+                <div>
+                  <h2 style="margin: 0 0 5px 0;">{{ currentArtistName }}</h2>
+                  <p class="theory-note">入驻音乐人 ｜ 共 {{ artistSongs.length }} 首发行的单曲</p>
+                </div>
               </div>
+              <el-button plain round @click="switchMenu('discover')"><el-icon><ArrowLeft /></el-icon> 返回大厅</el-button>
             </div>
-            <el-button plain round @click="switchMenu('discover')"><el-icon><ArrowLeft /></el-icon> 返回</el-button>
+
+            <div class="ai-insight-panel" style="width: 100%; margin: 0; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-left: 4px solid #3b82f6;" v-loading="isArtistBioLoading">
+              <div class="insight-header" style="color: #0f172a;">
+                <el-icon color="#3b82f6"><MagicStick /></el-icon>
+                <span>AI 音乐人档案</span>
+              </div>
+              <p class="insight-basis" style="font-size: 14px; line-height: 1.8; color: #475569; margin: 0;">{{ artistBio }}</p>
+            </div>
           </div>
+
           <div class="modern-list-view fade-in">
             <div class="modern-list-item" v-for="(item, index) in artistSongs" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
               <span class="modern-title-group">
@@ -558,7 +576,7 @@ import LyricOverlay from '../components/player/LyricOverlay.vue'
 import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI, getMusicByArtistAPI } from '../api/music'
+import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI, getMusicByArtistAPI, getArtistBioAPI } from '../api/music'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI } from '../api/user'
 
 const router = useRouter()
@@ -1205,16 +1223,31 @@ const openMessageCenter = async () => {
   }
 }
 
-// 🚀 歌手主页引擎
+// 🚀 歌手主页引擎 (AI 并发增强版)
 const currentArtistName = ref('')
 const artistSongs = ref([])
+const artistBio = ref('')
+const isArtistBioLoading = ref(false)
 
 const openArtistProfile = async (artistName) => {
   musicStore.currentMenu = 'artist_profile'
   currentArtistName.value = artistName
+  artistSongs.value = []
+  artistBio.value = ''
+  isArtistBioLoading.value = true // 开启骨架屏动画
+
   try {
-    artistSongs.value = await getMusicByArtistAPI(artistName) || []
-  } catch(e) {}
+    // 💥 顶级并发性能：同时向数据库索要歌曲，向大模型索要传记！
+    const [songs, bioRes] = await Promise.all([
+      getMusicByArtistAPI(artistName).catch(() => []),
+      getArtistBioAPI(artistName).catch(() => '')
+    ])
+    artistSongs.value = songs || []
+    artistBio.value = bioRes || '这位音乐人很神秘，AI 暂时无法解析 Ta 的星轨...'
+  } catch(e) {
+  } finally {
+    isArtistBioLoading.value = false
+  }
 }
 
 // 🚀 好友私密主页引擎
