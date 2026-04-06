@@ -15,14 +15,23 @@
           </el-input>
         </div>
         
-        <div class="header-actions" v-if="musicStore.currentUser" style="display: flex; align-items: center; gap: 12px;">
-          <div class="header-bell" @click="openMessageCenter" style="cursor: pointer; display: flex; align-items: center;">
-            <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-              <el-icon :size="22" class="hover-bell" color="#475569"><Bell /></el-icon>
-            </el-badge>
-          </div>
+        <div class="header-actions" v-if="musicStore.currentUser" style="display: flex; align-items: center; gap: 20px;">
           
-          <div class="user-profile" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+          <el-tooltip content="我的好友" placement="bottom" :show-after="200">
+            <div @click="switchMenu('friends')" style="cursor: pointer; display: flex; align-items: center; margin-top: 5px;">
+              <el-icon :size="22" class="hover-bell" color="#475569"><User /></el-icon>
+            </div>
+          </el-tooltip>
+
+          <el-tooltip content="消息中心" placement="bottom" :show-after="200">
+            <div @click="openMessageCenter" style="cursor: pointer; display: flex; align-items: center; margin-top: 5px;">
+              <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+                <el-icon :size="22" class="hover-bell" color="#475569"><Bell /></el-icon>
+              </el-badge>
+            </div>
+          </el-tooltip>
+          
+          <div class="user-profile" style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin-left: 10px;">
             <el-avatar :size="36" :src="musicStore.currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
             <span class="user-name">{{ musicStore.currentUser.nickname || musicStore.currentUser.username }}</span>
             <el-button type="danger" link style="margin-left: 5px;" @click="handleLogout">退出</el-button>

@@ -22,13 +22,6 @@
       </div>
     </nav>
 
-    <div class="menu-group">
-      <h3 class="menu-label">我的</h3>
-      <div class="menu-item" :class="{ active: musicStore.currentMenu === 'friends' }" @click="switchMenu('friends')">
-        <el-icon><UserFilled /></el-icon> <span>我的好友</span>
-      </div>
-    </div>
-
     <div class="nav-group">我的音乐</div>
     <div class="nav-sub-item" :class="{ active: musicStore.currentMenu === 'liked' }" @click="switchMenu('liked')">❤️ 我喜欢的</div>
     <div class="nav-sub-item" :class="{ active: musicStore.currentMenu === 'sleep' }" @click="switchMenu('sleep')">🌙 助眠系列</div>
