@@ -91,7 +91,6 @@
     @play="onAudioPlay"
     @pause="musicStore.isPlaying = false"
     @error="onAudioError"
-    ref="audioRef"
   ></audio>
 </template>
 
@@ -105,245 +104,187 @@ import { recordPlayAPI } from '../../api/user'
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
 
-const volume = ref(70)
+// 🚀 核心状态初始化
+const volume = ref(parseInt(localStorage.getItem('echo_volume')) || 70)
 const playPercent = ref(0)
 const isDragging = ref(false)
-
-// 🚀 播放队列抽屉状态与引擎
 const queueDrawerVisible = ref(false)
-
-const playQueueItem = (item) => {
-  musicStore.selectSong(item, musicStore.playQueue)
-}
-
-const removeFromQueue = (index) => {
-  const removed = musicStore.playQueue.splice(index, 1)[0]
-  if (musicStore.currentSong?.id === removed.id) {
-    if (musicStore.playQueue.length > 0) {
-       const nextIndex = index >= musicStore.playQueue.length ? 0 : index
-       musicStore.selectSong(musicStore.playQueue[nextIndex], musicStore.playQueue)
-    } else {
-       musicStore.currentSong = null
-       musicStore.isPlaying = false
-       const audio = document.getElementById('echo-audio-player')
-       if(audio) audio.pause()
-    }
-  }
-}
-
-const clearQueue = () => {
-  musicStore.playQueue = []
-  musicStore.currentSong = null
-  musicStore.isPlaying = false
-  queueDrawerVisible.value = false
-  const audio = document.getElementById('echo-audio-player')
-  if(audio) audio.pause()
-}
-
-// 🚀 迷你歌词悬浮舱状态与引擎
 const miniLyrics = ref([])
 const currentMiniLyric = ref('🎶 享受纯粹的音乐时刻...')
 
-const loadMiniLyrics = async (song) => {
-  miniLyrics.value = []
-  currentMiniLyric.value = '🎶 享受纯粹的音乐时刻...'
-  if (!song || !song.lyricUrl) return
-  try {
-    const res = await fetch(encodeURI(song.lyricUrl), { mode: 'cors' })
-    if (!res.ok) return
-    const text = await res.text()
-    const lines = text.split('\n')
-    const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/
-    
-    const timeMap = new Map()
-    for (let line of lines) {
-      const match = line.match(timeReg)
-      if (match) {
-        const m = parseInt(match[1]); const s = parseInt(match[2]);
-        const ms = match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0;
-        const time = m * 60 + s + ms;
-        const lrcText = line.replace(/\[.*?\]/g, '').trim();
-        if (lrcText) {
-          if (timeMap.has(time)) {
-            let existingText = timeMap.get(time)
-            const hasChinese = (text) => /[\u4e00-\u9fa5]/.test(text)
-            if (hasChinese(existingText) && !hasChinese(lrcText)) {
-              timeMap.set(time, lrcText + '\n' + existingText)
-            } else if (!hasChinese(existingText) && hasChinese(lrcText)) {
-              timeMap.set(time, existingText + '\n' + lrcText)
-            } else {
-              timeMap.set(time, existingText + '\n' + lrcText)
-            }
-          } else {
-            timeMap.set(time, lrcText)
-          }
-        }
-      }
-    }
-    const result = Array.from(timeMap.entries()).map(([time, text]) => ({ time, text }))
-    result.sort((a, b) => a.time - b.time)
-    miniLyrics.value = result
-  } catch (e) {
-    console.warn('Lyrics load failed', e)
+// 🚀 播放队列控制
+const playQueueItem = (item) => musicStore.selectSong(item, musicStore.playQueue)
+const removeFromQueue = (index) => {
+  const removed = musicStore.playQueue.splice(index, 1)[0]
+  if (musicStore.currentSong?.id === removed.id) {
+    musicStore.playQueue.length > 0 ? musicStore.playNext() : clearQueue()
   }
 }
-
-const updateMiniLyric = (currentTime) => {
-  if (miniLyrics.value.length === 0) return
-  let currentText = '🎶 享受纯粹的音乐时刻...'
-  for (let i = 0; i < miniLyrics.value.length; i++) {
-    if (currentTime >= miniLyrics.value[i].time - 0.2) {
-      currentText = miniLyrics.value[i].text
-    } else {
-      break
-    }
-  }
-  if (currentMiniLyric.value !== currentText) currentMiniLyric.value = currentText || '🎶 ...'
+const clearQueue = () => {
+  musicStore.playQueue = []; musicStore.currentSong = null; musicStore.isPlaying = false;
+  const audio = document.getElementById('echo-audio-player'); if(audio) audio.pause()
 }
 
-watch(() => musicStore.currentTime, (newTime) => {
-  if (musicStore.currentSong && miniLyrics.value.length > 0) updateMiniLyric(newTime)
-})
-
-// 💥 极简控制：直接指挥音频原件
+// 🚀 核心播放器指令
 const togglePlay = () => { 
-  const audio = document.getElementById('echo-audio-player');
-  if (!audio || !musicStore.currentSong) return;
-  if (audio.paused) {
-    audio.play().catch(()=>{});
-  } else {
-    audio.pause();
-  }
+  const audio = document.getElementById('echo-audio-player')
+  if (!audio || !musicStore.currentSong) return
+  audio.paused ? audio.play().catch(()=>{}) : audio.pause()
 }
 
-const togglePlayMode = () => { 
-  const modes = ['list', 'random', 'loop'];
-  const currentIndex = modes.indexOf(musicStore.playMode);
-  musicStore.playMode = modes[(currentIndex + 1) % modes.length];
+const togglePlayMode = () => {
+  const modes = ['list', 'random', 'loop']
+  musicStore.playMode = modes[(modes.indexOf(musicStore.playMode) + 1) % modes.length]
 }
 
-const onLoadedMetadata = (e) => { musicStore.duration = e.target.duration }
-const onSliderSeek = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.currentTime = (val / 100) * musicStore.duration; isDragging.value = false }
-const onTimeUpdate = (e) => { 
-  musicStore.currentTime = e.target.currentTime; 
-  if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0;
-  updateMiniLyric(musicStore.currentTime);
+const onLoadedMetadata = (e) => { 
+  musicStore.duration = e.target.duration
+  e.target.volume = volume.value / 100
 }
-const onVolumeChange = (val) => { const audio = document.getElementById('echo-audio-player'); if (audio) audio.volume = val / 100 }
+
+const onSliderSeek = (val) => {
+  const audio = document.getElementById('echo-audio-player')
+  if (audio) audio.currentTime = (val / 100) * musicStore.duration
+  isDragging.value = false
+}
+
+const onTimeUpdate = (e) => {
+  musicStore.currentTime = e.target.currentTime
+  if (!isDragging.value) playPercent.value = musicStore.duration ? (musicStore.currentTime / musicStore.duration) * 100 : 0
+}
+
+const onVolumeChange = (val) => {
+  const audio = document.getElementById('echo-audio-player')
+  if (audio) audio.volume = val / 100
+  localStorage.setItem('echo_volume', val)
+}
 
 const toggleMute = () => {
   if (volume.value > 0) {
-    localStorage.setItem('preMuteVolume', volume.value); 
-    volume.value = 0; 
+    localStorage.setItem('preMuteVolume', volume.value); volume.value = 0
   } else {
-    const preMuteVolume = localStorage.getItem('preMuteVolume');
-    volume.value = preMuteVolume ? parseInt(preMuteVolume) : 70; 
+    volume.value = parseInt(localStorage.getItem('preMuteVolume')) || 70
   }
-  onVolumeChange(volume.value);
+  onVolumeChange(volume.value)
 }
 
 const handleAudioEnded = () => {
   if (musicStore.playMode === 'loop') {
-    const audio = document.getElementById('echo-audio-player');
-    if(audio) {
-      audio.currentTime = 0;
-      audio.play().catch(()=>{});
+    const audio = document.getElementById('echo-audio-player')
+    if (audio) {
+      audio.currentTime = 0
+      audio.play().catch(e => {
+        console.warn('循环播放失败:', e)
+        musicStore.isPlaying = false
+      })
     }
-  } else {
-    musicStore.playNext();
-  }
+  } else musicStore.playNext()
 }
 
-// 🚀 原生的播放起飞事件
+// 🚀 调音台点火逻辑
 const onAudioPlay = () => {
-  musicStore.isPlaying = true;
-  try {
-    initAudioEngine(); 
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) {
-    console.warn('调音台挂载跳过:', e);
-  }
+  musicStore.isPlaying = true
+  try { initAudioEngine() } catch (e) { console.warn('调音台挂载跳过', e) }
 }
 
-// 🚀 核心容错：极其优雅的音源丢失降级处理 (消灭了所有重复，只留这一个！)
+// 🚀 核心容错：全文件只留这一个 Error 处理！
 const onAudioError = () => {
   const audio = document.getElementById('echo-audio-player')
-  if (audio && audio.getAttribute('src')) {
+  if (audio?.getAttribute('src')) {
     musicStore.isPlaying = false
-    ElMessage.error(`😭 音源加载失败！可能是云端文件被删或网络限制。`)
+    ElMessage.error(`😭 音频加载受阻！请尝试：1.清理浏览器缓存 2.检查阿里云 OSS 跨域设置。`)
     setTimeout(() => { musicStore.playNext() }, 2000)
   }
 }
 
-const formatTime = (seconds) => {
-  if (!seconds || isNaN(seconds)) return "00:00"
-  const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60);
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+// 🚀 歌词解析引擎
+const loadMiniLyrics = async (song) => {
+  miniLyrics.value = []; currentMiniLyric.value = '🎶 享受纯粹的音乐时刻...'
+  if (!song?.lyricUrl) return
+  try {
+    const res = await fetch(encodeURI(song.lyricUrl), { mode: 'cors' })
+    if (!res.ok) return
+    const text = await res.text(); const lines = text.split('\n')
+    const timeReg = /\[(\d{1,}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/; const timeMap = new Map()
+    for (let line of lines) {
+      const match = line.match(timeReg)
+      if (match) {
+        const time = parseInt(match[1]) * 60 + parseInt(match[2]) + (match[3] ? parseInt(match[3].padEnd(3, '0')) / 1000 : 0)
+        const lrcText = line.replace(/\[.*?\]/g, '').trim()
+        if (lrcText) {
+          const hasCh = (t) => /[\u4e00-\u9fa5]/.test(t)
+          if (timeMap.has(time)) {
+            const old = timeMap.get(time)
+            timeMap.set(time, (hasCh(old) && !hasCh(lrcText)) ? lrcText + '\n' + old : old + '\n' + lrcText)
+          } else timeMap.set(time, lrcText)
+        }
+      }
+    }
+    miniLyrics.value = Array.from(timeMap.entries()).map(([time, text]) => ({ time, text })).sort((a,b)=>a.time-b.time)
+  } catch (e) { console.warn('LRC load fail', e) }
 }
 
-// 🚀 千万级 Web Audio 极客调音台引擎
-const eqLabels = ['32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16K'];
-const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
-const eqGains = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-let audioCtx = null;
-let filters = [];
+const updateMiniLyric = (t) => {
+  if (!miniLyrics.value.length) return
+  let text = miniLyrics.value[0].text
+  for (let i=0; i<miniLyrics.value.length; i++) {
+    if (t >= miniLyrics.value[i].time - 0.2) text = miniLyrics.value[i].text
+    else break
+  }
+  if (currentMiniLyric.value !== text) currentMiniLyric.value = text
+}
+
+watch(() => musicStore.currentTime, (t) => {
+  if (musicStore.currentSong && miniLyrics.value.length > 0) updateMiniLyric(t)
+})
+
+const formatTime = (s) => isNaN(s) ? "00:00" : `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`
+
+// 🚀 Web Audio 调音台引擎
+let audioCtx = null; let filters = []
+const eqFreqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+const eqGains = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 const initAudioEngine = () => {
-  if (audioCtx) return; 
-  const audioEl = document.getElementById('echo-audio-player');
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AudioContext();
-  const source = audioCtx.createMediaElementSource(audioEl);
-
-  let prevNode = source;
-  eqFreqs.forEach((freq, i) => {
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = i === 0 ? 'lowshelf' : (i === 9 ? 'highshelf' : 'peaking');
-    filter.frequency.value = freq;
-    filter.Q.value = 1;
-    filter.gain.value = eqGains.value[i];
-    filters.push(filter);
-    prevNode.connect(filter);
-    prevNode = filter;
-  });
-
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  prevNode.connect(analyser);
-  analyser.connect(audioCtx.destination); 
-
-  musicStore.audioAnalyser = analyser; 
+  if (audioCtx) return
+  const audioEl = document.getElementById('echo-audio-player')
+  if (!audioEl) return
+  const AudioContext = window.AudioContext || window.webkitAudioContext
+  audioCtx = new AudioContext()
+  const source = audioCtx.createMediaElementSource(audioEl)
+  let prev = source
+  eqFreqs.forEach((f, i) => {
+    const filter = audioCtx.createBiquadFilter()
+    filter.type = i===0 ? 'lowshelf' : (i===9 ? 'highshelf' : 'peaking')
+    filter.frequency.value = f; filter.gain.value = eqGains.value[i]
+    filters.push(filter); prev.connect(filter); prev = filter
+  })
+  const analyser = audioCtx.createAnalyser(); analyser.fftSize = 256
+  prev.connect(analyser); analyser.connect(audioCtx.destination)
+  musicStore.audioAnalyser = analyser
 }
 
-const updateEQ = (index) => { if(filters[index]) filters[index].gain.value = eqGains.value[index]; }
-const setEQ = (type) => {
-  let target = [0,0,0,0,0,0,0,0,0,0];
-  if(type === 'bass') target = [6, 5, 4, 1, 0, -1, 0, 1, 2, 3]; 
-  if(type === 'vocal') target = [-2, -1, 0, 2, 4, 5, 4, 2, 0, -1]; 
-  if(type === 'live') target = [4, 3, 1, -1, 0, 2, 4, 5, 4, 3]; 
-  eqGains.value = target;
-  target.forEach((_, i) => updateEQ(i));
+const updateEQ = (i) => { if(filters[i]) filters[i].gain.value = eqGains.value[i] }
+const setEQ = (t) => {
+  const map = { bass:[6,5,4,1,0,-1,0,1,2,3], vocal:[-2,-1,0,2,4,5,4,2,0,-1], live:[4,3,1,-1,0,2,4,5,4,3], flat:[0,0,0,0,0,0,0,0,0,0]}
+  eqGains.value = map[t] || map.flat; eqGains.value.forEach((_, i) => updateEQ(i))
 }
 
-// 💥 唯一的切歌引擎：只监听歌曲变化，消灭重复监听造成的死锁冲突！
-watch(() => musicStore.currentSong, async (newSong) => {
-  if (newSong) {
-    if (musicStore.currentUser) {
-      recordPlayAPI(musicStore.currentUser.id, newSong.id).catch(()=>{})
-    }
-    musicStore.currentTime = 0; 
-    playPercent.value = 0;
-    loadMiniLyrics(newSong);
-    
-    await nextTick(); 
-    const audio = document.getElementById('echo-audio-player');
-    if (audio) {
-      audio.volume = volume.value / 100;
-      audio.play().catch(e => {
-        console.warn('浏览器自动播放拦截:', e);
-        musicStore.isPlaying = false; 
-      });
-    }
+// 🚀 终极切歌监听引擎
+watch(() => musicStore.currentSong, async (song) => {
+  if (!song) return
+  if (musicStore.currentUser) recordPlayAPI(musicStore.currentUser.id, song.id).catch(()=>{})
+  musicStore.currentTime = 0; playPercent.value = 0
+  loadMiniLyrics(song)
+  
+  await nextTick()
+  const audio = document.getElementById('echo-audio-player')
+  if (audio) {
+    audio.volume = volume.value / 100
+    // 💥 强制触发播放指令
+    audio.play().catch(e => {
+      console.warn('播放被拦截:', e); musicStore.isPlaying = false
+    })
   }
 })
 </script>
