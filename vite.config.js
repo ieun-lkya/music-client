@@ -11,6 +11,16 @@ export default defineConfig({
   },
   // 🚀 调试优化：启用 Source Map 让断点更精准
   build: {
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router'],
+          'vendor-ui': ['element-plus', '@element-plus/icons-vue'],
+          'vendor-charts': ['echarts'],
+          'vendor-http': ['axios']
+        }
+      }
+    }
   }
 })

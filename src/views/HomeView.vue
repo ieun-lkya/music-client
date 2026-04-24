@@ -50,6 +50,7 @@
             <div style="display:flex; gap:10px;">
               <el-button type="danger" round @click="batchLikeSongs">❤️ 批量收藏</el-button>
               <el-button type="warning" round @click="openPlaylistDialog('batch')">➕ 加入/创建歌单</el-button>
+              <el-button v-if="isOwnPlaylistPage" type="danger" plain round @click="batchRemoveFromPlaylist">从歌单移除</el-button>
               <el-button type="info" plain round @click="toggleBatchMode">取消批量</el-button>
             </div>
           </div>
@@ -361,7 +362,11 @@
                 <el-button type="success" plain round @click="collectAllPublic"><el-icon style="margin-right: 5px;"><Star /></el-icon> 收藏全部单曲</el-button>
               </template>
 
-              <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)" v-if="musicStore.currentMenu.startsWith('playlist_')">删除该歌单</el-button>
+              <template v-if="isOwnPlaylistPage">
+                <el-button type="primary" plain round @click="switchMenu('discover')" v-if="activePlayList.length === 0">去曲库加歌</el-button>
+                <el-button type="primary" plain round @click="openRenamePlaylistDialog(currentActivePlaylist)">重命名</el-button>
+                <el-button type="danger" plain round @click="deletePlaylist(currentActivePlaylist?.id)">删除该歌单</el-button>
+              </template>
 
               <el-button type="danger" plain round @click="uncollectCurrentPlaylist" v-if="musicStore.currentMenu.startsWith('col_playlist_')">不再收藏</el-button>
 
@@ -371,10 +376,20 @@
             </div>
           </div>
           
-          <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
+          <div v-if="activePlayList.length === 0" class="playlist-empty-state">
+            <div class="playlist-empty-icon">
+              <el-icon><FolderAdd /></el-icon>
+            </div>
+            <h3>{{ playlistEmptyTitle }}</h3>
+            <p>{{ playlistEmptyDesc }}</p>
+            <div class="playlist-empty-actions" v-if="isOwnPlaylistPage">
+              <el-button type="primary" round @click="switchMenu('discover')">去曲库挑几首</el-button>
+              <el-button plain round @click="openRenamePlaylistDialog(currentActivePlaylist)">先改个名字</el-button>
+            </div>
+          </div>
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id), 'has-manage': isOwnPlaylistPage }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 <div class="track-status-box" v-if="!isBatchMode">
@@ -387,6 +402,13 @@
               </span>
               <span class="col-like-cell"><el-icon :size="20" class="list-like-icon" :class="{ 'is-liked': musicStore.isLiked(item.id) }" @click.stop="toggleLike(item)"><component :is="musicStore.isLiked(item.id) ? StarFilled : Star" /></el-icon></span>
               <span class="col-artist"><span class="modern-artist hover-artist" @click.stop="openArtistProfile(item.artist)">{{ item.artist }}</span></span>
+              <span class="col-playlist-manage" v-if="isOwnPlaylistPage">
+                <el-tooltip content="从歌单移除" placement="top">
+                  <el-button link type="danger" @click.stop="removeSongFromPlaylist(item)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </el-tooltip>
+              </span>
             </div>
           </div>
         </section>
@@ -593,6 +615,46 @@
       </div>
     </el-dialog>
 
+    <el-dialog
+      v-model="playlistRenameVisible"
+      title="重命名歌单"
+      width="430px"
+      top="22vh"
+      append-to-body
+      class="playlist-dialog playlist-rename-dialog"
+    >
+      <div class="playlist-dialog-body">
+        <div class="playlist-hero compact">
+          <div class="playlist-hero-icon">
+            <el-icon :size="22"><EditPen /></el-icon>
+          </div>
+          <div class="playlist-hero-copy">
+            <h3>让这个歌单更像你的收藏夹</h3>
+            <p>名称会同步到侧边栏和歌单详情，不影响里面已经收藏的歌曲。</p>
+          </div>
+        </div>
+
+        <div class="playlist-input-shell">
+          <div class="playlist-input-meta">
+            <span class="playlist-input-label">新的歌单名</span>
+            <span class="playlist-input-tip">{{ playlistRenameName.trim().length }}/20</span>
+          </div>
+          <div class="playlist-input-row">
+            <el-input
+              v-model="playlistRenameName"
+              placeholder="输入新的歌单名称"
+              maxlength="20"
+              class="playlist-name-input"
+              @keyup.enter="submitPlaylistRename"
+            />
+            <el-button type="primary" class="playlist-create-btn" :loading="isPlaylistRenaming" @click="submitPlaylistRename">
+              保存
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
     <PlayerBar @play-prev="playPrev" @play-next="playNext" @toggle-like="toggleLike" />
 
     <el-dialog v-model="otherProfileVisible" width="380px" style="border-radius: 20px; text-align: center;">
@@ -675,26 +737,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, ArrowRight, Postcard, Bell, Lock, UserFilled, ChatDotRound, FolderAdd, Collection } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, ArrowRight, Postcard, Bell, Lock, UserFilled, ChatDotRound, FolderAdd, Collection, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
 import PlayerBar from '../components/player/PlayerBar.vue'
 import LyricOverlay from '../components/player/LyricOverlay.vue'
-import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
 import { getMusicListAPI, searchMusicAPI, getMusicByArtistAPI } from '../api/modules/music'
 import { recommendMusicAPI, generateAiPlaylistsAPI, getArtistBioAPI } from '../api/modules/ai'
-import { getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/modules/playlist'
+import { getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, renamePlaylistAPI, removeMusicFromPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/modules/playlist'
 import { uploadFileAPI } from '../api/modules/common'
 import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI, getFriendsAPI } from '../api/modules/social'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
 const musicStore = useMusicStore()
+const MusicDataBoard = defineAsyncComponent(() => import('../components/profile/MusicDataBoard.vue'))
 
 const discoverMode = ref('library') 
 const userInput = ref('')
@@ -747,6 +809,7 @@ const isRadioLoading = ref(false); const isSleepLoading = ref(false)
 
 const isBatchMode = ref(false); const selectedMusicIds = ref([])
 const playlistDialogVisible = ref(false); const newPlaylistName = ref(''); const playlistDialogMode = ref('batch')
+const playlistRenameVisible = ref(false); const playlistRenameName = ref(''); const playlistRenameTarget = ref(null); const isPlaylistRenaming = ref(false)
 
 // 🚀 废弃乱七八糟的提示切换，统一全站搜索占位符
 const searchPlaceholder = computed(() => '输入歌名、歌手或用户昵称进行全站搜索...')
@@ -780,6 +843,22 @@ const currentActivePlaylist = computed(() => {
   if (musicStore.currentMenu.startsWith('playlist_')) { return musicStore.customPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[1]) }
   if (musicStore.currentMenu.startsWith('col_playlist_')) { return musicStore.collectedPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[2]) } // 🚀 支持收藏歌单
   return null
+})
+
+const isOwnPlaylistPage = computed(() => musicStore.currentMenu.startsWith('playlist_'))
+
+const playlistEmptyTitle = computed(() => {
+  if (isOwnPlaylistPage.value) return '这个歌单还没装进第一首歌'
+  if (musicStore.currentMenu === 'liked') return '还没有收藏歌曲'
+  if (musicStore.currentMenu === 'history') return '最近还没有播放记录'
+  return '这里暂时没有歌曲'
+})
+
+const playlistEmptyDesc = computed(() => {
+  if (isOwnPlaylistPage.value) return '先保留这个空歌单没问题，去曲库批量勾选几首，就能把它慢慢养起来。'
+  if (musicStore.currentMenu === 'liked') return '遇到喜欢的歌点一下红心，它就会出现在这里。'
+  if (musicStore.currentMenu === 'history') return '播放过的歌曲会自动沉淀到这里，方便你找回刚刚听过的旋律。'
+  return '换个入口看看，或者稍后再回来。'
 })
 
 const isSelectedSong = (id) => isBatchMode.value && selectedMusicIds.value.includes(id)
@@ -900,6 +979,62 @@ const addToExistingPlaylist = async (pl) => {
   for(let sid of selectedMusicIds.value) { try { await addMusicToPlaylistAPI(pl.id, sid) } catch(e) {} }
   ElMessage.success('✅ 成功加入！'); playlistDialogVisible.value = false; toggleBatchMode()
   if (musicStore.currentMenu === `playlist_${pl.id}`) loadPlaylistSongs(pl.id)
+}
+
+const openRenamePlaylistDialog = (playlist) => {
+  if (!playlist?.id) return
+  playlistRenameTarget.value = playlist
+  playlistRenameName.value = playlist.name || ''
+  playlistRenameVisible.value = true
+}
+
+const submitPlaylistRename = async () => {
+  const name = playlistRenameName.value.trim()
+  if (!playlistRenameTarget.value?.id) return
+  if (!name) return ElMessage.warning('歌单名称不能为空')
+  isPlaylistRenaming.value = true
+  try {
+    const playlistId = playlistRenameTarget.value.id
+    await renamePlaylistAPI(playlistId, name)
+    await fetchMyPlaylists()
+    if (musicStore.currentMenu === `playlist_${playlistId}`) {
+      await loadPlaylistSongs(playlistId)
+    }
+    playlistRenameVisible.value = false
+    ElMessage.success('歌单已重命名')
+  } catch (error) {
+    ElMessage.error(error?.message || '重命名失败，请稍后再试')
+  } finally {
+    isPlaylistRenaming.value = false
+  }
+}
+
+const removeSongFromPlaylist = async (song) => {
+  if (!currentActivePlaylist.value?.id || !song?.id) return
+  try {
+    await removeMusicFromPlaylistAPI(currentActivePlaylist.value.id, song.id)
+    currentActivePlaylist.value.songs = (currentActivePlaylist.value.songs || []).filter(item => item.id !== song.id)
+    selectedMusicIds.value = selectedMusicIds.value.filter(id => id !== song.id)
+    ElMessage.success('已从歌单移除')
+  } catch (error) {
+    ElMessage.error(error?.message || '移除失败，请稍后再试')
+  }
+}
+
+const batchRemoveFromPlaylist = async () => {
+  if (!currentActivePlaylist.value?.id) return
+  if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选要移除的歌曲')
+  try {
+    const playlistId = currentActivePlaylist.value.id
+    for (const musicId of selectedMusicIds.value) {
+      await removeMusicFromPlaylistAPI(playlistId, musicId)
+    }
+    await loadPlaylistSongs(playlistId)
+    ElMessage.success(`已从歌单移除 ${selectedMusicIds.value.length} 首歌曲`)
+    toggleBatchMode()
+  } catch (error) {
+    ElMessage.error(error?.message || '批量移除失败，请稍后再试')
+  }
 }
 
 const deletePlaylist = (pId) => {
@@ -1732,6 +1867,10 @@ onUnmounted(() => {
   border: 1px solid transparent;
 }
 
+.modern-list-item.has-manage {
+  grid-template-columns: 1fr 80px 1fr 52px;
+}
+
 .modern-list-item:hover { 
   transform: scale(1.01); 
   box-shadow: 0 10px 25px rgba(0,0,0,0.06); 
@@ -1756,6 +1895,20 @@ onUnmounted(() => {
   background: linear-gradient(to right, #dbeafe, #eff6ff);
   border-color: #3b82f6;
   box-shadow: 0 14px 30px rgba(59,130,246,0.18);
+}
+
+.col-playlist-manage {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.col-playlist-manage :deep(.el-button) {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #ef4444;
 }
 
 .modern-title-group { display: flex; align-items: center; gap: 16px; }
@@ -1924,6 +2077,58 @@ onUnmounted(() => {
 .dark-list .track-playing-icon, .dark-list .track-paused-icon { color: #93c5fd; }
 .dark-list .track-play { color: #cbd5e1; }
 
+.playlist-empty-state {
+  min-height: 340px;
+  border-radius: 28px;
+  border: 1px dashed #bfdbfe;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(59,130,246,0.12), transparent 28%),
+    linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 42px 24px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.playlist-empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  font-size: 32px;
+  margin-bottom: 18px;
+  box-shadow: 0 18px 36px rgba(59,130,246,0.16);
+}
+
+.playlist-empty-state h3 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.playlist-empty-state p {
+  max-width: 460px;
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.8;
+  font-weight: 600;
+}
+
+.playlist-empty-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 /* 个人资料页样式 */
 .profile-container { 
   width: min(100%, 1180px);
@@ -2040,6 +2245,11 @@ onUnmounted(() => {
   border-radius: 18px;
   background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
   border: 1px solid #dbeafe;
+}
+
+.playlist-hero.compact {
+  padding: 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
 }
 
 .playlist-hero-icon {
