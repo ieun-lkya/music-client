@@ -77,7 +77,7 @@
             <el-empty v-if="aiMusicList.length === 0" description="在顶部输入场景，召唤 AI 为您匹配吧！" :image-size="200" />
             <el-row :gutter="25" class="bento-grid" v-else>
               <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="item in aiMusicList" :key="item.id">
-                <div class="bento-card" @click="handleItemClick(item)">
+                <div class="bento-card" @click="handleItemClick(item)" :class="{ 'is-selected-item': isSelectedSong(item.id) }">
                   <div class="bento-cover-box">
                     <el-image :src="item.coverUrl" fit="cover" lazy class="bento-cover" />
                     <div class="bento-play-overlay">
@@ -96,7 +96,7 @@
           </div>
 
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 <div class="track-status-box" v-if="!isBatchMode">
@@ -138,7 +138,7 @@
               <div class="radio-queue-panel fade-in">
                 <h3 class="queue-title">即将播放队列</h3>
                 <div class="modern-list-view queue-list">
-                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+                  <div class="modern-list-item" v-for="(item, index) in radioMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
                     <span class="modern-title-group">
                       <div class="track-status-box" style="margin-right: 0;">
                         <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -165,7 +165,7 @@
           <div v-loading="isSleepLoading" element-loading-background="rgba(0, 0, 0, 0.4)">
             <el-empty v-if="sleepMusicList.length === 0 && !isSleepLoading" description="正在为您生成梦境频段..." />
             <div class="modern-list-view fade-in dark-list" v-else>
-              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+              <div class="modern-list-item" v-for="(item, index) in sleepMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
                 <span class="modern-title-group">
                   <div class="track-status-box" style="margin-right: 0;">
                     <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -288,7 +288,7 @@
           <div v-show="searchTab === 'music'">
             <el-empty v-if="searchMusicList.length === 0" description="在这片星系中，没有找到与此相关的频率..." />
             <div class="modern-list-view fade-in" v-else>
-              <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+              <div class="modern-list-item" v-for="(item, index) in searchMusicList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
                 <span class="modern-title-group">
                   <div class="track-status-box">
                     <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -374,7 +374,7 @@
           <el-empty v-if="activePlayList.length === 0" description="这里空空如也~" />
           
           <div class="modern-list-view fade-in" v-else>
-            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in activePlayList" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
               <span class="modern-title-group">
                 <el-checkbox v-if="isBatchMode" :model-value="selectedMusicIds.includes(item.id)" @change="toggleSelection(item.id)" @click.stop style="margin-right:10px;"/>
                 <div class="track-status-box" v-if="!isBatchMode">
@@ -416,7 +416,7 @@
           </div>
 
           <div class="modern-list-view fade-in">
-            <div class="modern-list-item" v-for="(item, index) in artistSongs" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id }">
+            <div class="modern-list-item" v-for="(item, index) in artistSongs" :key="item.id" @click="handleItemClick(item)" @contextmenu.prevent="enterBatchModeFrom(item)" :class="{ 'is-active-row': musicStore.currentSong?.id === item.id, 'is-selected-item': isSelectedSong(item.id) }">
               <span class="modern-title-group">
                 <div class="track-status-box" v-if="!isBatchMode">
                   <span class="track-num" v-show="musicStore.currentSong?.id !== item.id">{{ (index + 1).toString().padStart(2, '0') }}</span>
@@ -714,6 +714,8 @@ const currentActivePlaylist = computed(() => {
   if (musicStore.currentMenu.startsWith('col_playlist_')) { return musicStore.collectedPlaylists.find(p => p.id == musicStore.currentMenu.split('_')[2]) } // 🚀 支持收藏歌单
   return null
 })
+
+const isSelectedSong = (id) => isBatchMode.value && selectedMusicIds.value.includes(id)
 
 const toggleBatchMode = () => { isBatchMode.value = !isBatchMode.value; selectedMusicIds.value = [] }
 
@@ -1493,11 +1495,36 @@ onUnmounted(() => {
   transition: 0.4s; 
   cursor: pointer; 
   margin-bottom: 20px;
+  border: 2px solid transparent;
+  position: relative;
 }
 
 .bento-card:hover { 
   transform: translateY(-10px); 
   box-shadow: 0 20px 40px rgba(59,130,246,0.12); 
+}
+
+.bento-card.is-selected-item {
+  transform: translateY(-8px);
+  border-color: #3b82f6;
+  box-shadow: 0 18px 38px rgba(59,130,246,0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f9ff 100%);
+}
+
+.bento-card.is-selected-item::after {
+  content: '已选中';
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 18px rgba(59,130,246,0.28);
+  z-index: 4;
 }
 
 .bento-cover-box { 
@@ -1578,6 +1605,22 @@ onUnmounted(() => {
 .modern-list-item.is-active-row { 
   background: linear-gradient(to right, #eff6ff, #fff); 
   border-color: #bfdbfe; 
+}
+
+.modern-list-item.is-selected-item {
+  background: linear-gradient(to right, #eef7ff, #f8fbff);
+  border-color: #60a5fa;
+  box-shadow: 0 12px 28px rgba(59,130,246,0.14);
+}
+
+.modern-list-item.is-selected-item .modern-title {
+  color: #1d4ed8;
+}
+
+.modern-list-item.is-active-row.is-selected-item {
+  background: linear-gradient(to right, #dbeafe, #eff6ff);
+  border-color: #3b82f6;
+  box-shadow: 0 14px 30px rgba(59,130,246,0.18);
 }
 
 .modern-title-group { display: flex; align-items: center; gap: 16px; }
@@ -1729,6 +1772,17 @@ onUnmounted(() => {
 .dark-list .modern-list-item.is-active-row { 
   background: rgba(59,130,246,0.15); 
   border-color: rgba(59,130,246,0.3);
+}
+
+.dark-list .modern-list-item.is-selected-item {
+  background: rgba(96,165,250,0.16);
+  border-color: rgba(147,197,253,0.55);
+  box-shadow: 0 10px 26px rgba(15,23,42,0.28);
+}
+
+.dark-list .modern-list-item.is-active-row.is-selected-item {
+  background: rgba(59,130,246,0.22);
+  border-color: rgba(147,197,253,0.72);
 }
 
 .dark-list .active-text { color: #93c5fd; }
