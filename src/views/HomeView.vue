@@ -524,22 +524,72 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="playlistDialogVisible" :title="playlistDialogMode === 'create' ? '创建自建歌单' : '操作云端歌单'" width="400px" top="30vh" append-to-body>
-      <div v-if="playlistDialogMode === 'batch' && selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
-      <div v-else-if="playlistDialogMode === 'create'" style="margin-bottom:20px; color:#64748b; font-weight:600;">先创建一个空歌单，之后我们再往里面慢慢加歌。</div>
-      <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20">
-        <template #append>
-          <el-button type="primary" @click="createNewPlaylist">{{ playlistDialogMode === 'create' ? '创建歌单' : '创建并加入' }}</el-button>
-        </template>
-      </el-input>
-      <el-divider v-if="playlistDialogMode === 'batch' && musicStore.customPlaylists.length > 0">或加入已有云端歌单</el-divider>
-      <div class="playlist-options" v-if="musicStore.customPlaylists.length > 0">
-        <div
-          class="pl-option"
-          v-for="pl in musicStore.customPlaylists"
-          :key="pl.id"
-          @click="playlistDialogMode === 'batch' ? addToExistingPlaylist(pl) : switchMenu(`playlist_${pl.id}`)"
-        ><el-icon><Menu /></el-icon> {{ pl.name }}</div>
+    <el-dialog
+      v-model="playlistDialogVisible"
+      :title="playlistDialogMode === 'create' ? '创建自建歌单' : '操作云端歌单'"
+      width="520px"
+      top="16vh"
+      append-to-body
+      class="playlist-dialog"
+    >
+      <div class="playlist-dialog-body">
+        <div class="playlist-hero">
+          <div class="playlist-hero-icon">
+            <el-icon :size="24"><FolderAdd /></el-icon>
+          </div>
+          <div class="playlist-hero-copy">
+            <h3>{{ playlistDialogMode === 'create' ? '先起一个名字，歌单就有了。' : `把这 ${selectedMusicIds.length} 首歌安顿好。` }}</h3>
+            <p>{{ playlistDialogMode === 'create' ? '创建空歌单后，我们可以随时往里面继续加歌。' : '可以直接新建歌单，也可以塞进你已经建好的收藏夹。' }}</p>
+          </div>
+        </div>
+
+        <div class="playlist-input-shell" :class="{ 'is-batch': playlistDialogMode === 'batch' }">
+          <div class="playlist-input-meta">
+            <span class="playlist-input-label">歌单名称</span>
+            <span class="playlist-input-tip">{{ newPlaylistName.trim().length }}/20</span>
+          </div>
+          <div class="playlist-input-row">
+            <el-input
+              v-model="newPlaylistName"
+              placeholder="比如：深夜循环 / 通勤续命 / 雨天备忘录"
+              maxlength="20"
+              class="playlist-name-input"
+              @keyup.enter="createNewPlaylist"
+            />
+            <el-button type="primary" class="playlist-create-btn" @click="createNewPlaylist">
+              {{ playlistDialogMode === 'create' ? '创建歌单' : '创建并加入' }}
+            </el-button>
+          </div>
+        </div>
+
+        <div class="playlist-selection-chip" v-if="playlistDialogMode === 'batch' && selectedMusicIds.length > 0">
+          <el-icon><Collection /></el-icon>
+          已选择 {{ selectedMusicIds.length }} 首歌曲
+        </div>
+
+        <div class="playlist-library" v-if="musicStore.customPlaylists.length > 0">
+          <div class="playlist-library-head">
+            <span>{{ playlistDialogMode === 'batch' ? '加入已有歌单' : '你的歌单库' }}</span>
+            <span>{{ musicStore.customPlaylists.length }} 个</span>
+          </div>
+          <div class="playlist-options">
+            <div
+              class="pl-option"
+              v-for="pl in musicStore.customPlaylists"
+              :key="pl.id"
+              @click="playlistDialogMode === 'batch' ? addToExistingPlaylist(pl) : switchMenu(`playlist_${pl.id}`)"
+            >
+              <div class="pl-option-icon">
+                <el-icon><Menu /></el-icon>
+              </div>
+              <div class="pl-option-text">
+                <span class="pl-option-name">{{ pl.name }}</span>
+                <span class="pl-option-desc">{{ playlistDialogMode === 'batch' ? '点击把当前选中歌曲放进去' : '点击直接进入这个歌单' }}</span>
+              </div>
+              <el-icon class="pl-option-arrow"><ArrowRight /></el-icon>
+            </div>
+          </div>
+        </div>
       </div>
     </el-dialog>
 
@@ -627,7 +677,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, Postcard, Bell, Lock, UserFilled, ChatDotRound } from '@element-plus/icons-vue'
+import { Search, VideoPlay, VideoPause, Star, StarFilled, List, Check, Menu, MagicStick, Refresh, Edit, EditPen, Plus, User, DataBoard, InfoFilled, ArrowLeft, ArrowRight, Postcard, Bell, Lock, UserFilled, ChatDotRound, FolderAdd, Collection } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import Sidebar from '../components/layout/Sidebar.vue'
@@ -1974,6 +2024,209 @@ onUnmounted(() => {
 .avatar-uploader-icon { font-size: 28px; color: #8c939d; }
 .avatar-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; }
 .upload-hint { font-size: 12px; color: #94a3b8; margin-top: 10px; }
+
+.playlist-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 2px 2px;
+}
+
+.playlist-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+  border: 1px solid #dbeafe;
+}
+
+.playlist-hero-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(59,130,246,0.22);
+  flex-shrink: 0;
+}
+
+.playlist-hero-copy h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.playlist-hero-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.playlist-input-shell {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.playlist-input-shell.is-batch {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.playlist-input-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.playlist-input-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.3px;
+}
+
+.playlist-input-tip {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.playlist-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.playlist-name-input :deep(.el-input__wrapper) {
+  min-height: 52px;
+  border-radius: 14px;
+  box-shadow: none;
+  background: #f8fafc;
+  border: 1px solid transparent;
+  transition: 0.2s;
+}
+
+.playlist-name-input :deep(.el-input__wrapper.is-focus) {
+  background: #fff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.08);
+}
+
+.playlist-create-btn {
+  min-width: 132px;
+  min-height: 52px;
+  border-radius: 14px;
+  font-weight: 800;
+  padding: 0 22px;
+  box-shadow: 0 12px 24px rgba(59,130,246,0.18);
+}
+
+.playlist-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+  border: 1px solid #bfdbfe;
+}
+
+.playlist-library {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.playlist-library-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.playlist-options {
+  display: grid;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.pl-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: 0.22s ease;
+}
+
+.pl-option:hover {
+  transform: translateY(-1px);
+  border-color: #bfdbfe;
+  background: #fff;
+  box-shadow: 0 12px 24px rgba(15,23,42,0.06);
+}
+
+.pl-option-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+  color: #3b82f6;
+}
+
+.pl-option-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pl-option-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pl-option-desc {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pl-option-arrow {
+  color: #94a3b8;
+  font-size: 16px;
+}
 
 /* 🚀 极其高贵的：全局吸底玻璃态批量操作舱 */
 .batch-action-bar {
