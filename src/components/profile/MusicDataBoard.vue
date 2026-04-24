@@ -24,39 +24,42 @@
         <div ref="radarChartRef" class="chart-box"></div>
       </div>
 
-      <div class="dashboard-card chart-card">
-        <div class="card-header">
-          <h3>24 小时听歌分布</h3>
-          <span>找出你的高频时段</span>
-        </div>
-        <div ref="hourlyChartRef" class="chart-box"></div>
-      </div>
     </div>
 
     <div class="insight-grid">
-      <div class="dashboard-card heatmap-card">
-        <div class="card-header">
-          <h3>最近 28 天活跃热力图</h3>
-          <span>每天播放越多颜色越深</span>
+      <div class="insight-stack">
+        <div class="dashboard-card heatmap-card">
+          <div class="card-header">
+            <h3>最近 28 天活跃热力图</h3>
+            <span>每天播放越多颜色越深</span>
+          </div>
+          <div class="heatmap-grid">
+            <el-tooltip
+              v-for="(day, index) in heatmapData"
+              :key="index"
+              :content="`${day.date}：播放 ${day.count} 次`"
+              placement="top"
+            >
+              <div class="heatmap-cell" :data-level="day.level"></div>
+            </el-tooltip>
+          </div>
+          <div class="heatmap-legend">
+            <span>少</span>
+            <div class="heatmap-cell" data-level="0"></div>
+            <div class="heatmap-cell" data-level="1"></div>
+            <div class="heatmap-cell" data-level="2"></div>
+            <div class="heatmap-cell" data-level="3"></div>
+            <div class="heatmap-cell" data-level="4"></div>
+            <span>多</span>
+          </div>
         </div>
-        <div class="heatmap-grid">
-          <el-tooltip
-            v-for="(day, index) in heatmapData"
-            :key="index"
-            :content="`${day.date}：播放 ${day.count} 次`"
-            placement="top"
-          >
-            <div class="heatmap-cell" :data-level="day.level"></div>
-          </el-tooltip>
-        </div>
-        <div class="heatmap-legend">
-          <span>少</span>
-          <div class="heatmap-cell" data-level="0"></div>
-          <div class="heatmap-cell" data-level="1"></div>
-          <div class="heatmap-cell" data-level="2"></div>
-          <div class="heatmap-cell" data-level="3"></div>
-          <div class="heatmap-cell" data-level="4"></div>
-          <span>多</span>
+
+        <div class="dashboard-card chart-card hourly-card">
+          <div class="card-header">
+            <h3>24 小时听歌分布</h3>
+            <span>找出你的高频时段</span>
+          </div>
+          <div ref="hourlyChartRef" class="chart-box hourly-chart-box"></div>
         </div>
       </div>
 
@@ -337,13 +340,20 @@ const renderHourlyChart = () => {
   hourlyInstance = echarts.init(hourlyChartRef.value)
   hourlyInstance.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 22, right: 12, top: 20, bottom: 28 },
+    grid: { left: 22, right: 12, top: 20, bottom: 46 },
     xAxis: {
       type: 'category',
-      data: dashboard.value.hourlyDistribution.map(item => `${item.label}:00`),
+      data: dashboard.value.hourlyDistribution.map(item => item.label),
       axisTick: { show: false },
       axisLine: { lineStyle: { color: '#cbd5e1' } },
-      axisLabel: { color: '#64748b', interval: 3 }
+      axisLabel: {
+        color: '#64748b',
+        interval: 2,
+        rotate: 28,
+        margin: 12,
+        fontSize: 11,
+        formatter: (value) => `${value}时`
+      }
     },
     yAxis: {
       type: 'value',
@@ -393,8 +403,8 @@ onUnmounted(() => {
 .music-data-board {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 24px;
+  gap: 20px;
+  margin-top: 20px;
 }
 
 .summary-grid {
@@ -406,8 +416,8 @@ onUnmounted(() => {
 .summary-card {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid #e2e8f0;
-  border-radius: 22px;
-  padding: 24px 20px;
+  border-radius: 20px;
+  padding: 22px 20px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
 }
 
@@ -427,19 +437,25 @@ onUnmounted(() => {
 
 .chart-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.85fr);
   gap: 20px;
 }
 
 .insight-grid {
   display: grid;
-  grid-template-columns: 1fr 1.15fr;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.35fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.insight-stack {
+  display: grid;
   gap: 20px;
 }
 
 .dashboard-card {
   background: #fff;
-  border-radius: 24px;
+  border-radius: 20px;
   padding: 24px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.04);
@@ -468,23 +484,31 @@ onUnmounted(() => {
 
 .chart-box {
   width: 100%;
-  height: 260px;
+  height: 280px;
+}
+
+.heatmap-card {
+  align-self: start;
+}
+
+.hourly-chart-box {
+  height: 240px;
 }
 
 .heatmap-grid {
   display: grid;
-  grid-template-columns: repeat(7, 22px);
-  grid-template-rows: repeat(4, 22px);
-  gap: 8px;
+  grid-template-columns: repeat(7, 26px);
+  grid-template-rows: repeat(4, 26px);
+  gap: 10px;
   justify-content: center;
   align-content: center;
-  min-height: 140px;
-  margin: 12px 0 14px;
+  width: max-content;
+  margin: 18px auto 16px;
 }
 
 .heatmap-cell {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 6px;
   background: #ebedf0;
   transition: 0.2s;
@@ -506,6 +530,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  margin-top: 2px;
   font-size: 12px;
   color: #64748b;
 }
@@ -525,6 +550,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-height: 100%;
 }
 
 .ranking-section {
@@ -549,7 +575,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 16px;
   background: #f8fafc;
 }
@@ -616,7 +642,7 @@ onUnmounted(() => {
 
 .record-wall-section {
   background: #0f172a;
-  border-radius: 28px;
+  border-radius: 22px;
   padding: 28px 24px 34px;
   box-shadow: inset 0 20px 60px rgba(0, 0, 0, 0.28);
 }

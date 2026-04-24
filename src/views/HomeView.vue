@@ -1,6 +1,6 @@
 <template>
   <div class="main-layout">
-    <Sidebar @switch-menu="switchMenu" @open-playlist-dialog="openPlaylistDialog" />
+    <Sidebar @switch-menu="switchMenu" @open-playlist-dialog="openPlaylistDialog('create')" />
 
     <main class="main-content">
       <header class="top-header">
@@ -49,7 +49,7 @@
             <span>已选择 {{ selectedMusicIds.length }} 首歌曲</span>
             <div style="display:flex; gap:10px;">
               <el-button type="danger" round @click="batchLikeSongs">❤️ 批量收藏</el-button>
-              <el-button type="warning" round @click="openPlaylistDialog">➕ 加入/创建歌单</el-button>
+              <el-button type="warning" round @click="openPlaylistDialog('batch')">➕ 加入/创建歌单</el-button>
               <el-button type="info" plain round @click="toggleBatchMode">取消批量</el-button>
             </div>
           </div>
@@ -524,12 +524,22 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="playlistDialogVisible" title="操作云端歌单" width="400px" top="30vh" append-to-body>
-      <div v-if="selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
-      <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20"><template #append><el-button type="primary" @click="createNewPlaylist">创建并加入</el-button></template></el-input>
-      <el-divider v-if="musicStore.customPlaylists.length > 0">或加入已有云端歌单</el-divider>
+    <el-dialog v-model="playlistDialogVisible" :title="playlistDialogMode === 'create' ? '创建自建歌单' : '操作云端歌单'" width="400px" top="30vh" append-to-body>
+      <div v-if="playlistDialogMode === 'batch' && selectedMusicIds.length > 0" style="margin-bottom:20px; color:#3b82f6; font-weight:bold;">已勾选 {{ selectedMusicIds.length }} 首歌曲</div>
+      <div v-else-if="playlistDialogMode === 'create'" style="margin-bottom:20px; color:#64748b; font-weight:600;">先创建一个空歌单，之后我们再往里面慢慢加歌。</div>
+      <el-input v-model="newPlaylistName" placeholder="输入新歌单名称..." maxlength="20">
+        <template #append>
+          <el-button type="primary" @click="createNewPlaylist">{{ playlistDialogMode === 'create' ? '创建歌单' : '创建并加入' }}</el-button>
+        </template>
+      </el-input>
+      <el-divider v-if="playlistDialogMode === 'batch' && musicStore.customPlaylists.length > 0">或加入已有云端歌单</el-divider>
       <div class="playlist-options" v-if="musicStore.customPlaylists.length > 0">
-        <div class="pl-option" v-for="pl in musicStore.customPlaylists" :key="pl.id" @click="addToExistingPlaylist(pl)"><el-icon><Menu /></el-icon> {{ pl.name }}</div>
+        <div
+          class="pl-option"
+          v-for="pl in musicStore.customPlaylists"
+          :key="pl.id"
+          @click="playlistDialogMode === 'batch' ? addToExistingPlaylist(pl) : switchMenu(`playlist_${pl.id}`)"
+        ><el-icon><Menu /></el-icon> {{ pl.name }}</div>
       </div>
     </el-dialog>
 
@@ -542,7 +552,14 @@
         <p style="color: #64748b; font-size: 13px; margin: 0 0 25px;">{{ targetUser.signature || '这个人很酷，什么也没留下...' }}</p>
         
         <div style="display: flex; justify-content: center; gap: 15px;" v-if="targetUser.id !== musicStore.currentUser?.id">
-          <el-button :type="isFollowingTarget ? 'default' : 'primary'" round @click="toggleFollow" style="width: 100px;">
+          <el-button
+            :type="isFollowingTarget ? 'default' : 'primary'"
+            :loading="isFollowSubmitting"
+            :disabled="isFollowSubmitting"
+            round
+            @click="toggleFollow"
+            style="width: 100px;"
+          >
             {{ isFollowingTarget ? '已关注' : '+ 关注' }}
           </el-button>
           <el-button round @click="openChat(targetUser)" style="width: 100px;">发私信</el-button>
@@ -679,7 +696,7 @@ const allMusicList = ref([]); const aiMusicList = ref([]); const radioMusicList 
 const isRadioLoading = ref(false); const isSleepLoading = ref(false)
 
 const isBatchMode = ref(false); const selectedMusicIds = ref([])
-const playlistDialogVisible = ref(false); const newPlaylistName = ref('')
+const playlistDialogVisible = ref(false); const newPlaylistName = ref(''); const playlistDialogMode = ref('batch')
 
 // 🚀 废弃乱七八糟的提示切换，统一全站搜索占位符
 const searchPlaceholder = computed(() => '输入歌名、歌手或用户昵称进行全站搜索...')
@@ -759,9 +776,12 @@ const handleItemClick = (item) => {
   }
 }
 
-const openPlaylistDialog = () => {
+const openPlaylistDialog = (mode = 'batch') => {
   if (!musicStore.currentUser) return ElMessage.warning('请先登录！')
-  if (selectedMusicIds.value.length === 0) return ElMessage.warning('请先勾选歌曲哦！')
+  playlistDialogMode.value = mode
+  if (mode === 'batch' && selectedMusicIds.value.length === 0) {
+    return ElMessage.warning('请先勾选歌曲哦！')
+  }
   playlistDialogVisible.value = true
 }
 
@@ -796,16 +816,34 @@ const fetchMyPlaylists = async () => {
 const fetchMyLikes = async () => { if (musicStore.currentUser) { try { musicStore.likedMusicList = await getLikedMusicAPI(musicStore.currentUser.id) } catch (error) {} } }
 
 const createNewPlaylist = async () => {
+  const playlistName = newPlaylistName.value.trim()
+  if (!playlistName) {
+    return ElMessage.warning('先给歌单起个名字吧')
+  }
   try {
-    await createPlaylistAPI(musicStore.currentUser.id, newPlaylistName.value.trim())
+    await createPlaylistAPI(musicStore.currentUser.id, playlistName)
     await fetchMyPlaylists() 
-    const newPl = musicStore.customPlaylists.find(p => p.name === newPlaylistName.value.trim())
-    if (newPl && selectedMusicIds.value.length > 0) {
+    const newPl = musicStore.customPlaylists.find(p => p.name === playlistName)
+    if (newPl && playlistDialogMode.value === 'batch' && selectedMusicIds.value.length > 0) {
       for(let sid of selectedMusicIds.value) { await addMusicToPlaylistAPI(newPl.id, sid) }
     }
-    ElMessage.success('🎉 歌单创建并添加成功！')
-  } catch (error) {}
-  newPlaylistName.value = ''; playlistDialogVisible.value = false; toggleBatchMode() 
+    if (playlistDialogMode.value === 'create') {
+      ElMessage.success('🎉 歌单创建成功！')
+      if (newPl?.id) {
+        switchMenu(`playlist_${newPl.id}`)
+      }
+    } else {
+      ElMessage.success('🎉 歌单创建并添加成功！')
+    }
+  } catch (error) {
+    ElMessage.error(error?.message || '歌单创建失败，请稍后重试')
+    return
+  }
+  newPlaylistName.value = ''
+  playlistDialogVisible.value = false
+  if (playlistDialogMode.value === 'batch' && isBatchMode.value) {
+    toggleBatchMode()
+  }
 }
 
 const addToExistingPlaylist = async (pl) => {
@@ -1148,6 +1186,7 @@ const otherProfileVisible = ref(false)
 const targetUser = ref(null)
 const isFollowingTarget = ref(false)
 const isMutual = ref(false)
+const isFollowSubmitting = ref(false)
 
 const chatDrawerVisible = ref(false)
 const chatTarget = ref(null)
@@ -1166,22 +1205,52 @@ const viewOtherProfile = async (user) => {
   } catch(e) {}
 }
 
+const refreshTargetProfileState = async () => {
+  if (!musicStore.currentUser?.id || !targetUser.value?.id) {
+    return
+  }
+  const res = await getUserProfileAPI(targetUser.value.id, musicStore.currentUser.id)
+  targetUser.value = res.user
+  isFollowingTarget.value = res.isFollowing
+  isMutual.value = res.isMutual
+}
+
 // 关注 / 取消关注
 const toggleFollow = async () => {
+  if (!musicStore.currentUser?.id) {
+    ElMessage.warning('请先登录后再关注')
+    return
+  }
+  if (!targetUser.value?.id) {
+    ElMessage.warning('目标用户信息还没加载完成')
+    return
+  }
+  if (musicStore.currentUser.id === targetUser.value.id) {
+    ElMessage.warning('不能关注自己')
+    return
+  }
+  if (isFollowSubmitting.value) {
+    return
+  }
+
+  isFollowSubmitting.value = true
   try {
     if (isFollowingTarget.value) {
       await unfollowUserAPI(musicStore.currentUser.id, targetUser.value.id)
-      isFollowingTarget.value = false
       ElMessage.success('已取消关注')
     } else {
       await followUserAPI(musicStore.currentUser.id, targetUser.value.id)
-      isFollowingTarget.value = true
       ElMessage.success('关注成功！')
     }
-    // 刷新互关状态
-    const res = await getUserProfileAPI(targetUser.value.id, musicStore.currentUser.id)
-    isMutual.value = res.isMutual
-  } catch(e) {}
+    await refreshTargetProfileState()
+    if (musicStore.currentMenu === 'friends') {
+      await loadFriends()
+    }
+  } catch(e) {
+    ElMessage.error(e?.message || '关注操作失败，请稍后重试')
+  } finally {
+    isFollowSubmitting.value = false
+  }
 }
 
 // 唤起聊天室
@@ -1807,16 +1876,26 @@ onUnmounted(() => {
 
 /* 个人资料页样式 */
 .profile-container { 
-  max-width: 800px; 
+  width: min(100%, 1180px);
+  max-width: none; 
   margin: 0 auto; 
-  background: #fff; 
-  border-radius: 28px; 
-  padding: 50px; 
-  box-shadow: 0 10px 40px rgba(0,0,0,0.03); 
-  border: 1px solid #f1f5f9;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 24px; 
+  padding: 42px; 
+  box-shadow: 0 16px 48px rgba(15,23,42,0.05); 
+  border: 1px solid #e2e8f0;
 }
 
-.profile-header { display: flex; align-items: center; gap: 35px; margin-bottom: 60px; }
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+  margin-bottom: 28px;
+  padding: 28px;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+}
 
 .avatar-wrapper { position: relative; cursor: pointer; }
 
@@ -1840,14 +1919,18 @@ onUnmounted(() => {
 .profile-info h2 { display: flex; align-items: center; gap: 15px; }
 .profile-info p { margin: 0; color: #64748b; display: flex; align-items: center; gap: 10px; font-weight: 500;}
 
-.stats-row { text-align: center; }
+.stats-row {
+  text-align: center;
+  margin-bottom: 4px;
+}
 
 .stat-card { 
-  padding: 35px 20px; 
-  background: #f8fafc; 
-  border-radius: 24px; 
+  padding: 28px 20px; 
+  background: #fff; 
+  border-radius: 20px; 
   transition: 0.4s; 
-  border: 1px solid transparent;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 26px rgba(15,23,42,0.035);
 }
 
 .stat-card:hover { 
@@ -1858,7 +1941,7 @@ onUnmounted(() => {
 }
 
 .stat-num { 
-  font-size: 42px; 
+  font-size: 38px; 
   font-weight: 900; 
   color: #3b82f6; 
   margin-bottom: 12px; 
