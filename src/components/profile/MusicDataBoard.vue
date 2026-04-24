@@ -1,5 +1,5 @@
 <template>
-  <div class="music-data-board">
+  <div class="music-data-board" style="background: #fff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); padding: 20px;">
     <div class="geek-dashboard">
       <div class="dashboard-card">
         <h3 class="card-title">🧬 音乐 DNA 基因图谱</h3>
@@ -41,12 +41,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useMusicStore } from '../../store/music'
 import { getHeatmapAPI, getRadarAPI } from '../../api/user'
 
 const musicStore = useMusicStore()
+
+// 💥 新增：接收外部传入的用户 ID (如果没传，则默认为当前登录用户)
+const props = defineProps({
+  userId: {
+    type: [Number, String],
+    default: null
+  }
+})
 
 // 💥 核心修复：被我弄丢的这两个"阵眼"变量，必须补回来！
 const radarChartRef = ref(null)
@@ -54,7 +62,11 @@ let radarInstance = null
 
 // 🚀 真实引擎 A：拉取真数据并「智能分词聚合」渲染雷达图
 const renderRadarChart = async () => {
-  if (!radarChartRef.value || !musicStore.currentUser) return
+  if (!radarChartRef.value) return
+  
+  // 💥 优先使用传入的 userId，如果没有传入，则使用当前登录用户的 id
+  const targetId = props.userId || musicStore.currentUser?.id
+  if (!targetId) return
   
   let radarData = [10, 10, 10, 10, 10, 10]; // 默认兜底
   let indicator = [
@@ -63,7 +75,7 @@ const renderRadarChart = async () => {
   ];
 
   try {
-    const res = await getRadarAPI(musicStore.currentUser.id)
+    const res = await getRadarAPI(targetId)
     if (res && res.length > 0) {
       // 💥 核心黑魔法：接管后端脏数据，进行前端分词与聚合统计！
       const tagMap = {}
@@ -136,11 +148,14 @@ const heatmapData = ref([])
 
 // 🚀 真实引擎 B：拉取真数据映射到 28 天网格中
 const initHeatmap = async () => {
-  if (!musicStore.currentUser) return
+  // 💥 优先使用传入的 userId，如果没有传入，则使用当前登录用户的 id
+  const targetId = props.userId || musicStore.currentUser?.id
+  if (!targetId) return
+  
   const data = []; const today = new Date()
   
   try {
-    const res = await getHeatmapAPI(musicStore.currentUser.id)
+    const res = await getHeatmapAPI(targetId)
     // 把后端传回来的 [{date: '2023/10/01', count: 5}] 转成 Map 方便极速查找
     const realDataMap = {}
     if (res && res.length > 0) res.forEach(item => { realDataMap[item.date] = item.count })
@@ -171,19 +186,29 @@ const initHeatmap = async () => {
 
 // 🚀 核心大招 C：黑胶唱片墙数据引擎
 const topRecords = computed(() => {
+  // 💥 如果是查看他人，则从 playHistory 中筛选出该用户的记录
+  if (props.userId) {
+    // 查看他人时，暂时显示默认封面（需要后端支持返回用户的听歌记录）
+    return Array(5).fill({ coverUrl: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', title: '暂无数据', artist: '需要后端支持' })
+  }
+  // 查看自己时，使用当前逻辑
   let list = (musicStore.playHistory && musicStore.playHistory.length > 0) ? musicStore.playHistory : musicStore.likedMusicList;
   if (!list || list.length === 0) return Array(5).fill({ coverUrl: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png' })
   return list.slice(0, 5) 
 })
+
+// 监听 userId 变化，重新渲染图表
+watch(() => props.userId, () => {
+  initHeatmap()
+  renderRadarChart()
+}, { immediate: true })
 
 // 监听窗口大小变化，让 ECharts 完美自适应
 const handleResize = () => { if (radarInstance) radarInstance.resize() }
 
 // 💥 因为使用了 v-if，组件挂载时自动点火，彻底解耦！
 onMounted(async () => {
-  initHeatmap()
-  await nextTick()
-  renderRadarChart()
+  // userId 变化时会自动触发 watch，这里不需要重复调用
   window.addEventListener('resize', handleResize)
 })
 

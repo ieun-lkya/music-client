@@ -437,7 +437,7 @@
             </div>
             <div class="profile-info">
               <h2 style="margin: 0 0 10px;">{{ targetUser?.nickname || targetUser?.username }} 的音乐宇宙</h2>
-              <p style="margin: 0; color: #64748b;">{{ targetUser?.signature || 'Ta很神秘，什么都没写...' }}</p>
+              <p style="margin: 0; color: #64748b;">{{ targetUser?.signature || 'Ta 很神秘，什么都没写...' }}</p>
               <div style="margin-top: 15px; display: flex; gap: 10px;">
                 <el-tag type="success" effect="plain" round>你们是互相关注的好友</el-tag>
                 <el-button size="small" round @click="openChat(targetUser)">发私信</el-button>
@@ -445,6 +445,9 @@
             </div>
           </div>
           
+          <h3 style="margin: 30px 0 15px; color: #0f172a;">Ta 的音乐灵魂画像</h3>
+          <MusicDataBoard v-if="targetUser" :userId="targetUser.id" />
+
           <h3 style="margin: 30px 0 15px; color: #0f172a;">Ta 创建的云端歌单</h3>
           <el-empty v-if="friendPlaylists.length === 0" description="Ta 还没有创建过歌单哦~" />
           <el-row :gutter="25" class="bento-grid" v-else>
