@@ -1,0 +1,16 @@
+import http from '../../utils/request'
+
+export const likeMusicAPI = (userId, musicId) => http.post('/user/like', null, { params: { userId, musicId } })
+export const unlikeMusicAPI = (userId, musicId) => http.post('/user/unlike', null, { params: { userId, musicId } })
+export const getLikedMusicAPI = (userId) => http.get('/user/likes', { userId })
+export const updateUserAPI = (data) => http.post('/user/update', data)
+export const searchUsersAPI = (keyword) => http.get('/user/search', { keyword })
+export const getUserProfileAPI = (id, currentUserId) => http.get(`/user/profile/${id}`, { currentUserId })
+export const followUserAPI = (followerId, followingId) => http.post('/user/follow', null, { params: { followerId, followingId } })
+export const unfollowUserAPI = (followerId, followingId) => http.post('/user/unfollow', null, { params: { followerId, followingId } })
+export const sendMessageAPI = (data) => http.post('/user/chat/send', data)
+export const getChatHistoryAPI = (userId1, userId2) => http.get('/user/chat/history', { userId1, userId2 })
+export const getRecentContactsAPI = (userId) => http.get('/user/chat/contacts', { userId })
+export const getUnreadCountAPI = (userId) => http.get('/user/chat/unread', { userId })
+export const markAsReadAPI = (senderId, receiverId) => http.post('/user/chat/read', null, { params: { senderId, receiverId } })
+export const getFriendsAPI = (userId) => http.get('/user/friends', { userId })

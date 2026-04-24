@@ -108,7 +108,8 @@ import { ref, nextTick, watch } from 'vue'
 import { Headset, Mute, Refresh, RefreshLeft, Star, StarFilled, Operation, VideoPause, VideoPlay, Connection, Expand, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMusicStore } from '../../store/music'
-import { recordPlayAPI } from '../../api/user'
+import { recordPlayAPI } from '../../api/modules/analysis'
+import { addPlayCountAPI } from '../../api/modules/music'
 
 const musicStore = useMusicStore()
 const emit = defineEmits(['play-prev', 'play-next', 'toggle-like'])
@@ -283,6 +284,7 @@ const setEQ = (t) => {
 // 🚀 终极切歌监听引擎
 watch(() => musicStore.currentSong, async (song) => {
   if (!song) return
+  addPlayCountAPI(song.id).catch(() => {})
   if (musicStore.currentUser) recordPlayAPI(musicStore.currentUser.id, song.id).catch(()=>{})
   musicStore.currentTime = 0; playPercent.value = 0
   loadMiniLyrics(song)

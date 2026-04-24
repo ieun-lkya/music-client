@@ -78,7 +78,7 @@ import axios from 'axios' // 🚀 救命恩人：把 axios 请回来！
 import { ChatDotRound, ArrowDownBold, Close, Star, StarFilled, Position } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMusicStore } from '../../store/music'
-import { getCommentsAPI, addCommentAPI, likeCommentAPI } from '../../api/music'
+import { getCommentsAPI, addCommentAPI, likeCommentAPI } from '../../api/modules/comment'
 
 const musicStore = useMusicStore()
 
@@ -264,7 +264,7 @@ const setReply = (cmt) => { replyTarget.value = cmt }
 
 const fetchComments = async (musicId) => {
   try {
-    const data = await getCommentsAPI(musicId) || []
+    const data = await getCommentsAPI(musicId)
     // 处理评论数据，将子评论挂到对应的父评论下
     const commentsMap = {}
     const rootComments = []

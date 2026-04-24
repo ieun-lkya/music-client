@@ -619,8 +619,11 @@ import LyricOverlay from '../components/player/LyricOverlay.vue'
 import MusicDataBoard from '../components/profile/MusicDataBoard.vue'
 import { useMusicStore } from '../store/music'
 
-import { getMusicListAPI, recommendMusicAPI, generateAiPlaylistsAPI, getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, searchMusicAPI, uploadFileAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI, getMusicByArtistAPI, getArtistBioAPI } from '../api/music'
-import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI, getFriendsAPI } from '../api/user'
+import { getMusicListAPI, searchMusicAPI, getMusicByArtistAPI } from '../api/modules/music'
+import { recommendMusicAPI, generateAiPlaylistsAPI, getArtistBioAPI } from '../api/modules/ai'
+import { getUserPlaylistsAPI, createPlaylistAPI, deletePlaylistAPI, addMusicToPlaylistAPI, getPlaylistMusicAPI, getAllPlaylistsAPI, collectPlaylistAPI, uncollectPlaylistAPI, getCollectedPlaylistsAPI } from '../api/modules/playlist'
+import { uploadFileAPI } from '../api/modules/common'
+import { likeMusicAPI, unlikeMusicAPI, getLikedMusicAPI, updateUserAPI, searchUsersAPI, getUserProfileAPI, followUserAPI, unfollowUserAPI, sendMessageAPI, getChatHistoryAPI, getRecentContactsAPI, getUnreadCountAPI, markAsReadAPI, getFriendsAPI } from '../api/modules/social'
 
 const router = useRouter()
 const goToLogin = () => router.push('/login')
@@ -644,7 +647,7 @@ const refreshAiPlaylists = async () => {
   try {
     // 💥 强行唤醒后端的 LLM 引擎生成 JSON 数据！
     const res = await generateAiPlaylistsAPI();
-    dynamicAiPlaylists.value = res || [];
+    dynamicAiPlaylists.value = res;
   } catch(e) {
     ElMessage.error('📡 量子坍缩失败，请重试');
   } finally {
@@ -664,7 +667,7 @@ const fetchSquareAiSongs = async (category) => {
   isSquareAiLoading.value = true;
   try {
     const prompt = `帮我推荐几首极其符合【${category}】场景氛围的流行音乐或纯音乐。`;
-    squareAiSongs.value = await recommendMusicAPI(prompt) || [];
+    squareAiSongs.value = await recommendMusicAPI(prompt);
   } catch(e) {
     ElMessage.error('📡 AI 雷达频段接收失败');
   } finally {
@@ -766,13 +769,13 @@ const toggleLike = async (song) => {
 const fetchMyPlaylists = async () => { 
   if (musicStore.currentUser) { 
     try { 
-      musicStore.customPlaylists = await getUserPlaylistsAPI(musicStore.currentUser.id) || [] 
-      musicStore.collectedPlaylists = await getCollectedPlaylistsAPI(musicStore.currentUser.id) || [] // 🚀 极速拉取收藏
+      musicStore.customPlaylists = await getUserPlaylistsAPI(musicStore.currentUser.id)
+      musicStore.collectedPlaylists = await getCollectedPlaylistsAPI(musicStore.currentUser.id) // 🚀 极速拉取收藏
     } catch (error) {} 
   } 
 }
 
-const fetchMyLikes = async () => { if (musicStore.currentUser) { try { musicStore.likedMusicList = await getLikedMusicAPI(musicStore.currentUser.id) || [] } catch (error) {} } }
+const fetchMyLikes = async () => { if (musicStore.currentUser) { try { musicStore.likedMusicList = await getLikedMusicAPI(musicStore.currentUser.id) } catch (error) {} } }
 
 const createNewPlaylist = async () => {
   try {
@@ -832,7 +835,7 @@ const loadPlaylistSongs = async (plId) => {
     const res = await getPlaylistMusicAPI(plId)
     let pl = musicStore.customPlaylists.find(p => p.id == plId)
     if (!pl) pl = musicStore.collectedPlaylists.find(p => p.id == plId) // 🚀 在收藏库里找
-    if (pl) pl.songs = res || []
+    if (pl) pl.songs = res
   } catch (error) {}
 }
 
@@ -841,7 +844,7 @@ const handleLogout = () => {
   localStorage.removeItem('echo_user'); localStorage.removeItem('echo_token'); router.push('/login')
 }
 
-const loadDiscoverData = async () => { try { const res = await getMusicListAPI(); allMusicList.value = res.data ? res.data : (res || []) } catch (error) {} }
+const loadDiscoverData = async () => { try { allMusicList.value = await getMusicListAPI() } catch (error) {} }
 
 const initRadio = async (force = false) => {
   if (!force && radioMusicList.value.length > 0) return 
@@ -859,7 +862,7 @@ const initRadio = async (force = false) => {
 
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
-    radioMusicList.value = data || []
+    radioMusicList.value = data
     if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0], radioMusicList.value)
   } catch (error) { 
     ElMessage.error('电台生成失败，请检查网络') 
@@ -873,7 +876,7 @@ const initSleepMode = async (force = false) => {
   isSleepLoading.value = true
   if (force) ElMessage.info('🌙 正在为您编织助眠梦境...')
   try { 
-    sleepMusicList.value = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音') || [] 
+    sleepMusicList.value = await recommendMusicAPI('极度安静、适合深夜深度睡眠、让人放松的轻音乐、钢琴曲或白噪音')
   } catch (error) {
   } finally { 
     isSleepLoading.value = false 
@@ -883,7 +886,7 @@ const initSleepMode = async (force = false) => {
 const handleSearch = async () => {
   if (!userInput.value.trim()) return
   musicStore.currentMenu = 'discover'; discoverMode.value = 'ai'; isSearching.value = true
-  try { aiMusicList.value = await recommendMusicAPI(userInput.value) || [] } catch (error) {} finally { isSearching.value = false }
+  try { aiMusicList.value = await recommendMusicAPI(userInput.value) } catch (error) {} finally { isSearching.value = false }
 }
 
 // 🚀 全局搜索核心状态
@@ -909,8 +912,8 @@ const executeGlobalSearch = async () => {
       searchMusicAPI(lastSearchKeyword.value).catch(() => []),
       searchUsersAPI(lastSearchKeyword.value).catch(() => [])
     ])
-    searchMusicList.value = musicRes || []
-    searchUserList.value = userRes || []
+    searchMusicList.value = musicRes
+    searchUserList.value = userRes
 
     // 💥 核心智能化 UX 升级：
     // 如果没搜到歌，但是搜到了人，自动帮你把选项卡切到"用户"界面！
@@ -935,7 +938,7 @@ const executeRadio = async (dynamicPrompt = '', force = false) => {
   isRadioLoading.value = true
   try {
     const data = await recommendMusicAPI(dynamicPrompt)
-    radioMusicList.value = data || []
+    radioMusicList.value = data
     // 💥 加上第二个参数：radioMusicList.value
     if (force && radioMusicList.value.length > 0) musicStore.selectSong(radioMusicList.value[0], radioMusicList.value)
   } catch (error) { 
@@ -1025,7 +1028,7 @@ const switchMenu = async (menuName) => {
   // 💥 点击广场，拉取全站歌单 + 点火 AI 雷达！
   else if (menuName === 'square') {
     const res = await getAllPlaylistsAPI();
-    squarePlaylists.value = res || [];
+    squarePlaylists.value = res;
     // 💥 进广场时，如果 AI 引擎没跑过，直接拉取第一波！
     if (dynamicAiPlaylists.value.length === 0) refreshAiPlaylists();
   }
@@ -1052,7 +1055,7 @@ const openSquarePlaylist = async (pl) => {
     publicPlaylistData.value.songs = pl.songs || [];
   } else {
     const res = await getPlaylistMusicAPI(pl.id);
-    publicPlaylistData.value.songs = res || [];
+    publicPlaylistData.value.songs = res;
   }
 }
 
@@ -1176,8 +1179,8 @@ const loadChatHistory = async () => {
   try {
     const res = await getChatHistoryAPI(musicStore.currentUser.id, chatTarget.value.id)
     // 💥 判定是否有新消息：如果数量变多了，才允许往下滚，否则不要打断用户阅读
-    const isNewMessage = chatHistory.value.length !== (res || []).length
-    chatHistory.value = res || []
+    const isNewMessage = chatHistory.value.length !== res.length
+    chatHistory.value = res
     
     if (isNewMessage) {
       setTimeout(() => {
@@ -1232,7 +1235,7 @@ const fetchUnreadCount = async () => {
   if (!musicStore.currentUser) return
   try {
     const res = await getUnreadCountAPI(musicStore.currentUser.id)
-    unreadCount.value = res || 0
+    unreadCount.value = res
   } catch(e) {}
 }
 
@@ -1264,7 +1267,7 @@ const openMessageCenter = async () => {
   try {
     // 💥 把你代码里这几行 // TODO 的注释撕掉！
     const res = await getRecentContactsAPI(musicStore.currentUser.id)
-    recentContacts.value = res || []
+    recentContacts.value = res
   } catch(e) {
     ElMessage.error('网络拥堵，联系人拉取失败')
   }
@@ -1288,7 +1291,7 @@ const openArtistProfile = (artistName) => {
   // 💥 异步通道 1：极速拉取数据库歌曲！
   // (去掉了 await，让它获取到数据后瞬间渲染列表，绝不阻塞后续代码)
   getMusicByArtistAPI(artistName).then(res => {
-    artistSongs.value = res || []
+    artistSongs.value = res
   }).catch(() => {})
 
   // 💥 异步通道 2：大模型慢慢生成传记
@@ -1310,7 +1313,7 @@ const openFriendProfile = async () => {
   musicStore.currentMenu = 'friend_profile'
   try {
     // 拉取好友公开创建的歌单
-    friendPlaylists.value = await getUserPlaylistsAPI(targetUser.value.id) || []
+    friendPlaylists.value = await getUserPlaylistsAPI(targetUser.value.id)
   } catch(e) {}
 }
 
@@ -1322,7 +1325,7 @@ const loadFriends = async () => {
   if (!musicStore.currentUser) return
   isFriendsLoading.value = true
   try {
-    friendsList.value = await getFriendsAPI(musicStore.currentUser.id) || []
+    friendsList.value = await getFriendsAPI(musicStore.currentUser.id)
   } catch(e) {
     ElMessage.error('好友雷达故障，请稍后重试')
   } finally {
@@ -1924,4 +1927,3 @@ onUnmounted(() => {
 .hover-artist { cursor: pointer; transition: 0.2s; }
 .hover-artist:hover { color: #3b82f6 !important; text-decoration: underline; text-underline-offset: 4px; }
 </style>
-

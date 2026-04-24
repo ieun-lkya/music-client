@@ -39,7 +39,6 @@ const store = reactive({
     }
     
     // 发射播放脉冲
-    import('../api/music').then(api => api.addPlayCountAPI(song.id).catch(()=>{}));
     
     // 写入历史记录
     const index = this.playHistory.findIndex(item => item.id === song.id);

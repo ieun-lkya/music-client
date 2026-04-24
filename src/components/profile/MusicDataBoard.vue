@@ -44,7 +44,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useMusicStore } from '../../store/music'
-import { getHeatmapAPI, getRadarAPI } from '../../api/user'
+import { getHeatmapAPI, getRadarAPI } from '../../api/modules/analysis'
 
 const musicStore = useMusicStore()
 

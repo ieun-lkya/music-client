@@ -251,8 +251,15 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Monitor, DataLine, UploadFilled, List, SwitchButton, Plus, Edit, Delete, MagicStick, Picture, Document, Headset } from '@element-plus/icons-vue'
 import * as echarts from 'echarts' // 🚀 补回被删掉的 echarts！
-import http from '../utils/request'
-import { getMusicListAPI } from '../api/music' 
+import { getMusicListAPI } from '../api/modules/music'
+import {
+  deleteMusicByAdminAPI,
+  getDashboardDataAPI,
+  parseOnlyAPI,
+  publishMusicAPI,
+  suggestTagsAPI,
+  updateMusicByAdminAPI
+} from '../api/modules/admin'
 
 const router = useRouter()
 const currentTab = ref('dashboard')
@@ -270,8 +277,8 @@ const barChartRef = ref(null)
 
 const fetchDashboardData = async () => {
   try {
-    const res = await http.get('/api/admin/dashboard/data')
-    dashboardData.value = res.data || res || dashboardData.value
+    const res = await getDashboardDataAPI()
+    dashboardData.value = res || dashboardData.value
     await nextTick()
     initCharts()
   } catch (error) { 
@@ -361,7 +368,7 @@ const handleAudioChange = async (file) => {
   formData.append('file', audioFile.value)
 
   try {
-    const res = await http.post('/api/admin/parse', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const res = await parseOnlyAPI(formData)
     if (res.title) form.title = res.title
     if (res.artist) form.artist = res.artist
     if (res.coverBase64) parsedCover.value = res.coverBase64
@@ -379,8 +386,8 @@ const handleAiTagging = async () => {
   if (!form.title) return ElMessage.warning('请先填写（或上传解析）歌名哦！')
   isAiTagging.value = true
   try {
-    const res = await http.get('/api/admin/suggestTags', { params: { title: form.title, artist: form.artist || '未知' } })
-    form.tags = res.data || res 
+    const res = await suggestTagsAPI(form.title, form.artist || '未知')
+    form.tags = res
     ElMessage.success('✨ AI 已自动为您选好最佳标签！')
   } catch (error) {
     ElMessage.error('AI 打标失败')
@@ -408,7 +415,7 @@ const submitMusic = async () => {
   formData.append('tags', form.tags)
 
   try {
-    await http.post('/api/admin/publish', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    await publishMusicAPI(formData)
     ElMessage.success("🎉 发布成功！")
     
     // 清空一切
@@ -437,7 +444,7 @@ const fetchMusicList = async () => {
 
 const handleDelete = async (id) => {
   try {
-    await http.delete(`/api/admin/delete/${id}`)
+    await deleteMusicByAdminAPI(id)
     ElMessage.success("已彻底双重删除！")
     fetchMusicList() 
   } catch (error) { ElMessage.error("删除失败") }
@@ -470,8 +477,8 @@ const handleEditAudioChange = (file) => { editAudioFile.value = file.raw }
 const handleEditAiTagging = async () => {
   isAiTagging.value = true
   try {
-    const res = await http.get('/api/admin/suggestTags', { params: { title: editForm.title, artist: editForm.artist || '未知' } })
-    editForm.tags = res.data || res 
+    const res = await suggestTagsAPI(editForm.title, editForm.artist || '未知')
+    editForm.tags = res
     ElMessage.success('✨ AI 重新打标成功！')
   } catch (error) { ElMessage.error('AI 打标失败') } finally { isAiTagging.value = false }
 }
@@ -491,7 +498,7 @@ const submitEdit = async () => {
   if (editLyricFile.value) formData.append('newLyric', editLyricFile.value)
 
   try {
-    await http.post('/api/admin/update', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    await updateMusicByAdminAPI(formData)
     ElMessage.success("修改成功，老文件已被云端抹除！")
     editDialogVisible.value = false
     fetchMusicList()
