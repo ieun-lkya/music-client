@@ -730,12 +730,28 @@ const enterBatchModeFrom = (item) => {
 const toggleSelection = (id) => { const index = selectedMusicIds.value.indexOf(id); if (index > -1) selectedMusicIds.value.splice(index, 1); else selectedMusicIds.value.push(id) }
 
 // 🚀 核心修复 4：完美切歌逻辑！如果是当前歌曲，改为切换播放/暂停！
+const toggleCurrentSongPlayback = () => {
+  const audio = document.getElementById('echo-audio-player')
+  if (!audio || !musicStore.currentSong) {
+    musicStore.isPlaying = !musicStore.isPlaying
+    return
+  }
+
+  if (audio.paused) {
+    audio.play().catch(() => {
+      musicStore.isPlaying = false
+    })
+  } else {
+    audio.pause()
+  }
+}
+
 const handleItemClick = (item) => {
   if (isBatchMode.value) {
     toggleSelection(item.id) 
   } else {
     if (musicStore.currentSong && musicStore.currentSong.id === item.id) {
-      musicStore.togglePlay() 
+      toggleCurrentSongPlayback()
     } else {
       // 💥 关键修复：把当前屏幕上的播放列表传给引擎！
       musicStore.selectSong(item, activePlayList.value) 
