@@ -15,6 +15,9 @@
         <div class="nav-item" :class="{ active: currentTab === 'manage' }" @click="switchTab('manage')">
           <el-icon><List /></el-icon> 曲库管理
         </div>
+        <div class="nav-item" :class="{ active: currentTab === 'users' }" @click="switchTab('users')">
+          <el-icon><UserFilled /></el-icon> 用户管理
+        </div>
       </nav>
       <div class="logout-btn" @click="handleLogout">
         <el-icon><SwitchButton /></el-icon> 退出系统
@@ -23,7 +26,7 @@
 
     <main class="main-content">
       <header class="top-header">
-        <h2>{{ currentTab === 'dashboard' ? '📊 核心数据看板' : currentTab === 'publish' ? '🚀 音乐发布中心' : '🎵 全站曲库管理' }}</h2>
+        <h2>{{ pageTitle }}</h2>
         <div class="admin-info">
           <el-button size="small" plain @click="refreshCurrentTab" :loading="currentTab === 'dashboard' ? isDashboardLoading : tableLoading">
             刷新当前页
@@ -61,7 +64,21 @@
             <el-col :span="12">
               <el-card shadow="never" class="chart-card">
                 <template #header><div class="card-header">🎵 AI 曲库场景标签分布</div></template>
-                <div ref="pieChartRef" class="chart-box"></div>
+                <div ref="pieChartRef" class="chart-box tag-chart-box"></div>
+                <el-collapse v-model="tagCollapseActive" class="tag-collapse">
+                  <el-collapse-item title="查看全部场景标签" name="tags">
+                    <div class="tag-groups">
+                      <div class="tag-group" v-for="group in groupedTagDistribution" :key="group.name">
+                        <div class="tag-group-title">{{ group.name }}</div>
+                        <div class="tag-chip-list">
+                          <el-tag v-for="tag in group.items" :key="tag.name" size="small" effect="plain">
+                            {{ tag.name }} · {{ tag.value }}
+                          </el-tag>
+                        </div>
+                      </div>
+                    </div>
+                  </el-collapse-item>
+                </el-collapse>
               </el-card>
             </el-col>
             <el-col :span="12">
@@ -242,6 +259,56 @@
           </el-card>
         </div>
 
+        <div v-show="currentTab === 'users'" class="manage-container fade-in">
+          <el-card shadow="never" class="table-card">
+            <div class="manage-toolbar">
+              <div>
+                <div class="toolbar-title">注册用户</div>
+                <div class="toolbar-subtitle">共 {{ userList.length }} 位，当前筛选 {{ filteredUserList.length }} 位</div>
+              </div>
+              <el-input
+                v-model="userSearchKeyword"
+                clearable
+                placeholder="按账号、昵称或签名搜索"
+                class="manage-search"
+                @keyup.enter="fetchUserList"
+              />
+            </div>
+            <div class="filter-strip">
+              <el-button type="primary" plain @click="fetchUserList" :loading="userTableLoading">查询用户</el-button>
+              <el-button plain @click="clearUserSearch">清空搜索</el-button>
+            </div>
+            <el-table :data="filteredUserList" stripe style="width: 100%" v-loading="userTableLoading" height="600" empty-text="没有匹配的用户">
+              <el-table-column label="用户" min-width="220">
+                <template #default="scope">
+                  <div class="user-cell">
+                    <el-avatar :size="42" :src="scope.row.avatar" />
+                    <div>
+                      <div class="user-cell-name">{{ scope.row.nickname || scope.row.username }}</div>
+                      <div class="user-cell-sub">@{{ scope.row.username }}</div>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="signature" label="个性签名" min-width="260" show-overflow-tooltip />
+              <el-table-column prop="likeCount" label="收藏" width="90" sortable />
+              <el-table-column prop="playlistCount" label="歌单" width="90" sortable />
+              <el-table-column prop="playCount" label="播放" width="90" sortable />
+              <el-table-column prop="createTime" label="注册时间" width="170" />
+              <el-table-column label="操作" width="190" fixed="right">
+                <template #default="scope">
+                  <el-button type="warning" link @click="resetUserProfile(scope.row)">重置资料</el-button>
+                  <el-popconfirm title="删除该用户及其收藏、歌单、聊天等关联数据？" @confirm="deleteUser(scope.row.id)" confirm-button-type="danger">
+                    <template #reference>
+                      <el-button type="danger" link>删除</el-button>
+                    </template>
+                  </el-popconfirm>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </div>
+
       </div>
     </main>
 
@@ -322,15 +389,18 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Monitor, DataLine, UploadFilled, List, SwitchButton, Plus, Edit, Delete, MagicStick, Picture, Document, Headset } from '@element-plus/icons-vue'
+import { Monitor, DataLine, UploadFilled, List, SwitchButton, Plus, Edit, Delete, MagicStick, Picture, Document, Headset, UserFilled } from '@element-plus/icons-vue'
 import * as echarts from 'echarts' // 🚀 补回被删掉的 echarts！
 import { getMusicListAPI } from '../api/modules/music'
 import {
   deleteMusicByAdminAPI,
+  deleteUserByAdminAPI,
   getAdminProfileAPI,
+  getAdminUsersAPI,
   getDashboardDataAPI,
   parseOnlyAPI,
   publishMusicAPI,
+  resetUserProfileAPI,
   suggestTagsAPI,
   updateMusicByAdminAPI
 } from '../api/modules/admin'
@@ -338,6 +408,12 @@ import {
 const router = useRouter()
 const currentTab = ref('dashboard')
 const adminProfile = ref({ username: 'admin', displayName: '超级管理员', role: 'ADMIN' })
+const pageTitle = computed(() => {
+  if (currentTab.value === 'dashboard') return '📊 核心数据看板'
+  if (currentTab.value === 'publish') return '🚀 音乐发布中心'
+  if (currentTab.value === 'manage') return '🎵 全站曲库管理'
+  return '👥 用户管理中心'
+})
 
 const loadAdminProfile = async () => {
   try {
@@ -359,6 +435,7 @@ const switchTab = (tab) => {
   currentTab.value = tab
   if (tab === 'dashboard') fetchDashboardData()
   if (tab === 'manage') fetchMusicList()
+  if (tab === 'users') fetchUserList()
 }
 
 // ================= 大屏逻辑 (Echarts 满血复活) =================
@@ -373,6 +450,7 @@ const dashboardData = ref({
   resourceCompleteness: []
 })
 const isDashboardLoading = ref(false)
+const tagCollapseActive = ref(['tags'])
 const pieChartRef = ref(null)
 const barChartRef = ref(null)
 const trendChartRef = ref(null)
@@ -383,6 +461,31 @@ let barChartInstance = null
 let trendChartInstance = null
 let artistChartInstance = null
 let resourceChartInstance = null
+
+const TAG_GROUPS = [
+  { name: '风格', tags: ['流行', '摇滚', '民谣', '电子', '纯音乐', '古风', '经典'] },
+  { name: '情绪', tags: ['伤感', '治愈', '励志', '轻松', '爱情', '浪漫', '怀旧'] },
+  { name: '场景', tags: ['助眠', '运动', '驾车', '雨天', '深夜', '咖啡馆', '工作学习'] },
+  { name: '语种地区', tags: ['华语', '欧美', '日韩'] },
+  { name: '节奏偏好', tags: ['节奏控'] }
+]
+
+const groupedTagDistribution = computed(() => {
+  const valueMap = new Map((dashboardData.value.tagDistribution || []).map(item => [item.name, item.value]))
+  const used = new Set()
+  const groups = TAG_GROUPS.map(group => {
+    const items = group.tags.map(tag => {
+      used.add(tag)
+      return { name: tag, value: valueMap.get(tag) || 0 }
+    })
+    return { ...group, items }
+  })
+  const others = (dashboardData.value.tagDistribution || []).filter(item => !used.has(item.name))
+  if (others.length > 0) {
+    groups.push({ name: '其他', items: others })
+  }
+  return groups
+})
 
 const fetchDashboardData = async () => {
   isDashboardLoading.value = true
@@ -428,12 +531,45 @@ const initCharts = () => {
     }
     pieChartInstance.setOption({
       tooltip: { trigger: 'item' },
-      legend: { top: 'bottom' },
+      legend: {
+        type: 'scroll',
+        orient: 'horizontal',
+        bottom: 6,
+        left: 24,
+        right: 24,
+        itemWidth: 12,
+        itemHeight: 8,
+        pageIconColor: '#3b82f6',
+        pageTextStyle: { color: '#64748b' },
+        textStyle: { color: '#475569', fontSize: 12 }
+      },
       series: [
         {
           name: '标签分布',
           type: 'pie',
-          radius: ['40%', '70%'],
+          radius: ['42%', '66%'],
+          center: ['50%', '42%'],
+          avoidLabelOverlap: true,
+          label: {
+            show: true,
+            formatter: '{b}',
+            color: '#374151',
+            fontSize: 11
+          },
+          labelLine: {
+            show: true,
+            length: 8,
+            length2: 8
+          },
+          emphasis: {
+            label: {
+              show: true,
+              formatter: '{b}\n{c} 首',
+              fontSize: 14,
+              fontWeight: 800,
+              color: '#111827'
+            }
+          },
           itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
           data: dashboardData.value.tagDistribution
         }
@@ -701,6 +837,57 @@ const handleDelete = async (id) => {
   } catch (error) { ElMessage.error("删除失败") }
 }
 
+// ================= 用户管理逻辑 =================
+const userList = ref([])
+const userTableLoading = ref(false)
+const userSearchKeyword = ref('')
+const filteredUserList = computed(() => {
+  const keyword = userSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) return userList.value
+  return userList.value.filter(user => {
+    return [user.username, user.nickname, user.signature]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(keyword))
+  })
+})
+
+const fetchUserList = async () => {
+  userTableLoading.value = true
+  try {
+    userList.value = await getAdminUsersAPI(userSearchKeyword.value.trim())
+  } catch (error) {
+    ElMessage.error('获取用户列表失败')
+  } finally {
+    userTableLoading.value = false
+  }
+}
+
+const clearUserSearch = () => {
+  userSearchKeyword.value = ''
+  fetchUserList()
+}
+
+const resetUserProfile = async (user) => {
+  try {
+    await resetUserProfileAPI(user.id)
+    ElMessage.success('用户资料已重置')
+    fetchUserList()
+  } catch (error) {
+    ElMessage.error(error?.message || '重置用户资料失败')
+  }
+}
+
+const deleteUser = async (id) => {
+  try {
+    await deleteUserByAdminAPI(id)
+    ElMessage.success('用户已删除')
+    fetchUserList()
+    fetchDashboardData()
+  } catch (error) {
+    ElMessage.error(error?.message || '删除用户失败')
+  }
+}
+
 const editDialogVisible = ref(false)
 const isEditing = ref(false)
 const editForm = reactive({ id: '', title: '', artist: '', tags: '', coverUrl: '', audioUrl: '' })
@@ -774,6 +961,7 @@ const handleLogout = () => {
 const refreshCurrentTab = () => {
   if (currentTab.value === 'dashboard') return fetchDashboardData()
   if (currentTab.value === 'manage') return fetchMusicList()
+  if (currentTab.value === 'users') return fetchUserList()
   ElMessage.info('发布中心无需刷新，填写内容会保留')
 }
 
@@ -851,7 +1039,44 @@ const validateAndFormatTags = (tagStr) => {
 .stat-value { font-size: 32px; font-weight: bold; }
 .chart-card { border-radius: 12px; }
 .chart-box { height: 350px; width: 100%; }
+.tag-chart-box { height: 430px; }
 .small-chart { height: 280px; }
+.tag-collapse {
+  margin: -8px 18px 18px;
+  border: 0;
+}
+.tag-collapse :deep(.el-collapse-item__header) {
+  height: 38px;
+  border: 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+.tag-collapse :deep(.el-collapse-item__wrap) {
+  border: 0;
+}
+.tag-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.tag-group {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+}
+.tag-group-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #0f172a;
+}
+.tag-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
 
 /* 曲库管理表格 */
 .table-card { border-radius: 12px; }
@@ -887,6 +1112,21 @@ const validateAndFormatTags = (tagStr) => {
 }
 .filter-select {
   width: 180px;
+}
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-cell-name {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+}
+.user-cell-sub {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 12px;
 }
 :deep(.el-table th) { background-color: #f9fafb !important; color: #374151; font-weight: 600; }
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) { background-color: #fdfdfd; }
