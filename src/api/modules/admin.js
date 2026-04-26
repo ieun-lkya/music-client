@@ -1,5 +1,7 @@
 import http from '../../utils/request'
 
+export const adminLoginAPI = (credentials) => http.post('/admin/login', credentials)
+export const getAdminProfileAPI = () => http.get('/admin/me')
 export const getDashboardDataAPI = () => http.get('/admin/dashboard/data')
 export const parseOnlyAPI = (formData) => http.post('/admin/parse', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const suggestTagsAPI = (title, artist) => http.get('/admin/suggestTags', { title, artist })

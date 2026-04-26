@@ -29,7 +29,7 @@
             刷新当前页
           </el-button>
           <el-tag type="success" effect="plain">在线</el-tag>
-          <span>超级管理员</span>
+          <span>{{ adminProfile.displayName }}</span>
           <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
         </div>
       </header>
@@ -68,6 +68,26 @@
               <el-card shadow="never" class="chart-card">
                 <template #header><div class="card-header">🔥 听歌用户最爱 (收藏 TOP 5)</div></template>
                 <div ref="barChartRef" class="chart-box"></div>
+              </el-card>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20" class="chart-row">
+            <el-col :span="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header><div class="card-header">📈 近 14 天播放趋势</div></template>
+                <div ref="trendChartRef" class="chart-box small-chart"></div>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header><div class="card-header">🎤 Top 歌手排行</div></template>
+                <div ref="artistChartRef" class="chart-box small-chart"></div>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header><div class="card-header">🧩 曲库资源完整度</div></template>
+                <div ref="resourceChartRef" class="chart-box small-chart"></div>
               </el-card>
             </el-col>
           </el-row>
@@ -137,6 +157,15 @@
                 </el-col>
               </el-row>
 
+              <div class="quality-panel">
+                <div class="quality-title">发布质量检查</div>
+                <div class="quality-items">
+                  <span v-for="item in publishQualityItems" :key="item.label" class="quality-item" :class="{ ok: item.ok }">
+                    {{ item.ok ? '✓' : '!' }} {{ item.label }}
+                  </span>
+                </div>
+              </div>
+
               <div style="margin-top: 30px;">
                 <el-button type="primary" size="large" @click="submitMusic" :loading="isSubmitting" class="submit-btn">🚀 确 认 发 布 入 库</el-button>
               </div>
@@ -158,6 +187,18 @@
                 class="manage-search"
               />
             </div>
+            <div class="filter-strip">
+              <el-select v-model="tagFilter" clearable placeholder="按标签筛选" class="filter-select">
+                <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
+              </el-select>
+              <el-select v-model="resourceFilter" clearable placeholder="按资源状态筛选" class="filter-select">
+                <el-option label="资源完整" value="complete" />
+                <el-option label="缺封面" value="missingCover" />
+                <el-option label="缺歌词" value="missingLyric" />
+                <el-option label="缺音频" value="missingAudio" />
+              </el-select>
+              <el-button plain @click="clearMusicFilters">清空筛选</el-button>
+            </div>
             <el-table :data="filteredMusicList" stripe style="width: 100%" v-loading="tableLoading" height="600" empty-text="没有匹配的歌曲">
               <el-table-column label="封面" width="90">
                 <template #default="scope">
@@ -177,6 +218,13 @@
                 <template #default="scope">
                   <el-tag :type="scope.row.lyricUrl ? 'success' : 'info'" size="small">
                     {{ scope.row.lyricUrl ? '已包含' : '无歌词' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="资源状态" width="150">
+                <template #default="scope">
+                  <el-tag :type="getResourceStatus(scope.row).type" size="small">
+                    {{ getResourceStatus(scope.row).label }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -249,6 +297,15 @@
           </el-col>
         </el-row>
 
+        <div class="quality-panel edit-quality">
+          <div class="quality-title">当前资源状态</div>
+          <div class="quality-items">
+            <span v-for="item in editQualityItems" :key="item.label" class="quality-item" :class="{ ok: item.ok }">
+              {{ item.ok ? '✓' : '!' }} {{ item.label }}
+            </span>
+          </div>
+        </div>
+
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -270,6 +327,7 @@ import * as echarts from 'echarts' // 🚀 补回被删掉的 echarts！
 import { getMusicListAPI } from '../api/modules/music'
 import {
   deleteMusicByAdminAPI,
+  getAdminProfileAPI,
   getDashboardDataAPI,
   parseOnlyAPI,
   publishMusicAPI,
@@ -279,6 +337,23 @@ import {
 
 const router = useRouter()
 const currentTab = ref('dashboard')
+const adminProfile = ref({ username: 'admin', displayName: '超级管理员', role: 'ADMIN' })
+
+const loadAdminProfile = async () => {
+  try {
+    const profile = await getAdminProfileAPI()
+    adminProfile.value = {
+      username: profile.username || 'admin',
+      displayName: profile.displayName || '超级管理员',
+      role: profile.role || 'ADMIN'
+    }
+    localStorage.setItem('admin_profile', JSON.stringify(adminProfile.value))
+  } catch (error) {
+    localStorage.removeItem('admin_token')
+    localStorage.removeItem('admin_profile')
+    router.push({ path: '/login', query: { role: 'admin', redirect: '/admin' } })
+  }
+}
 
 const switchTab = (tab) => {
   currentTab.value = tab
@@ -287,12 +362,27 @@ const switchTab = (tab) => {
 }
 
 // ================= 大屏逻辑 (Echarts 满血复活) =================
-const dashboardData = ref({ userCount: 0, musicCount: 0, likeCount: 0, tagDistribution: [], topSongs: [] })
+const dashboardData = ref({
+  userCount: 0,
+  musicCount: 0,
+  likeCount: 0,
+  tagDistribution: [],
+  topSongs: [],
+  playTrend: [],
+  topArtists: [],
+  resourceCompleteness: []
+})
 const isDashboardLoading = ref(false)
 const pieChartRef = ref(null)
 const barChartRef = ref(null)
+const trendChartRef = ref(null)
+const artistChartRef = ref(null)
+const resourceChartRef = ref(null)
 let pieChartInstance = null
 let barChartInstance = null
+let trendChartInstance = null
+let artistChartInstance = null
+let resourceChartInstance = null
 
 const fetchDashboardData = async () => {
   isDashboardLoading.value = true
@@ -313,6 +403,14 @@ const fetchDashboardData = async () => {
       topSongs: [
         { title: '七里香', likes: 230 }, { title: '夜曲', likes: 180 }, { title: '晴天', likes: 150 },
         { title: '稻香', likes: 120 }, { title: '青花瓷', likes: 90 }
+      ],
+      playTrend: [],
+      topArtists: [
+        { name: '周杰伦', value: 30 }, { name: '林俊杰', value: 18 }, { name: '陈奕迅', value: 12 }
+      ],
+      resourceCompleteness: [
+        { name: '音频完整', value: 56 }, { name: '封面完整', value: 45 }, { name: '歌词完整', value: 32 },
+        { name: '缺封面', value: 11 }, { name: '缺歌词', value: 24 }
       ]
     }
     await nextTick()
@@ -367,11 +465,83 @@ const initCharts = () => {
       ]
     })
   }
+
+  if (trendChartRef.value) {
+    if (!trendChartInstance) {
+      trendChartInstance = echarts.init(trendChartRef.value)
+    }
+    const trend = dashboardData.value.playTrend || []
+    trendChartInstance.setOption({
+      tooltip: { trigger: 'axis' },
+      grid: { left: 36, right: 18, top: 30, bottom: 42 },
+      xAxis: {
+        type: 'category',
+        data: trend.map(item => String(item.label).slice(5)),
+        axisLabel: { color: '#6b7280' }
+      },
+      yAxis: { type: 'value', axisLabel: { color: '#6b7280' }, splitLine: { lineStyle: { color: '#eef2f7' } } },
+      series: [{
+        name: '播放次数',
+        type: 'line',
+        smooth: true,
+        symbolSize: 7,
+        areaStyle: { color: 'rgba(59,130,246,0.12)' },
+        lineStyle: { color: '#3b82f6', width: 3 },
+        itemStyle: { color: '#3b82f6' },
+        data: trend.map(item => item.value)
+      }]
+    })
+  }
+
+  if (artistChartRef.value) {
+    if (!artistChartInstance) {
+      artistChartInstance = echarts.init(artistChartRef.value)
+    }
+    const artists = dashboardData.value.topArtists || []
+    artistChartInstance.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 70, right: 18, top: 24, bottom: 24 },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#eef2f7' } } },
+      yAxis: {
+        type: 'category',
+        data: artists.map(item => item.name),
+        axisLabel: { color: '#374151', fontWeight: 700 }
+      },
+      series: [{
+        name: '播放次数',
+        type: 'bar',
+        barWidth: 14,
+        itemStyle: { borderRadius: [0, 10, 10, 0], color: '#10b981' },
+        data: artists.map(item => item.value)
+      }]
+    })
+  }
+
+  if (resourceChartRef.value) {
+    if (!resourceChartInstance) {
+      resourceChartInstance = echarts.init(resourceChartRef.value)
+    }
+    resourceChartInstance.setOption({
+      tooltip: { trigger: 'item' },
+      legend: { bottom: 0, type: 'scroll' },
+      series: [{
+        name: '资源状态',
+        type: 'pie',
+        radius: ['42%', '68%'],
+        center: ['50%', '44%'],
+        itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 8 },
+        data: dashboardData.value.resourceCompleteness || []
+      }]
+    })
+  }
 }
 
 const resizeCharts = () => {
   pieChartInstance?.resize()
   barChartInstance?.resize()
+  trendChartInstance?.resize()
+  artistChartInstance?.resize()
+  resourceChartInstance?.resize()
 }
 
 // ================= 发布中心逻辑 =================
@@ -388,6 +558,15 @@ const isAiTagging = ref(false)
 
 const uploadAudioRef = ref(null)
 const uploadImageRef = ref(null)
+
+const publishQualityItems = computed(() => [
+  { label: '音频已选择', ok: !!audioFile.value },
+  { label: '歌名已填写', ok: !!form.title.trim() },
+  { label: '歌手已填写', ok: !!form.artist.trim() },
+  { label: '标签已填写', ok: !!form.tags.trim() },
+  { label: '封面可用', ok: !!imageFile.value || !!parsedCover.value },
+  { label: '歌词可选', ok: !!lyricFile.value }
+])
 
 const handleAudioChange = async (file) => {
   audioFile.value = file.raw
@@ -465,15 +644,46 @@ const submitMusic = async () => {
 const musicList = ref([])
 const tableLoading = ref(false)
 const musicSearchKeyword = ref('')
+const tagFilter = ref('')
+const resourceFilter = ref('')
+const availableTags = computed(() => {
+  const tags = new Set()
+  musicList.value.forEach(item => {
+    String(item.tags || '')
+      .split(/[,，]/)
+      .map(tag => tag.trim())
+      .filter(Boolean)
+      .forEach(tag => tags.add(tag))
+  })
+  return Array.from(tags).sort()
+})
 const filteredMusicList = computed(() => {
   const keyword = musicSearchKeyword.value.trim().toLowerCase()
-  if (!keyword) return musicList.value
   return musicList.value.filter(item => {
-    return [item.title, item.artist, item.tags]
+    const matchesKeyword = !keyword || [item.title, item.artist, item.tags]
       .filter(Boolean)
       .some(value => String(value).toLowerCase().includes(keyword))
+    const matchesTag = !tagFilter.value || String(item.tags || '')
+      .split(/[,，]/)
+      .map(tag => tag.trim())
+      .includes(tagFilter.value)
+    const matchesResource = !resourceFilter.value || getResourceStatus(item).value === resourceFilter.value
+    return matchesKeyword && matchesTag && matchesResource
   })
 })
+
+const clearMusicFilters = () => {
+  musicSearchKeyword.value = ''
+  tagFilter.value = ''
+  resourceFilter.value = ''
+}
+
+const getResourceStatus = (row) => {
+  if (!row.audioUrl) return { label: '缺音频', type: 'danger', value: 'missingAudio' }
+  if (!row.coverUrl) return { label: '缺封面', type: 'warning', value: 'missingCover' }
+  if (!row.lyricUrl) return { label: '缺歌词', type: 'info', value: 'missingLyric' }
+  return { label: '资源完整', type: 'success', value: 'complete' }
+}
 
 const fetchMusicList = async () => {
   tableLoading.value = true
@@ -497,6 +707,7 @@ const editForm = reactive({ id: '', title: '', artist: '', tags: '', coverUrl: '
 const editCoverFile = ref(null)
 const editAudioFile = ref(null)
 const editLyricFile = ref(null) 
+const editOriginalLyricUrl = ref('')
 
 const editUploadLyricRef = ref(null)
 const editUploadImageRef = ref(null)
@@ -505,6 +716,7 @@ const editUploadAudioRef = ref(null)
 const openEditDialog = (row) => {
   editForm.id = row.id; editForm.title = row.title; editForm.artist = row.artist; 
   editForm.tags = row.tags || ''; editForm.coverUrl = row.coverUrl; editForm.audioUrl = row.audioUrl;
+  editOriginalLyricUrl.value = row.lyricUrl || ''
   editCoverFile.value = null; editAudioFile.value = null; editLyricFile.value = null; 
   if(editUploadImageRef.value) editUploadImageRef.value.clearFiles()
   if(editUploadAudioRef.value) editUploadAudioRef.value.clearFiles()
@@ -514,6 +726,13 @@ const openEditDialog = (row) => {
 
 const handleEditCoverChange = (file) => { editCoverFile.value = file.raw }
 const handleEditAudioChange = (file) => { editAudioFile.value = file.raw }
+
+const editQualityItems = computed(() => [
+  { label: '音频可用', ok: !!editForm.audioUrl || !!editAudioFile.value },
+  { label: '封面可用', ok: !!editForm.coverUrl || !!editCoverFile.value },
+  { label: '歌词可用', ok: !!editOriginalLyricUrl.value || !!editLyricFile.value },
+  { label: '标签已填写', ok: !!editForm.tags.trim() }
+])
 
 const handleEditAiTagging = async () => {
   isAiTagging.value = true
@@ -548,6 +767,7 @@ const submitEdit = async () => {
 
 const handleLogout = () => {
   localStorage.removeItem('admin_token')
+  localStorage.removeItem('admin_profile')
   router.push('/login')
 }
 
@@ -558,6 +778,15 @@ const refreshCurrentTab = () => {
 }
 
 onMounted(() => {
+  const cachedProfile = localStorage.getItem('admin_profile')
+  if (cachedProfile) {
+    try {
+      adminProfile.value = JSON.parse(cachedProfile)
+    } catch (error) {
+      localStorage.removeItem('admin_profile')
+    }
+  }
+  loadAdminProfile()
   fetchDashboardData()
   window.addEventListener('resize', resizeCharts)
 })
@@ -566,6 +795,9 @@ onUnmounted(() => {
   window.removeEventListener('resize', resizeCharts)
   pieChartInstance?.dispose()
   barChartInstance?.dispose()
+  trendChartInstance?.dispose()
+  artistChartInstance?.dispose()
+  resourceChartInstance?.dispose()
 })
 
 // ================= 🚀 核心：极其严苛的标签词库白名单 =================
@@ -619,6 +851,7 @@ const validateAndFormatTags = (tagStr) => {
 .stat-value { font-size: 32px; font-weight: bold; }
 .chart-card { border-radius: 12px; }
 .chart-box { height: 350px; width: 100%; }
+.small-chart { height: 280px; }
 
 /* 曲库管理表格 */
 .table-card { border-radius: 12px; }
@@ -641,6 +874,19 @@ const validateAndFormatTags = (tagStr) => {
 }
 .manage-search {
   width: 320px;
+}
+.filter-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0 18px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid #eef2f7;
+}
+.filter-select {
+  width: 180px;
 }
 :deep(.el-table th) { background-color: #f9fafb !important; color: #374151; font-weight: 600; }
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) { background-color: #fdfdfd; }
@@ -665,6 +911,42 @@ const validateAndFormatTags = (tagStr) => {
 .compact-upload .el-icon--upload { margin-bottom: 5px; font-size: 30px; color: #9ca3af; }
 .compact-upload .el-upload__text { font-size: 12px; color: #6b7280; }
 .file-name { margin-top: 8px; font-size: 12px; color: #10b981; text-align: center; }
+
+.quality-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
+  border: 1px solid #dbeafe;
+}
+.edit-quality {
+  margin-top: 20px;
+}
+.quality-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+.quality-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quality-item {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  font-size: 12px;
+  font-weight: 700;
+}
+.quality-item.ok {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
 
 .compact-parsed-cover {
   height: 120px;

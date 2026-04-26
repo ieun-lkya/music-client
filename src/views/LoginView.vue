@@ -53,6 +53,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Key, Lock, MagicStick, Monitor, User } from '@element-plus/icons-vue'
 import { loginAPI, registerAPI } from '../api/modules/auth'
+import { adminLoginAPI } from '../api/modules/admin'
 import { useMusicStore } from '../store/music'
 
 const router = useRouter()
@@ -102,26 +103,34 @@ const handleUserAction = async () => {
   }
 }
 
-const handleAdminLogin = () => {
+const handleAdminLogin = async () => {
   if (!adminForm.username || !adminForm.password) {
     return ElMessage.warning('请输入管理员凭证')
   }
 
   loading.value = true
 
-  setTimeout(() => {
-    if (adminForm.username === 'admin' && adminForm.password === '123456') {
-      ElMessage.success('管理员身份校验通过')
-      localStorage.setItem('admin_token', 'super_admin_secret')
-      localStorage.removeItem('echo_token')
-      localStorage.removeItem('echo_user')
-      musicStore.currentUser = null
-      router.push(route.query.redirect || '/admin')
-    } else {
-      ElMessage.error('管理员账号或密码错误')
+  try {
+    const loginData = await adminLoginAPI(adminForm)
+    if (!loginData?.token) {
+      throw new Error('管理员登录返回数据不完整')
     }
+    ElMessage.success('管理员身份校验通过')
+    localStorage.setItem('admin_token', loginData.token)
+    localStorage.setItem('admin_profile', JSON.stringify({
+      username: loginData.username,
+      displayName: loginData.displayName,
+      role: loginData.role
+    }))
+    localStorage.removeItem('echo_token')
+    localStorage.removeItem('echo_user')
+    musicStore.currentUser = null
+    router.push(route.query.redirect || '/admin')
+  } catch (error) {
+    ElMessage.error(error?.message || '管理员账号或密码错误')
+  } finally {
     loading.value = false
-  }, 600)
+  }
 }
 
 onMounted(() => {
