@@ -581,22 +581,46 @@ const initCharts = () => {
     if (!barChartInstance) {
       barChartInstance = echarts.init(barChartRef.value)
     }
+    const topSongs = dashboardData.value.topSongs || []
     barChartInstance.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: { type: 'category', data: dashboardData.value.topSongs?.map(s => s.title) || [], axisTick: { alignWithLabel: true } },
-      yAxis: { type: 'value' },
+      grid: { left: 128, right: 32, top: 28, bottom: 28 },
+      xAxis: {
+        type: 'value',
+        minInterval: 1,
+        splitLine: { lineStyle: { color: '#eef2f7' } },
+        axisLabel: { color: '#6b7280' }
+      },
+      yAxis: {
+        type: 'category',
+        inverse: true,
+        data: topSongs.map(s => s.title),
+        axisTick: { show: false },
+        axisLine: { show: false },
+        axisLabel: {
+          color: '#374151',
+          fontWeight: 700,
+          width: 112,
+          overflow: 'truncate'
+        }
+      },
       series: [
         {
           name: '收藏数',
           type: 'bar',
-          barWidth: '40%',
-          itemStyle: { 
-            borderRadius: [4, 4, 0, 0], 
-            // 极其炫酷的蓝蓝渐变色
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#83bff6' }, { offset: 1, color: '#188df0' }]) 
+          barWidth: 22,
+          label: {
+            show: true,
+            position: 'right',
+            color: '#475569',
+            fontWeight: 800
           },
-          data: dashboardData.value.topSongs?.map(s => s.likes) || []
+          itemStyle: { 
+            borderRadius: [0, 12, 12, 0], 
+            // 极其炫酷的蓝蓝渐变色
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#83bff6' }, { offset: 1, color: '#188df0' }]) 
+          },
+          data: topSongs.map(s => s.likes)
         }
       ]
     })
