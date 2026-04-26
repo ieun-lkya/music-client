@@ -48,14 +48,15 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Key, Lock, MagicStick, Monitor, User } from '@element-plus/icons-vue'
 import { loginAPI, registerAPI } from '../api/modules/auth'
 import { useMusicStore } from '../store/music'
 
 const router = useRouter()
+const route = useRoute()
 const musicStore = useMusicStore()
 const activeRole = ref('user')
 const isRegisterMode = ref(false)
@@ -112,13 +113,22 @@ const handleAdminLogin = () => {
     if (adminForm.username === 'admin' && adminForm.password === '123456') {
       ElMessage.success('管理员身份校验通过')
       localStorage.setItem('admin_token', 'super_admin_secret')
-      router.push('/admin')
+      localStorage.removeItem('echo_token')
+      localStorage.removeItem('echo_user')
+      musicStore.currentUser = null
+      router.push(route.query.redirect || '/admin')
     } else {
       ElMessage.error('管理员账号或密码错误')
     }
     loading.value = false
   }, 600)
 }
+
+onMounted(() => {
+  if (route.query.role === 'admin') {
+    activeRole.value = 'admin'
+  }
+})
 </script>
 
 <style scoped>

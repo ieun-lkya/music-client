@@ -9,8 +9,13 @@ const request = axios.create({
 
 request.interceptors.request.use(
   (config) => {
+    const isAdminRequest = String(config.url || '').startsWith('/admin')
+    const adminToken = localStorage.getItem('admin_token')
     const token = localStorage.getItem('echo_token')
-    if (token && token !== 'undefined' && token !== 'null') {
+
+    if (isAdminRequest && adminToken && adminToken !== 'undefined' && adminToken !== 'null') {
+      config.headers['X-Admin-Token'] = adminToken
+    } else if (token && token !== 'undefined' && token !== 'null') {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
@@ -30,10 +35,17 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      ElMessage.error('登录状态已失效，请重新登录')
-      localStorage.removeItem('echo_user')
-      localStorage.removeItem('echo_token')
-      router.push('/login')
+      const isAdminRequest = String(error.config?.url || '').startsWith('/admin')
+      if (isAdminRequest) {
+        ElMessage.error('管理员登录已失效，请重新登录')
+        localStorage.removeItem('admin_token')
+        router.push({ path: '/login', query: { role: 'admin' } })
+      } else {
+        ElMessage.error('登录状态已失效，请重新登录')
+        localStorage.removeItem('echo_user')
+        localStorage.removeItem('echo_token')
+        router.push('/login')
+      }
     } else if (error.response) {
       ElMessage.error(error.response.data?.msg || '网络繁忙，请稍后再试')
     } else {

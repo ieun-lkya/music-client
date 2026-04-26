@@ -3,6 +3,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 const HomeView = () => import('../views/HomeView.vue')
 const LoginView = () => import('../views/LoginView.vue')
 const AdminView = () => import('../views/AdminView.vue')
+const ADMIN_TOKEN = 'super_admin_secret'
+
+const hasValidAdminToken = () => localStorage.getItem('admin_token') === ADMIN_TOKEN
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,9 +32,9 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   // 1. 如果去的是后台 (/admin)，检查管理员令牌
   if (to.path.startsWith('/admin')) {
-    const adminToken = localStorage.getItem('admin_token')
-    if (!adminToken) {
-      return next('/login') // 没令牌，打回登录页
+    if (!hasValidAdminToken()) {
+      localStorage.removeItem('admin_token')
+      return next({ path: '/login', query: { role: 'admin', redirect: to.fullPath } })
     }
   }
   

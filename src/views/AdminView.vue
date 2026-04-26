@@ -25,6 +25,10 @@
       <header class="top-header">
         <h2>{{ currentTab === 'dashboard' ? '📊 核心数据看板' : currentTab === 'publish' ? '🚀 音乐发布中心' : '🎵 全站曲库管理' }}</h2>
         <div class="admin-info">
+          <el-button size="small" plain @click="refreshCurrentTab" :loading="currentTab === 'dashboard' ? isDashboardLoading : tableLoading">
+            刷新当前页
+          </el-button>
+          <el-tag type="success" effect="plain">在线</el-tag>
           <span>超级管理员</span>
           <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
         </div>
@@ -32,7 +36,7 @@
 
       <div class="content-wrapper">
         
-        <div v-show="currentTab === 'dashboard'" class="dashboard-container fade-in">
+        <div v-show="currentTab === 'dashboard'" class="dashboard-container fade-in" v-loading="isDashboardLoading">
           <el-row :gutter="20" class="stat-cards">
             <el-col :span="8">
               <el-card shadow="hover" class="stat-card data-card-1">
@@ -142,7 +146,19 @@
 
         <div v-show="currentTab === 'manage'" class="manage-container fade-in">
           <el-card shadow="never" class="table-card">
-            <el-table :data="musicList" stripe style="width: 100%" v-loading="tableLoading" height="600">
+            <div class="manage-toolbar">
+              <div>
+                <div class="toolbar-title">曲库歌曲</div>
+                <div class="toolbar-subtitle">共 {{ musicList.length }} 首，当前筛选 {{ filteredMusicList.length }} 首</div>
+              </div>
+              <el-input
+                v-model="musicSearchKeyword"
+                clearable
+                placeholder="按歌名、歌手或标签搜索"
+                class="manage-search"
+              />
+            </div>
+            <el-table :data="filteredMusicList" stripe style="width: 100%" v-loading="tableLoading" height="600" empty-text="没有匹配的歌曲">
               <el-table-column label="封面" width="90">
                 <template #default="scope">
                   <el-image :src="scope.row.coverUrl" style="width: 50px; height: 50px; border-radius: 6px;" fit="cover" />
@@ -246,7 +262,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Monitor, DataLine, UploadFilled, List, SwitchButton, Plus, Edit, Delete, MagicStick, Picture, Document, Headset } from '@element-plus/icons-vue'
@@ -272,10 +288,14 @@ const switchTab = (tab) => {
 
 // ================= 大屏逻辑 (Echarts 满血复活) =================
 const dashboardData = ref({ userCount: 0, musicCount: 0, likeCount: 0, tagDistribution: [], topSongs: [] })
+const isDashboardLoading = ref(false)
 const pieChartRef = ref(null)
 const barChartRef = ref(null)
+let pieChartInstance = null
+let barChartInstance = null
 
 const fetchDashboardData = async () => {
+  isDashboardLoading.value = true
   try {
     const res = await getDashboardDataAPI()
     dashboardData.value = res || dashboardData.value
@@ -297,14 +317,18 @@ const fetchDashboardData = async () => {
     }
     await nextTick()
     initCharts()
+  } finally {
+    isDashboardLoading.value = false
   }
 }
 
 // 🚀 找回灵魂的大厂级 Echarts 渲染配置！
 const initCharts = () => {
   if (pieChartRef.value) {
-    const pieChart = echarts.init(pieChartRef.value)
-    pieChart.setOption({
+    if (!pieChartInstance) {
+      pieChartInstance = echarts.init(pieChartRef.value)
+    }
+    pieChartInstance.setOption({
       tooltip: { trigger: 'item' },
       legend: { top: 'bottom' },
       series: [
@@ -320,8 +344,10 @@ const initCharts = () => {
   }
 
   if (barChartRef.value) {
-    const barChart = echarts.init(barChartRef.value)
-    barChart.setOption({
+    if (!barChartInstance) {
+      barChartInstance = echarts.init(barChartRef.value)
+    }
+    barChartInstance.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: { type: 'category', data: dashboardData.value.topSongs?.map(s => s.title) || [], axisTick: { alignWithLabel: true } },
@@ -341,6 +367,11 @@ const initCharts = () => {
       ]
     })
   }
+}
+
+const resizeCharts = () => {
+  pieChartInstance?.resize()
+  barChartInstance?.resize()
 }
 
 // ================= 发布中心逻辑 =================
@@ -433,6 +464,16 @@ const submitMusic = async () => {
 // ================= 曲库管理与编辑逻辑 =================
 const musicList = ref([])
 const tableLoading = ref(false)
+const musicSearchKeyword = ref('')
+const filteredMusicList = computed(() => {
+  const keyword = musicSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) return musicList.value
+  return musicList.value.filter(item => {
+    return [item.title, item.artist, item.tags]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(keyword))
+  })
+})
 
 const fetchMusicList = async () => {
   tableLoading.value = true
@@ -510,7 +551,22 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-onMounted(() => { fetchDashboardData() })
+const refreshCurrentTab = () => {
+  if (currentTab.value === 'dashboard') return fetchDashboardData()
+  if (currentTab.value === 'manage') return fetchMusicList()
+  ElMessage.info('发布中心无需刷新，填写内容会保留')
+}
+
+onMounted(() => {
+  fetchDashboardData()
+  window.addEventListener('resize', resizeCharts)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', resizeCharts)
+  pieChartInstance?.dispose()
+  barChartInstance?.dispose()
+})
 
 // ================= 🚀 核心：极其严苛的标签词库白名单 =================
 const VALID_TAGS = ["流行","摇滚","民谣","电子","纯音乐","伤感","治愈","励志","轻松","助眠","运动","驾车","雨天","深夜","咖啡馆","工作学习","华语","欧美","日韩","怀旧","爱情","浪漫","节奏控","古风","经典"]
@@ -566,6 +622,26 @@ const validateAndFormatTags = (tagStr) => {
 
 /* 曲库管理表格 */
 .table-card { border-radius: 12px; }
+.manage-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.toolbar-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+.toolbar-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+.manage-search {
+  width: 320px;
+}
 :deep(.el-table th) { background-color: #f9fafb !important; color: #374151; font-weight: 600; }
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) { background-color: #fdfdfd; }
 
